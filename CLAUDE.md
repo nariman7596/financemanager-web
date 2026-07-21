@@ -59,4 +59,13 @@ settings, categories, multi-currency, seed data.
    just needs a toggle + `dark:` styles.
 
 ## Branch
-Develop on `claude/financial-app-design-x39nuq`.
+Develop on `claude/financial-app-design-x39nuq` (this is the repo's default branch).
+
+## On return — open loop
+- **Verify Dependabot alert #1 closed.** The postcss fix (override → 8.5.21,
+  `npm audit` = 0 vulnerabilities) is already committed + pushed to the default
+  branch. Dependabot auto-closes on its next scan (minutes–hours). Check:
+  https://github.com/nariman7596/financemanager/security/dependabot/1 — expect
+  "Closed · fixed". Nothing to do unless it's still open.
+- Everything else through the postcss fix is committed and pushed; working tree
+  clean. Pick up from the "WHERE TO CONTINUE" list above.
