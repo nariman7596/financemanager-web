@@ -1,0 +1,158 @@
+// FinanceManager data model
+// ---------------------------------------------------------------------------
+// Dev uses SQLite (zero setup). To move to Postgres for production:
+//   1. change `provider` below to "postgresql"
+//   2. set DATABASE_URL to your Postgres connection string
+//   3. run `npm run db:migrate`
+// Note: SQLite has no native enums, so "enum-like" fields are stored as
+// strings and validated in the app layer (see src/lib/constants.ts + zod).
+// ---------------------------------------------------------------------------
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id           String   @id @default(cuid())
+  email        String   @unique
+  name         String?
+  passwordHash String
+  baseCurrency String   @default("USD") // display/reporting currency
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  accounts     Account[]
+  categories   Category[]
+  transactions Transaction[]
+  budgets      Budget[]
+  investments  Investment[]
+}
+
+// A place money lives: checking, savings, cash, credit card, etc.
+model Account {
+  id             String   @id @default(cuid())
+  userId         String
+  name           String
+  type           String   @default("CHECKING") // CHECKING | SAVINGS | CASH | CREDIT_CARD | INVESTMENT | OTHER
+  currency       String   @default("USD")
+  openingBalance Decimal  @default(0)
+  isArchived     Boolean  @default(false)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  user                 User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  transactions         Transaction[] @relation("AccountTransactions")
+  transferTransactions Transaction[] @relation("TransferAccount")
+  investments          Investment[]
+
+  @@index([userId])
+}
+
+// User-defined income / expense category.
+model Category {
+  id         String   @id @default(cuid())
+  userId     String
+  name       String
+  type       String   @default("EXPENSE") // INCOME | EXPENSE
+  color      String   @default("#328eff")
+  icon       String?
+  isArchived Boolean  @default(false)
+  createdAt  DateTime @default(now())
+
+  user         User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  transactions Transaction[]
+  budgets      Budget[]
+
+  @@unique([userId, name, type])
+  @@index([userId])
+}
+
+// A single money movement.
+model Transaction {
+  id          String   @id @default(cuid())
+  userId      String
+  accountId   String
+  categoryId  String?
+  type        String   @default("EXPENSE") // INCOME | EXPENSE | TRANSFER
+  amount      Decimal // always positive; `type` gives the direction
+  currency    String   @default("USD")
+  date        DateTime @default(now())
+  description String?
+  notes       String?
+
+  // Recurrence (a template flag; a scheduler/cron can materialize future ones)
+  isRecurring Boolean @default(false)
+  recurrence  String? // DAILY | WEEKLY | MONTHLY | YEARLY
+
+  // For TRANSFER: the destination account
+  transferAccountId String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user            User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  account         Account   @relation("AccountTransactions", fields: [accountId], references: [id], onDelete: Cascade)
+  transferAccount Account?  @relation("TransferAccount", fields: [transferAccountId], references: [id])
+  category        Category? @relation(fields: [categoryId], references: [id])
+
+  @@index([userId, date])
+  @@index([accountId])
+  @@index([categoryId])
+}
+
+// Monthly/weekly/yearly spending target for a category.
+model Budget {
+  id         String   @id @default(cuid())
+  userId     String
+  categoryId String
+  amount     Decimal
+  currency   String   @default("USD")
+  period     String   @default("MONTHLY") // WEEKLY | MONTHLY | YEARLY
+  startDate  DateTime @default(now())
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  category Category @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, categoryId, period])
+  @@index([userId])
+}
+
+// An investment holding: stock, crypto, ETF, etc.
+model Investment {
+  id           String   @id @default(cuid())
+  userId       String
+  accountId    String?
+  symbol       String
+  name         String
+  type         String   @default("STOCK") // STOCK | ETF | CRYPTO | BOND | REAL_ESTATE | CASH | OTHER
+  quantity     Decimal
+  costBasis    Decimal // total amount originally paid (in `currency`)
+  currentPrice Decimal  @default(0) // price per unit; refreshable via an API later
+  currency     String   @default("USD")
+  purchaseDate DateTime @default(now())
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  user    User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  account Account? @relation(fields: [accountId], references: [id])
+
+  @@index([userId])
+}
+
+// Exchange rate cache for multi-currency conversion (quote per 1 base).
+model ExchangeRate {
+  id     String   @id @default(cuid())
+  base   String // e.g. "USD"
+  quote  String // e.g. "EUR"
+  rate   Decimal
+  asOf   DateTime @default(now())
+
+  @@unique([base, quote])
+}
