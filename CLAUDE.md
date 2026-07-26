@@ -42,21 +42,38 @@ via `src/lib/defaults.ts`.
 ## Status — foundation complete & verified
 Production build passes; all routes smoke-tested (200) with demo data.
 Done: auth, accounts, transactions (add/**edit**/delete), budgets, investments,
-dashboard, settings, categories, multi-currency, seed data.
+dashboard, settings, categories, multi-currency, seed data, **live data refresh**.
+
+## Live market data (`src/lib/marketdata.ts`)
+- Keyless defaults: FX via open.er-api.com (USD-based), crypto via CoinGecko.
+  Stocks optional via `STOCK_API_KEY` (Finnhub). All URLs overridable by env.
+- `refreshAll(userId?)` → `refreshFxRates` (stores USD->X for all supported
+  currencies; conversions triangulate through USD) + `refreshInvestmentPrices`
+  (crypto by symbol→CoinGecko-id map; only USD-priced holdings auto-update).
+- Triggers: in-app **Refresh** button (`RefreshButton` → `refreshMarketData`
+  action, on Investments page) and scheduled `GET/POST /api/cron/refresh`
+  (guarded by `CRON_SECRET`; refreshes all users). Both fail gracefully — a
+  provider outage returns an error summary and leaves existing data intact.
+- NOTE: this sandbox's network policy BLOCKS those public API hosts (proxy 403),
+  so the live fetch can't run here; verified end-to-end against a localhost mock
+  (fetch→parse→store→update all correct) + graceful-failure + cron auth gating.
 
 ## WHERE TO CONTINUE (next steps, prioritized)
-1. **Live data refresh** — pull real FX rates + stock/crypto prices from an API
-   on a schedule (rates now manual/seeded). Store into `ExchangeRate` /
-   `Investment.currentPrice`.
-2. **Recurring auto-posting** — `Transaction.isRecurring/recurrence` are stored
-   but nothing materializes future entries yet; needs a cron/scheduled job.
-3. **CSV import/export** and bank sync.
-4. **Shared household budgets** & per-member roles (multi-user is built; roles
+1. **Recurring auto-posting** — `Transaction.isRecurring/recurrence` are stored
+   but nothing materializes future entries yet; needs a cron/scheduled job
+   (can reuse the `/api/cron` pattern from the refresh route).
+2. **CSV import/export** and bank sync.
+3. **Shared household budgets** & per-member roles (multi-user is built; roles
    are not).
-5. **Dark mode** — theme scaffolding (`darkMode: "class"`, CSS vars) is in place;
+4. **Dark mode** — theme scaffolding (`darkMode: "class"`, CSS vars) is in place;
    just needs a toggle + `dark:` styles.
+5. **Stock symbol→id coverage** — `CRYPTO_IDS` map in marketdata.ts is a small
+   starter; extend, or swap to a lookup API.
 
 ## Recently done
+- **Live data refresh** (this commit): FX + investment price refresh via
+  keyless APIs, in-app button + `/api/cron/refresh` scheduled endpoint,
+  configurable providers, graceful failure. See "Live market data" above.
 - **Edit transactions** (commit `bac98de`): `updateTransaction` action +
   edit mode in `TransactionForm` + per-row Edit button. Ownership-scoped,
   verified persisting.

@@ -100,12 +100,27 @@ Passwords are hashed with `bcryptjs`. `src/middleware.ts` guards the app routes.
 4. Set a strong `AUTH_SECRET`.
 5. Deploy (e.g. Vercel + a hosted Postgres like Neon/Supabase).
 
+## Live market data
+
+FX rates and investment prices can refresh from public APIs (keyless by
+default: open.er-api.com for FX, CoinGecko for crypto; stocks optional via a
+Finnhub `STOCK_API_KEY`). Two ways to trigger it:
+
+- **In-app** — the **Refresh** button on the Investments page (updates FX +
+  your holdings' prices).
+- **Scheduled** — point a cron job at `GET /api/cron/refresh`, protected by
+  `CRON_SECRET` (refreshes every user):
+  ```bash
+  curl -H "Authorization: Bearer $CRON_SECRET" https://your-app/api/cron/refresh
+  ```
+
+Provider hosts and keys are configured in `.env` (see `.env.example`). Refreshes
+fail gracefully — a provider outage leaves existing rates/prices untouched.
+
 ## Roadmap ideas
 
-- Live FX + stock/crypto price refresh (background job)
-- Recurring-transaction auto-posting (cron)
+- Recurring-transaction auto-posting (cron — reuse the `/api/cron` pattern)
 - CSV import/export & bank sync
-- Editing transactions (currently add/delete)
 - Shared household budgets & per-member roles
 - Dark mode (the theme scaffolding is already in place)
 

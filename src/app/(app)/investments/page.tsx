@@ -2,10 +2,12 @@ import { Plus } from "lucide-react";
 import { requireUser } from "@/lib/auth";
 import { getBaseCurrency, getInvestments } from "@/lib/queries";
 import { sumInCurrency } from "@/lib/currency";
-import { formatMoney, cn } from "@/lib/utils";
+import { getFxAsOf } from "@/lib/marketdata";
+import { formatMoney, formatDate, cn } from "@/lib/utils";
 import { Topbar } from "@/components/Topbar";
 import { Modal } from "@/components/Modal";
 import { StatCard } from "@/components/StatCard";
+import { RefreshButton } from "@/components/RefreshButton";
 import { InvestmentForm } from "@/components/forms/InvestmentForm";
 import { DeleteButton } from "@/components/DeleteButton";
 import { PriceForm } from "@/components/forms/PriceForm";
@@ -17,6 +19,7 @@ export default async function InvestmentsPage() {
   const user = await requireUser();
   const base = await getBaseCurrency(user.userId);
   const holdings = await getInvestments(user.userId);
+  const fxAsOf = await getFxAsOf();
 
   const [totalValue, totalCost] = await Promise.all([
     sumInCurrency(holdings.map((h) => ({ amount: h.value, currency: h.currency })), base),
@@ -31,12 +34,15 @@ export default async function InvestmentsPage() {
         title="Investments"
         subtitle="Your portfolio"
         action={
-          <Modal
-            title="New holding"
-            trigger={<button className="btn-primary"><Plus size={18} /> Add</button>}
-          >
-            <InvestmentForm defaultCurrency={base} />
-          </Modal>
+          <div className="flex items-center gap-3">
+            <RefreshButton asOf={fxAsOf ? formatDate(fxAsOf) : null} />
+            <Modal
+              title="New holding"
+              trigger={<button className="btn-primary"><Plus size={18} /> Add</button>}
+            >
+              <InvestmentForm defaultCurrency={base} />
+            </Modal>
+          </div>
         }
       />
 
