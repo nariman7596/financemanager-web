@@ -2,18 +2,33 @@
 
 import { useState } from "react";
 import { useFormStatus } from "react-dom";
-import { createTransaction } from "@/app/actions/transactions";
+import { createTransaction, updateTransaction } from "@/app/actions/transactions";
 import { useCloseModal } from "@/components/Modal";
 import { TRANSACTION_TYPES, RECURRENCES, CURRENCIES } from "@/lib/constants";
 
 type Account = { id: string; name: string; currency: string };
 type Category = { id: string; name: string; type: string };
 
-function Submit() {
+// Plain, serializable shape passed from the (server) page when editing.
+export type EditableTransaction = {
+  id: string;
+  type: string;
+  accountId: string;
+  categoryId: string | null;
+  transferAccountId: string | null;
+  amount: number;
+  currency: string;
+  date: string; // yyyy-mm-dd
+  description: string | null;
+  isRecurring: boolean;
+  recurrence: string | null;
+};
+
+function Submit({ label }: { label: string }) {
   const { pending } = useFormStatus();
   return (
     <button type="submit" className="btn-primary w-full" disabled={pending}>
-      {pending ? "Saving…" : "Add transaction"}
+      {pending ? "Saving…" : label}
     </button>
   );
 }
@@ -21,14 +36,17 @@ function Submit() {
 export function TransactionForm({
   accounts,
   categories,
+  transaction,
 }: {
   accounts: Account[];
   categories: Category[];
+  transaction?: EditableTransaction;
 }) {
+  const isEdit = !!transaction;
   const close = useCloseModal();
-  const [type, setType] = useState<string>("EXPENSE");
+  const [type, setType] = useState<string>(transaction?.type ?? "EXPENSE");
   const [error, setError] = useState<string | null>(null);
-  const [recurring, setRecurring] = useState(false);
+  const [recurring, setRecurring] = useState(transaction?.isRecurring ?? false);
 
   const today = new Date().toISOString().slice(0, 10);
   const relevantCategories = categories.filter((c) =>
@@ -37,13 +55,17 @@ export function TransactionForm({
 
   async function action(formData: FormData) {
     setError(null);
-    const res = await createTransaction(formData);
+    const res = isEdit
+      ? await updateTransaction(formData)
+      : await createTransaction(formData);
     if (res?.error) setError(res.error);
     else close();
   }
 
   return (
     <form action={action} className="space-y-4">
+      {isEdit && <input type="hidden" name="id" value={transaction.id} />}
+
       <div className="grid grid-cols-3 gap-2">
         {TRANSACTION_TYPES.map((t) => (
           <label
@@ -61,11 +83,11 @@ export function TransactionForm({
       <div className="grid grid-cols-2 gap-3">
         <div>
           <label className="label">Amount</label>
-          <input name="amount" type="number" step="0.01" min="0" required className="input" placeholder="0.00" />
+          <input name="amount" type="number" step="0.01" min="0" required className="input" placeholder="0.00" defaultValue={transaction?.amount} />
         </div>
         <div>
           <label className="label">Currency</label>
-          <select name="currency" className="input" defaultValue={accounts[0]?.currency ?? "USD"}>
+          <select name="currency" className="input" defaultValue={transaction?.currency ?? accounts[0]?.currency ?? "USD"}>
             {CURRENCIES.map((c) => (
               <option key={c.code} value={c.code}>{c.code}</option>
             ))}
@@ -75,7 +97,7 @@ export function TransactionForm({
 
       <div>
         <label className="label">{type === "TRANSFER" ? "From account" : "Account"}</label>
-        <select name="accountId" required className="input">
+        <select name="accountId" required className="input" defaultValue={transaction?.accountId}>
           {accounts.map((a) => (
             <option key={a.id} value={a.id}>{a.name} ({a.currency})</option>
           ))}
@@ -85,7 +107,7 @@ export function TransactionForm({
       {type === "TRANSFER" ? (
         <div>
           <label className="label">To account</label>
-          <select name="transferAccountId" required className="input">
+          <select name="transferAccountId" required className="input" defaultValue={transaction?.transferAccountId ?? ""}>
             {accounts.map((a) => (
               <option key={a.id} value={a.id}>{a.name} ({a.currency})</option>
             ))}
@@ -94,7 +116,7 @@ export function TransactionForm({
       ) : (
         <div>
           <label className="label">Category</label>
-          <select name="categoryId" className="input">
+          <select name="categoryId" className="input" defaultValue={transaction?.categoryId ?? ""}>
             <option value="">Uncategorized</option>
             {relevantCategories.map((c) => (
               <option key={c.id} value={c.id}>{c.name}</option>
@@ -106,11 +128,11 @@ export function TransactionForm({
       <div className="grid grid-cols-2 gap-3">
         <div>
           <label className="label">Date</label>
-          <input name="date" type="date" required defaultValue={today} className="input" />
+          <input name="date" type="date" required defaultValue={transaction?.date ?? today} className="input" />
         </div>
         <div>
           <label className="label">Description</label>
-          <input name="description" className="input" placeholder="Optional" />
+          <input name="description" className="input" placeholder="Optional" defaultValue={transaction?.description ?? ""} />
         </div>
       </div>
 
@@ -119,7 +141,7 @@ export function TransactionForm({
         Recurring
       </label>
       {recurring && (
-        <select name="recurrence" className="input" defaultValue="MONTHLY">
+        <select name="recurrence" className="input" defaultValue={transaction?.recurrence ?? "MONTHLY"}>
           {RECURRENCES.map((r) => (
             <option key={r} value={r}>{r.toLowerCase()}</option>
           ))}
@@ -127,7 +149,7 @@ export function TransactionForm({
       )}
 
       {error && <p className="text-sm text-red-600 bg-red-50 rounded-lg px-3 py-2">{error}</p>}
-      <Submit />
+      <Submit label={isEdit ? "Save changes" : "Add transaction"} />
     </form>
   );
 }

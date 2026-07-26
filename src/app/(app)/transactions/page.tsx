@@ -1,4 +1,4 @@
-import { Plus } from "lucide-react";
+import { Plus, Pencil } from "lucide-react";
 import { requireUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { formatMoney, formatDate, toNumber } from "@/lib/utils";
@@ -101,8 +101,40 @@ export default async function TransactionsPage() {
                     >
                       {sign} {formatMoney(amt, t.currency)}
                     </td>
-                    <td className="px-2 py-3 text-right">
-                      <DeleteButton action={deleteTransaction} id={t.id} />
+                    <td className="px-2 py-3">
+                      <div className="flex items-center justify-end gap-0.5">
+                        <Modal
+                          title="Edit transaction"
+                          trigger={
+                            <button
+                              className="btn-ghost p-1.5 text-slate-400 hover:text-brand-600 hover:bg-brand-50"
+                              aria-label="Edit transaction"
+                              title="Edit"
+                            >
+                              <Pencil size={16} />
+                            </button>
+                          }
+                        >
+                          <TransactionForm
+                            accounts={accounts}
+                            categories={categories}
+                            transaction={{
+                              id: t.id,
+                              type: t.type,
+                              accountId: t.accountId,
+                              categoryId: t.categoryId,
+                              transferAccountId: t.transferAccountId,
+                              amount: toNumber(t.amount),
+                              currency: t.currency,
+                              date: t.date.toISOString().slice(0, 10),
+                              description: t.description,
+                              isRecurring: t.isRecurring,
+                              recurrence: t.recurrence,
+                            }}
+                          />
+                        </Modal>
+                        <DeleteButton action={deleteTransaction} id={t.id} />
+                      </div>
                     </td>
                   </tr>
                 );
