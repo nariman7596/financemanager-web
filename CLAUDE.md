@@ -42,7 +42,22 @@ via `src/lib/defaults.ts`.
 ## Status — foundation complete & verified
 Production build passes; all routes smoke-tested (200) with demo data.
 Done: auth, accounts, transactions (add/**edit**/delete), budgets, investments,
-dashboard, settings, categories, multi-currency, seed data, **live data refresh**.
+dashboard, settings, categories, multi-currency, seed data, **live data
+refresh**, **recurring auto-posting**.
+
+## Recurring auto-posting (`src/lib/recurring.ts`)
+- `RecurringTransaction` model = a rule/template (type, account(s), category,
+  amount, currency, frequency, interval, startDate, nextRunDate, endDate?,
+  isActive). Generated `Transaction`s link back via `Transaction.recurringId`.
+- `postDueRecurring(userId?, asOf)` materializes every due occurrence, catching
+  up if behind (capped at 366/rule), advances `nextRunDate`, and deactivates a
+  rule once past `endDate`. Idempotent (re-running posts nothing new).
+- Triggers: `/recurring` page (add/pause/resume/delete + **Run due now**) and
+  scheduled `GET/POST /api/cron/recurring` (guarded by `CRON_SECRET`, all users).
+  Creating a rule auto-posts anything already due.
+- The one-off `TransactionForm` no longer has a recurring checkbox (it did
+  nothing); recurrence is now this dedicated feature. `Transaction.isRecurring/
+  recurrence` columns remain but are unused/legacy.
 
 ## Live market data (`src/lib/marketdata.ts`)
 - Keyless defaults: FX via open.er-api.com (USD-based), crypto via CoinGecko.
@@ -59,21 +74,23 @@ dashboard, settings, categories, multi-currency, seed data, **live data refresh*
   (fetch→parse→store→update all correct) + graceful-failure + cron auth gating.
 
 ## WHERE TO CONTINUE (next steps, prioritized)
-1. **Recurring auto-posting** — `Transaction.isRecurring/recurrence` are stored
-   but nothing materializes future entries yet; needs a cron/scheduled job
-   (can reuse the `/api/cron` pattern from the refresh route).
-2. **CSV import/export** and bank sync.
-3. **Shared household budgets** & per-member roles (multi-user is built; roles
+1. **CSV import/export** and bank sync.
+2. **Shared household budgets** & per-member roles (multi-user is built; roles
    are not).
-4. **Dark mode** — theme scaffolding (`darkMode: "class"`, CSS vars) is in place;
+3. **Dark mode** — theme scaffolding (`darkMode: "class"`, CSS vars) is in place;
    just needs a toggle + `dark:` styles.
-5. **Stock symbol→id coverage** — `CRYPTO_IDS` map in marketdata.ts is a small
+4. **Stock symbol→id coverage** — `CRYPTO_IDS` map in marketdata.ts is a small
    starter; extend, or swap to a lookup API.
+5. **Edit recurring rules** — currently add/pause/delete (no edit form yet).
 
 ## Recently done
-- **Live data refresh** (this commit): FX + investment price refresh via
-  keyless APIs, in-app button + `/api/cron/refresh` scheduled endpoint,
-  configurable providers, graceful failure. See "Live market data" above.
+- **Recurring auto-posting** (this commit): `RecurringTransaction` model +
+  `postDueRecurring` engine (catch-up, endDate stop, idempotent) + `/recurring`
+  page + `/api/cron/recurring`. Verified: backfill (4 posts), endDate
+  deactivation (3 posts), future/not-due (0), user-scoped, idempotent.
+- **Live data refresh**: FX + investment price refresh via keyless APIs, in-app
+  button + `/api/cron/refresh` endpoint, configurable providers, graceful
+  failure. See "Live market data" above.
 - **Edit transactions** (commit `bac98de`): `updateTransaction` action +
   edit mode in `TransactionForm` + per-row Edit button. Ownership-scoped,
   verified persisting.

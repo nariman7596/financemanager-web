@@ -128,8 +128,6 @@ export default async function TransactionsPage() {
                               currency: t.currency,
                               date: t.date.toISOString().slice(0, 10),
                               description: t.description,
-                              isRecurring: t.isRecurring,
-                              recurrence: t.recurrence,
                             }}
                           />
                         </Modal>

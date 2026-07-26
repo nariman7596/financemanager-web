@@ -117,9 +117,22 @@ Finnhub `STOCK_API_KEY`). Two ways to trigger it:
 Provider hosts and keys are configured in `.env` (see `.env.example`). Refreshes
 fail gracefully — a provider outage leaves existing rates/prices untouched.
 
+## Recurring transactions
+
+Set up rules (salary, rent, subscriptions…) on the **Recurring** page and they
+auto-post real transactions on schedule — daily/weekly/monthly/yearly, every N
+units, with an optional end date. Rules catch up if a run was missed, and stop
+automatically once past their end date. Post due ones two ways:
+
+- **In-app** — the **Run due now** button on the Recurring page.
+- **Scheduled** — point a cron job at `GET /api/cron/recurring` (protected by
+  `CRON_SECRET`, posts for every user):
+  ```bash
+  curl -H "Authorization: Bearer $CRON_SECRET" https://your-app/api/cron/recurring
+  ```
+
 ## Roadmap ideas
 
-- Recurring-transaction auto-posting (cron — reuse the `/api/cron` pattern)
 - CSV import/export & bank sync
 - Shared household budgets & per-member roles
 - Dark mode (the theme scaffolding is already in place)

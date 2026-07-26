@@ -82,3 +82,30 @@ export const settingsSchema = z.object({
   name: z.string().trim().min(1).max(80),
   baseCurrency: currency,
 });
+
+export const recurringSchema = z
+  .object({
+    type: z.enum(TRANSACTION_TYPES),
+    accountId: z.string().min(1, "Choose an account"),
+    categoryId: z.string().optional().nullable(),
+    transferAccountId: z.string().optional().nullable(),
+    amount: positiveAmount,
+    currency,
+    description: z.string().trim().max(200).optional().nullable(),
+    frequency: z.enum(RECURRENCES),
+    interval: z.coerce.number().int().min(1).max(365).default(1),
+    startDate: z.coerce.date(),
+    endDate: z.coerce.date().optional().nullable(),
+  })
+  .refine((d) => d.type !== "TRANSFER" || !!d.transferAccountId, {
+    message: "Transfers need a destination account",
+    path: ["transferAccountId"],
+  })
+  .refine((d) => d.type === "TRANSFER" || d.accountId !== d.transferAccountId, {
+    message: "Source and destination must differ",
+    path: ["transferAccountId"],
+  })
+  .refine((d) => !d.endDate || d.endDate >= d.startDate, {
+    message: "End date must be after the start date",
+    path: ["endDate"],
+  });

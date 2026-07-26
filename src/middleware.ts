@@ -8,6 +8,7 @@ import { verifySessionToken, SESSION_COOKIE_NAME } from "@/lib/jwt";
 const PROTECTED_PREFIXES = [
   "/dashboard",
   "/transactions",
+  "/recurring",
   "/budgets",
   "/investments",
   "/accounts",
