@@ -1,10 +1,11 @@
-import { Plus, Pencil } from "lucide-react";
+import { Plus, Pencil, Download, Upload } from "lucide-react";
 import { requireUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { formatMoney, formatDate, toNumber } from "@/lib/utils";
 import { Topbar } from "@/components/Topbar";
 import { Modal } from "@/components/Modal";
 import { TransactionForm } from "@/components/forms/TransactionForm";
+import { ImportForm } from "@/components/forms/ImportForm";
 import { DeleteButton } from "@/components/DeleteButton";
 import { deleteTransaction } from "@/app/actions/transactions";
 import { cn } from "@/lib/utils";
@@ -39,14 +40,35 @@ export default async function TransactionsPage() {
         title="Transactions"
         subtitle={`${transactions.length} most recent`}
         action={
-          accounts.length > 0 ? (
+          <div className="flex items-center gap-2">
+            {transactions.length > 0 && (
+              <a
+                href="/api/export/transactions"
+                className="btn-ghost border border-[var(--border)]"
+                title="Export all transactions as CSV"
+              >
+                <Download size={16} /> Export
+              </a>
+            )}
             <Modal
-              title="New transaction"
-              trigger={<button className="btn-primary"><Plus size={18} /> Add</button>}
+              title="Import transactions"
+              trigger={
+                <button className="btn-ghost border border-[var(--border)]">
+                  <Upload size={16} /> Import
+                </button>
+              }
             >
-              <TransactionForm accounts={accounts} categories={categories} />
+              <ImportForm />
             </Modal>
-          ) : null
+            {accounts.length > 0 && (
+              <Modal
+                title="New transaction"
+                trigger={<button className="btn-primary"><Plus size={18} /> Add</button>}
+              >
+                <TransactionForm accounts={accounts} categories={categories} />
+              </Modal>
+            )}
+          </div>
         }
       />
 

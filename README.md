@@ -131,9 +131,23 @@ automatically once past their end date. Post due ones two ways:
   curl -H "Authorization: Bearer $CRON_SECRET" https://your-app/api/cron/recurring
   ```
 
+## Import / export (CSV)
+
+On the **Transactions** page:
+
+- **Export** downloads all your transactions as CSV.
+- **Import** uploads a CSV. Columns (header row required):
+  ```
+  date, type, amount, currency, account, category, transferAccount, description
+  ```
+  `date` is `YYYY-MM-DD`; `type` is INCOME / EXPENSE / TRANSFER (default
+  EXPENSE). Unknown accounts and categories are created automatically, invalid
+  rows are skipped and reported, and a file exported from here re-imports
+  cleanly.
+
 ## Roadmap ideas
 
-- CSV import/export & bank sync
+- Automated bank sync (e.g. Plaid)
 - Shared household budgets & per-member roles
 - Dark mode (the theme scaffolding is already in place)
 

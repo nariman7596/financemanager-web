@@ -43,7 +43,19 @@ via `src/lib/defaults.ts`.
 Production build passes; all routes smoke-tested (200) with demo data.
 Done: auth, accounts, transactions (add/**edit**/delete), budgets, investments,
 dashboard, settings, categories, multi-currency, seed data, **live data
-refresh**, **recurring auto-posting**.
+refresh**, **recurring auto-posting**, **CSV import/export**.
+
+## CSV import/export
+- Export: `GET /api/export/transactions` (session-authed) streams all the user's
+  transactions as CSV. Columns: date,type,amount,currency,account,category,
+  transferAccount,description.
+- Import: `src/lib/importer.ts` `importTransactionsForUser(userId, csvText)` is
+  the pure, testable core (parse → resolve/auto-create accounts+categories →
+  createMany); the `importTransactions` Server Action wraps it with requireUser
+  + file read + revalidation. Unknown accounts/categories are auto-created;
+  invalid rows are skipped with per-row errors. Round-trips with the exporter.
+- `src/lib/csv.ts` = dependency-free RFC-4180-ish parse/serialize.
+- UI: Export link + Import modal (`ImportForm`) on the Transactions page.
 
 ## Recurring auto-posting (`src/lib/recurring.ts`)
 - `RecurringTransaction` model = a rule/template (type, account(s), category,
@@ -74,17 +86,20 @@ refresh**, **recurring auto-posting**.
   (fetch→parse→store→update all correct) + graceful-failure + cron auth gating.
 
 ## WHERE TO CONTINUE (next steps, prioritized)
-1. **CSV import/export** and bank sync.
-2. **Shared household budgets** & per-member roles (multi-user is built; roles
+1. **Shared household budgets** & per-member roles (multi-user is built; roles
    are not).
-3. **Dark mode** — theme scaffolding (`darkMode: "class"`, CSS vars) is in place;
+2. **Dark mode** — theme scaffolding (`darkMode: "class"`, CSS vars) is in place;
    just needs a toggle + `dark:` styles.
+3. **Bank sync** — the manual CSV import is done; automated bank/Plaid sync is not.
 4. **Stock symbol→id coverage** — `CRYPTO_IDS` map in marketdata.ts is a small
    starter; extend, or swap to a lookup API.
 5. **Edit recurring rules** — currently add/pause/delete (no edit form yet).
 
 ## Recently done
-- **Recurring auto-posting** (this commit): `RecurringTransaction` model +
+- **CSV import/export** (this commit): export route + testable importer core
+  (auto-creates accounts/categories, skips bad rows) + Transactions-page UI.
+  19-assertion test suite passes; export verified live (auth, headers, round-trip).
+- **Recurring auto-posting**: `RecurringTransaction` model +
   `postDueRecurring` engine (catch-up, endDate stop, idempotent) + `/recurring`
   page + `/api/cron/recurring`. Verified: backfill (4 posts), endDate
   deactivation (3 posts), future/not-due (0), user-scoped, idempotent.
