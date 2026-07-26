@@ -41,22 +41,25 @@ via `src/lib/defaults.ts`.
 
 ## Status — foundation complete & verified
 Production build passes; all routes smoke-tested (200) with demo data.
-Done: auth, accounts, transactions, budgets, investments, dashboard,
-settings, categories, multi-currency, seed data.
+Done: auth, accounts, transactions (add/**edit**/delete), budgets, investments,
+dashboard, settings, categories, multi-currency, seed data.
 
 ## WHERE TO CONTINUE (next steps, prioritized)
 1. **Live data refresh** — pull real FX rates + stock/crypto prices from an API
    on a schedule (rates now manual/seeded). Store into `ExchangeRate` /
    `Investment.currentPrice`.
-2. **Edit transactions** — currently add/delete only; add an update action +
-   edit form (extend `transactionSchema`, reuse `TransactionForm`).
-3. **Recurring auto-posting** — `Transaction.isRecurring/recurrence` are stored
+2. **Recurring auto-posting** — `Transaction.isRecurring/recurrence` are stored
    but nothing materializes future entries yet; needs a cron/scheduled job.
-4. **CSV import/export** and bank sync.
-5. **Shared household budgets** & per-member roles (multi-user is built; roles
+3. **CSV import/export** and bank sync.
+4. **Shared household budgets** & per-member roles (multi-user is built; roles
    are not).
-6. **Dark mode** — theme scaffolding (`darkMode: "class"`, CSS vars) is in place;
+5. **Dark mode** — theme scaffolding (`darkMode: "class"`, CSS vars) is in place;
    just needs a toggle + `dark:` styles.
+
+## Recently done
+- **Edit transactions** (commit `bac98de`): `updateTransaction` action +
+  edit mode in `TransactionForm` + per-row Edit button. Ownership-scoped,
+  verified persisting.
 
 ## Branch
 Develop on `claude/financial-app-design-x39nuq` (this is the repo's default branch).
