@@ -2,12 +2,11 @@
 
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
-import { requireUser } from "@/lib/auth";
+import { checkHousehold } from "@/lib/household";
 import { transactionSchema } from "@/lib/validation";
 
-export async function createTransaction(formData: FormData) {
-  const user = await requireUser();
-  const parsed = transactionSchema.safeParse({
+function parse(formData: FormData) {
+  return transactionSchema.safeParse({
     type: formData.get("type"),
     accountId: formData.get("accountId"),
     categoryId: formData.get("categoryId") || null,
@@ -20,22 +19,35 @@ export async function createTransaction(formData: FormData) {
     isRecurring: formData.get("isRecurring") === "on",
     recurrence: formData.get("recurrence") || null,
   });
-  if (!parsed.success) return { error: parsed.error.issues[0]?.message };
+}
 
+function revalidateMoney() {
+  revalidatePath("/transactions");
+  revalidatePath("/dashboard");
+  revalidatePath("/budgets");
+}
+
+export async function createTransaction(formData: FormData) {
+  const { ctx, error } = await checkHousehold("MEMBER");
+  if (!ctx) return { error };
+
+  const parsed = parse(formData);
+  if (!parsed.success) return { error: parsed.error.issues[0]?.message };
   const d = parsed.data;
-  // Verify the account(s) belong to this user.
+
+  // Verify the account(s) belong to this household.
   const owned = await prisma.account.count({
     where: {
-      userId: user.userId,
+      householdId: ctx.householdId,
       id: { in: [d.accountId, d.transferAccountId].filter(Boolean) as string[] },
     },
   });
-  const expected = d.type === "TRANSFER" ? 2 : 1;
-  if (owned < expected) return { error: "Invalid account" };
+  if (owned < (d.type === "TRANSFER" ? 2 : 1)) return { error: "Invalid account" };
 
   await prisma.transaction.create({
     data: {
-      userId: user.userId,
+      householdId: ctx.householdId,
+      createdById: ctx.userId,
       accountId: d.accountId,
       categoryId: d.type === "TRANSFER" ? null : d.categoryId ?? null,
       transferAccountId: d.type === "TRANSFER" ? d.transferAccountId : null,
@@ -45,53 +57,34 @@ export async function createTransaction(formData: FormData) {
       date: d.date,
       description: d.description ?? null,
       notes: d.notes ?? null,
-      isRecurring: d.isRecurring,
-      recurrence: d.isRecurring ? d.recurrence ?? null : null,
     },
   });
-
-  revalidatePath("/transactions");
-  revalidatePath("/dashboard");
-  revalidatePath("/budgets");
+  revalidateMoney();
   return { ok: true };
 }
 
 export async function updateTransaction(formData: FormData) {
-  const user = await requireUser();
+  const { ctx, error } = await checkHousehold("MEMBER");
+  if (!ctx) return { error };
   const id = String(formData.get("id"));
 
-  // Confirm the transaction belongs to this user before touching it.
   const existing = await prisma.transaction.findFirst({
-    where: { id, userId: user.userId },
+    where: { id, householdId: ctx.householdId },
     select: { id: true },
   });
   if (!existing) return { error: "Transaction not found" };
 
-  const parsed = transactionSchema.safeParse({
-    type: formData.get("type"),
-    accountId: formData.get("accountId"),
-    categoryId: formData.get("categoryId") || null,
-    transferAccountId: formData.get("transferAccountId") || null,
-    amount: formData.get("amount"),
-    currency: formData.get("currency"),
-    date: formData.get("date"),
-    description: formData.get("description") || null,
-    notes: formData.get("notes") || null,
-    isRecurring: formData.get("isRecurring") === "on",
-    recurrence: formData.get("recurrence") || null,
-  });
+  const parsed = parse(formData);
   if (!parsed.success) return { error: parsed.error.issues[0]?.message };
-
   const d = parsed.data;
-  // Verify the account(s) belong to this user.
+
   const owned = await prisma.account.count({
     where: {
-      userId: user.userId,
+      householdId: ctx.householdId,
       id: { in: [d.accountId, d.transferAccountId].filter(Boolean) as string[] },
     },
   });
-  const expected = d.type === "TRANSFER" ? 2 : 1;
-  if (owned < expected) return { error: "Invalid account" };
+  if (owned < (d.type === "TRANSFER" ? 2 : 1)) return { error: "Invalid account" };
 
   await prisma.transaction.update({
     where: { id },
@@ -105,23 +98,17 @@ export async function updateTransaction(formData: FormData) {
       date: d.date,
       description: d.description ?? null,
       notes: d.notes ?? null,
-      isRecurring: d.isRecurring,
-      recurrence: d.isRecurring ? d.recurrence ?? null : null,
     },
   });
-
-  revalidatePath("/transactions");
-  revalidatePath("/dashboard");
-  revalidatePath("/budgets");
+  revalidateMoney();
   return { ok: true };
 }
 
 export async function deleteTransaction(formData: FormData) {
-  const user = await requireUser();
+  const { ctx, error } = await checkHousehold("MEMBER");
+  if (!ctx) return { error };
   const id = String(formData.get("id"));
-  await prisma.transaction.deleteMany({ where: { id, userId: user.userId } });
-  revalidatePath("/transactions");
-  revalidatePath("/dashboard");
-  revalidatePath("/budgets");
+  await prisma.transaction.deleteMany({ where: { id, householdId: ctx.householdId } });
+  revalidateMoney();
   return { ok: true };
 }

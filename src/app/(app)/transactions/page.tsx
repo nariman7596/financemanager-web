@@ -1,5 +1,5 @@
 import { Plus, Pencil, Download, Upload } from "lucide-react";
-import { requireUser } from "@/lib/auth";
+import { requireHousehold } from "@/lib/household";
 import { prisma } from "@/lib/prisma";
 import { formatMoney, formatDate, toNumber } from "@/lib/utils";
 import { Topbar } from "@/components/Topbar";
@@ -13,21 +13,21 @@ import { cn } from "@/lib/utils";
 export const dynamic = "force-dynamic";
 
 export default async function TransactionsPage() {
-  const user = await requireUser();
+  const ctx = await requireHousehold();
 
   const [accounts, categories, transactions] = await Promise.all([
     prisma.account.findMany({
-      where: { userId: user.userId, isArchived: false },
+      where: { householdId: ctx.householdId, isArchived: false },
       select: { id: true, name: true, currency: true },
       orderBy: { createdAt: "asc" },
     }),
     prisma.category.findMany({
-      where: { userId: user.userId, isArchived: false },
+      where: { householdId: ctx.householdId, isArchived: false },
       select: { id: true, name: true, type: true },
       orderBy: { name: "asc" },
     }),
     prisma.transaction.findMany({
-      where: { userId: user.userId },
+      where: { householdId: ctx.householdId },
       include: { account: true, category: true, transferAccount: true },
       orderBy: { date: "desc" },
       take: 100,

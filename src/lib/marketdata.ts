@@ -128,16 +128,16 @@ export async function fetchStockQuote(symbol: string): Promise<number | null> {
 }
 
 /**
- * Refresh currentPrice for investments. Pass a userId to scope to one user,
- * or omit to refresh every user's holdings (used by the scheduled job).
+ * Refresh currentPrice for investments. Pass a householdId to scope to one
+ * household, or omit to refresh every household's holdings (scheduled job).
  * Only USD-priced holdings are auto-updated (the public APIs quote in USD).
  */
 export async function refreshInvestmentPrices(
-  userId?: string,
+  householdId?: string,
 ): Promise<RefreshSummary["prices"]> {
   try {
     const holdings = await prisma.investment.findMany({
-      where: { ...(userId ? { userId } : {}), currency: "USD" },
+      where: { ...(householdId ? { householdId } : {}), currency: "USD" },
       select: { id: true, symbol: true, type: true },
     });
     if (holdings.length === 0) return { updated: 0, skipped: 0 };
@@ -181,12 +181,12 @@ export async function refreshInvestmentPrices(
   }
 }
 
-/** Full refresh: FX + prices. `userId` scopes the price refresh. */
-export async function refreshAll(userId?: string): Promise<RefreshSummary> {
+/** Full refresh: FX + prices. `householdId` scopes the price refresh. */
+export async function refreshAll(householdId?: string): Promise<RefreshSummary> {
   const now = new Date();
   const [fx, prices] = await Promise.all([
     refreshFxRates(now),
-    refreshInvestmentPrices(userId),
+    refreshInvestmentPrices(householdId),
   ]);
   return { fx, prices, at: now.toISOString() };
 }

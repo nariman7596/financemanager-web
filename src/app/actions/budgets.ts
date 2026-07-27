@@ -2,11 +2,13 @@
 
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
-import { requireUser } from "@/lib/auth";
+import { checkHousehold } from "@/lib/household";
 import { budgetSchema } from "@/lib/validation";
 
 export async function upsertBudget(formData: FormData) {
-  const user = await requireUser();
+  const { ctx, error } = await checkHousehold("MEMBER");
+  if (!ctx) return { error };
+
   const parsed = budgetSchema.safeParse({
     categoryId: formData.get("categoryId"),
     amount: formData.get("amount"),
@@ -16,32 +18,31 @@ export async function upsertBudget(formData: FormData) {
   if (!parsed.success) return { error: parsed.error.issues[0]?.message };
   const d = parsed.data;
 
-  // Confirm the category is the user's.
   const cat = await prisma.category.findFirst({
-    where: { id: d.categoryId, userId: user.userId },
+    where: { id: d.categoryId, householdId: ctx.householdId },
   });
   if (!cat) return { error: "Invalid category" };
 
   await prisma.budget.upsert({
     where: {
-      userId_categoryId_period: {
-        userId: user.userId,
+      householdId_categoryId_period: {
+        householdId: ctx.householdId,
         categoryId: d.categoryId,
         period: d.period,
       },
     },
-    create: { ...d, userId: user.userId },
+    create: { ...d, householdId: ctx.householdId, createdById: ctx.userId },
     update: { amount: d.amount, currency: d.currency },
   });
-
   revalidatePath("/budgets");
   return { ok: true };
 }
 
 export async function deleteBudget(formData: FormData) {
-  const user = await requireUser();
+  const { ctx, error } = await checkHousehold("MEMBER");
+  if (!ctx) return { error };
   const id = String(formData.get("id"));
-  await prisma.budget.deleteMany({ where: { id, userId: user.userId } });
+  await prisma.budget.deleteMany({ where: { id, householdId: ctx.householdId } });
   revalidatePath("/budgets");
   return { ok: true };
 }

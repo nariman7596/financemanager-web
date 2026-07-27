@@ -32,9 +32,11 @@ cp .env.example .env
 # 3. Create the database schema (SQLite by default — zero setup)
 npm run db:push
 
-# 4. (Optional) seed a demo account + sample data + FX rates
+# 4. (Optional) seed a demo household + sample data + FX rates
 npm run db:seed
-#   Demo login →  demo@financemanager.app  /  demo1234
+#   Demo logins (same household):
+#     demo@financemanager.app     / demo1234   (owner)
+#     partner@financemanager.app  / demo1234   (member)
 
 # 5. Run the dev server
 npm run dev
@@ -62,35 +64,45 @@ Open http://localhost:3000 and register a new account (or use the demo login).
 
 ```
 prisma/
-  schema.prisma        # data model: User, Account, Category, Transaction,
-                       # Budget, Investment, ExchangeRate
-  seed.ts              # demo data + starter FX rates
+  schema.prisma        # data model: User, Household, Membership, Invitation,
+                       # Account, Category, Transaction, Budget, Investment, ExchangeRate
+  seed.ts              # demo household + members + sample data + FX rates
 src/
   middleware.ts        # route protection (redirects to /login)
   lib/
     prisma.ts          # Prisma client singleton
     jwt.ts             # edge-safe JWT sign/verify (sessions)
     session.ts         # cookie-bound session helpers
-    auth.ts            # password hashing + requireUser()
+    auth.ts            # password hashing
+    roles.ts           # role ranks + comparison (pure)
+    household.ts       # access control: active household + role gates
+    invites.ts         # accept pending invitations by email
     validation.ts      # zod schemas for every form
     constants.ts       # enum-like values + supported currencies
     currency.ts        # multi-currency conversion
-    queries.ts         # dashboard/report aggregations
-    defaults.ts        # starter categories for new users
+    queries.ts         # dashboard/report aggregations (household-scoped)
+    defaults.ts        # createHousehold + starter categories
   app/
-    actions/           # server actions (auth, transactions, budgets, …)
+    actions/           # server actions (auth, transactions, household, …)
     login/ register/   # auth pages
     (app)/             # authenticated area (shared sidebar layout)
-      dashboard/ transactions/ budgets/ investments/ accounts/ settings/
-  components/           # UI: Sidebar, Charts, Modal, forms, …
+      dashboard/ transactions/ recurring/ budgets/ investments/
+      accounts/ household/ settings/
+  components/           # UI: Sidebar, HouseholdSwitcher, Charts, Modal, forms, …
 ```
 
-## How auth works
+## How auth & access control work
 
 Sessions are a signed **JWT stored in an httpOnly, sameSite=lax cookie** (via
 [`jose`](https://github.com/panva/jose)) — no third-party auth service, so you
 can read every line of it in `src/lib/jwt.ts` and `src/lib/session.ts`.
 Passwords are hashed with `bcryptjs`. `src/middleware.ts` guards the app routes.
+
+Financial data is owned by a **household**. `src/lib/household.ts` resolves the
+caller's active household from a cookie **verified against a real membership**
+(a forged cookie grants nothing) and gates every action by role. All queries
+scope by the resulting `householdId`, so members of one household can never see
+another's data.
 
 ## Moving to production (PostgreSQL)
 
@@ -145,6 +157,23 @@ On the **Transactions** page:
   rows are skipped and reported, and a file exported from here re-imports
   cleanly.
 
+## Households & roles
+
+Financial data belongs to a **household**, not a person. Everyone gets their own
+household on sign-up, and you can create more (e.g. a joint budget). Invite
+people from the **Household** page and give each a role:
+
+| Role | Can do |
+| --- | --- |
+| **Owner** | Everything, incl. managing members |
+| **Admin** | Manage data + invite / manage members |
+| **Member** | Add & edit financial data |
+| **Viewer** | Read-only |
+
+Switch between your households from the sidebar. Invites by email attach
+instantly if the person already has an account, otherwise they’re pending and
+accepted automatically when that email signs up.
+
 ## Dark mode
 
 Toggle light/dark from the sidebar footer. Your choice is saved and applied
@@ -154,7 +183,6 @@ setting.
 ## Roadmap ideas
 
 - Automated bank sync (e.g. Plaid)
-- Shared household budgets & per-member roles
 
 ---
 

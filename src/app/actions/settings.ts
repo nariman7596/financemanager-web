@@ -2,22 +2,17 @@
 
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
-import { requireUser } from "@/lib/auth";
-import { settingsSchema } from "@/lib/validation";
+import { getSession } from "@/lib/session";
 
-export async function updateSettings(formData: FormData) {
-  const user = await requireUser();
-  const parsed = settingsSchema.safeParse({
-    name: formData.get("name"),
-    baseCurrency: formData.get("baseCurrency"),
-  });
-  if (!parsed.success) return { error: parsed.error.issues[0]?.message };
+/** Update the signed-in user's personal profile (their display name). */
+export async function updateProfile(formData: FormData) {
+  const session = await getSession();
+  if (!session) return { error: "You're not signed in" };
+  const name = String(formData.get("name") ?? "").trim();
+  if (!name || name.length > 80) return { error: "Enter a name" };
 
-  await prisma.user.update({
-    where: { id: user.userId },
-    data: parsed.data,
-  });
+  await prisma.user.update({ where: { id: session.userId }, data: { name } });
   revalidatePath("/settings");
-  revalidatePath("/dashboard");
+  revalidatePath("/", "layout");
   return { ok: true };
 }

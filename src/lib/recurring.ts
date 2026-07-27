@@ -35,18 +35,18 @@ export function advance(date: Date, frequency: string, interval: number): Date {
 export type PostSummary = { rules: number; posted: number };
 
 /**
- * Post all due occurrences. Pass a userId to scope to one user (used by the
- * in-app "Run now" button), or omit to process every user (the cron job).
+ * Post all due occurrences. Pass a householdId to scope to one household (used
+ * by the in-app "Run now" button), or omit to process every household (cron).
  */
 export async function postDueRecurring(
-  userId?: string,
+  householdId?: string,
   asOf: Date = new Date(),
 ): Promise<PostSummary> {
   const rules = await prisma.recurringTransaction.findMany({
     where: {
       isActive: true,
       nextRunDate: { lte: asOf },
-      ...(userId ? { userId } : {}),
+      ...(householdId ? { householdId } : {}),
     },
   });
 
@@ -78,7 +78,8 @@ export async function postDueRecurring(
     await prisma.$transaction([
       prisma.transaction.createMany({
         data: created.map((c) => ({
-          userId: rule.userId,
+          householdId: rule.householdId,
+          createdById: rule.createdById,
           accountId: rule.accountId,
           categoryId: rule.type === "TRANSFER" ? null : rule.categoryId,
           transferAccountId:

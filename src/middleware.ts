@@ -12,6 +12,7 @@ const PROTECTED_PREFIXES = [
   "/budgets",
   "/investments",
   "/accounts",
+  "/household",
   "/settings",
 ];
 const AUTH_PAGES = ["/login", "/register"];

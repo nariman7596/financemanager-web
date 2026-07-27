@@ -2,11 +2,13 @@
 
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
-import { requireUser } from "@/lib/auth";
+import { checkHousehold } from "@/lib/household";
 import { accountSchema } from "@/lib/validation";
 
 export async function createAccount(formData: FormData) {
-  const user = await requireUser();
+  const { ctx, error } = await checkHousehold("MEMBER");
+  if (!ctx) return { error };
+
   const parsed = accountSchema.safeParse({
     name: formData.get("name"),
     type: formData.get("type"),
@@ -15,27 +17,30 @@ export async function createAccount(formData: FormData) {
   });
   if (!parsed.success) return { error: parsed.error.issues[0]?.message };
 
-  await prisma.account.create({ data: { ...parsed.data, userId: user.userId } });
+  await prisma.account.create({
+    data: { ...parsed.data, householdId: ctx.householdId, createdById: ctx.userId },
+  });
   revalidatePath("/accounts");
   revalidatePath("/dashboard");
   return { ok: true };
 }
 
 export async function deleteAccount(formData: FormData) {
-  const user = await requireUser();
+  const { ctx, error } = await checkHousehold("MEMBER");
+  if (!ctx) return { error };
   const id = String(formData.get("id"));
-  // Ownership check before deleting.
-  await prisma.account.deleteMany({ where: { id, userId: user.userId } });
+  await prisma.account.deleteMany({ where: { id, householdId: ctx.householdId } });
   revalidatePath("/accounts");
   revalidatePath("/dashboard");
   return { ok: true };
 }
 
 export async function archiveAccount(formData: FormData) {
-  const user = await requireUser();
+  const { ctx, error } = await checkHousehold("MEMBER");
+  if (!ctx) return { error };
   const id = String(formData.get("id"));
   await prisma.account.updateMany({
-    where: { id, userId: user.userId },
+    where: { id, householdId: ctx.householdId },
     data: { isArchived: true },
   });
   revalidatePath("/accounts");

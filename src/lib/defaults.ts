@@ -1,7 +1,7 @@
 import { prisma } from "./prisma";
 
-// Default categories and a starter account created for every new user so the
-// app is usable immediately after sign-up.
+// Default categories + a starter account, created for every new household so
+// the app is usable immediately.
 
 export const DEFAULT_CATEGORIES: {
   name: string;
@@ -23,18 +23,42 @@ export const DEFAULT_CATEGORIES: {
   { name: "Other", type: "EXPENSE", color: "#64748b" },
 ];
 
-export async function seedDefaultsForUser(userId: string, currency: string) {
+export async function seedDefaultsForHousehold(
+  householdId: string,
+  currency: string,
+  createdById?: string,
+) {
   await prisma.category.createMany({
-    data: DEFAULT_CATEGORIES.map((c) => ({ ...c, userId })),
+    data: DEFAULT_CATEGORIES.map((c) => ({ ...c, householdId, createdById })),
   });
-
   await prisma.account.create({
     data: {
-      userId,
+      householdId,
+      createdById,
       name: "Cash",
       type: "CASH",
       currency,
       openingBalance: 0,
     },
   });
+}
+
+/**
+ * Create a household owned by `userId` (OWNER membership) and seed it with
+ * default categories + a Cash account. Returns the new household id.
+ */
+export async function createHousehold(
+  userId: string,
+  name: string,
+  baseCurrency: string,
+): Promise<string> {
+  const household = await prisma.household.create({
+    data: {
+      name,
+      baseCurrency,
+      members: { create: { userId, role: "OWNER" } },
+    },
+  });
+  await seedDefaultsForHousehold(household.id, baseCurrency, userId);
+  return household.id;
 }

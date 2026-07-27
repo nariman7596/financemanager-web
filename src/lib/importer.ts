@@ -26,9 +26,10 @@ const emptyResult = (): ImportResult => ({
   errors: [],
 });
 
-export async function importTransactionsForUser(
-  userId: string,
+export async function importTransactionsForHousehold(
+  householdId: string,
   csvText: string,
+  createdById?: string,
 ): Promise<ImportResult> {
   const rows = parseCsvObjects(csvText);
   if (rows.length === 0) return { ...emptyResult(), error: "No data rows found" };
@@ -38,11 +39,11 @@ export async function importTransactionsForUser(
 
   const [accounts, categories] = await Promise.all([
     prisma.account.findMany({
-      where: { userId },
+      where: { householdId },
       select: { id: true, name: true, currency: true },
     }),
     prisma.category.findMany({
-      where: { userId },
+      where: { householdId },
       select: { id: true, name: true, type: true },
     }),
   ]);
@@ -60,7 +61,7 @@ export async function importTransactionsForUser(
     const found = accountByName.get(key);
     if (found) return found;
     const created = await prisma.account.create({
-      data: { userId, name, type: "OTHER", currency },
+      data: { householdId, createdById, name, type: "OTHER", currency },
       select: { id: true, name: true, currency: true },
     });
     accountByName.set(key, created);
@@ -73,7 +74,7 @@ export async function importTransactionsForUser(
     const found = categoryByKey.get(key);
     if (found) return found;
     const created = await prisma.category.create({
-      data: { userId, name, type },
+      data: { householdId, createdById, name, type },
       select: { id: true },
     });
     categoryByKey.set(key, created.id);
@@ -82,7 +83,8 @@ export async function importTransactionsForUser(
   }
 
   const toInsert: {
-    userId: string;
+    householdId: string;
+    createdById?: string;
     accountId: string;
     categoryId: string | null;
     transferAccountId: string | null;
@@ -151,7 +153,8 @@ export async function importTransactionsForUser(
     }
 
     toInsert.push({
-      userId,
+      householdId,
+      createdById,
       accountId: account.id,
       categoryId,
       transferAccountId,

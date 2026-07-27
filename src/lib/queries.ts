@@ -1,40 +1,31 @@
 import "server-only";
-import {
-  startOfMonth,
-  endOfMonth,
-  subMonths,
-  format,
-} from "date-fns";
+import { startOfMonth, endOfMonth, subMonths, format } from "date-fns";
 import { prisma } from "./prisma";
 import { toNumber } from "./utils";
 import { convert, loadRates } from "./currency";
 
-// Read + aggregation helpers. Everything is scoped by userId so users only
-// ever see their own data.
+// Read + aggregation helpers. Everything is scoped by householdId; callers get
+// that id from the household access layer, which has already verified the user
+// is a member (src/lib/household.ts).
 
-export async function getBaseCurrency(userId: string): Promise<string> {
-  const u = await prisma.user.findUnique({
-    where: { id: userId },
+export async function getBaseCurrency(householdId: string): Promise<string> {
+  const h = await prisma.household.findUnique({
+    where: { id: householdId },
     select: { baseCurrency: true },
   });
-  return u?.baseCurrency ?? "USD";
+  return h?.baseCurrency ?? "USD";
 }
 
 /** Current balance per account = openingBalance + inflows − outflows. */
-export async function getAccountBalances(userId: string) {
+export async function getAccountBalances(householdId: string) {
   const accounts = await prisma.account.findMany({
-    where: { userId, isArchived: false },
+    where: { householdId, isArchived: false },
     orderBy: { createdAt: "asc" },
   });
 
   const txns = await prisma.transaction.findMany({
-    where: { userId },
-    select: {
-      accountId: true,
-      transferAccountId: true,
-      type: true,
-      amount: true,
-    },
+    where: { householdId },
+    select: { accountId: true, transferAccountId: true, type: true, amount: true },
   });
 
   const delta = new Map<string, number>();
@@ -58,15 +49,15 @@ export async function getAccountBalances(userId: string) {
 }
 
 /** Total net worth (accounts + investments) expressed in the base currency. */
-export async function getNetWorth(userId: string, base: string) {
+export async function getNetWorth(householdId: string, base: string) {
   const rates = await loadRates();
-  const balances = await getAccountBalances(userId);
+  const balances = await getAccountBalances(householdId);
   const cash = balances.reduce(
     (s, a) => s + convert(a.balance, a.currency, base, rates),
     0,
   );
 
-  const investments = await prisma.investment.findMany({ where: { userId } });
+  const investments = await prisma.investment.findMany({ where: { householdId } });
   const invValue = investments.reduce(
     (s, i) =>
       s +
@@ -78,11 +69,11 @@ export async function getNetWorth(userId: string, base: string) {
 }
 
 /** Income / expense totals (base currency) for the given month. */
-export async function getMonthlyFlow(userId: string, base: string, month = new Date()) {
+export async function getMonthlyFlow(householdId: string, base: string, month = new Date()) {
   const rates = await loadRates();
   const txns = await prisma.transaction.findMany({
     where: {
-      userId,
+      householdId,
       date: { gte: startOfMonth(month), lte: endOfMonth(month) },
       type: { in: ["INCOME", "EXPENSE"] },
     },
@@ -100,11 +91,11 @@ export async function getMonthlyFlow(userId: string, base: string, month = new D
 }
 
 /** Income vs expense per month for the last N months (for the trend chart). */
-export async function getCashFlowSeries(userId: string, base: string, months = 6) {
+export async function getCashFlowSeries(householdId: string, base: string, months = 6) {
   const rates = await loadRates();
   const since = startOfMonth(subMonths(new Date(), months - 1));
   const txns = await prisma.transaction.findMany({
-    where: { userId, date: { gte: since }, type: { in: ["INCOME", "EXPENSE"] } },
+    where: { householdId, date: { gte: since }, type: { in: ["INCOME", "EXPENSE"] } },
     select: { type: true, amount: true, currency: true, date: true },
   });
 
@@ -132,15 +123,11 @@ export async function getCashFlowSeries(userId: string, base: string, months = 6
 }
 
 /** Expense breakdown by category (base currency) for the given month. */
-export async function getSpendingByCategory(
-  userId: string,
-  base: string,
-  month = new Date(),
-) {
+export async function getSpendingByCategory(householdId: string, base: string, month = new Date()) {
   const rates = await loadRates();
   const txns = await prisma.transaction.findMany({
     where: {
-      userId,
+      householdId,
       type: "EXPENSE",
       date: { gte: startOfMonth(month), lte: endOfMonth(month) },
     },
@@ -162,17 +149,17 @@ export async function getSpendingByCategory(
     .sort((a, b) => b.value - a.value);
 }
 
-/** Budgets with actual spend this month (base of each budget's currency). */
-export async function getBudgetProgress(userId: string, month = new Date()) {
+/** Budgets with actual spend this month (in each budget's currency). */
+export async function getBudgetProgress(householdId: string, month = new Date()) {
   const rates = await loadRates();
   const budgets = await prisma.budget.findMany({
-    where: { userId },
+    where: { householdId },
     include: { category: true },
   });
 
   const spendTxns = await prisma.transaction.findMany({
     where: {
-      userId,
+      householdId,
       type: "EXPENSE",
       date: { gte: startOfMonth(month), lte: endOfMonth(month) },
     },
@@ -197,9 +184,9 @@ export async function getBudgetProgress(userId: string, month = new Date()) {
   });
 }
 
-export async function getInvestments(userId: string) {
+export async function getInvestments(householdId: string) {
   const items = await prisma.investment.findMany({
-    where: { userId },
+    where: { householdId },
     orderBy: { createdAt: "desc" },
   });
   return items.map((i) => {

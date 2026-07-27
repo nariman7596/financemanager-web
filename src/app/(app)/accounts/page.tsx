@@ -1,5 +1,5 @@
 import { Plus } from "lucide-react";
-import { requireUser } from "@/lib/auth";
+import { requireHousehold } from "@/lib/household";
 import { getAccountBalances, getBaseCurrency } from "@/lib/queries";
 import { formatMoney } from "@/lib/utils";
 import { Topbar } from "@/components/Topbar";
@@ -22,9 +22,9 @@ const TYPE_LABEL: Record<string, string> = {
 };
 
 export default async function AccountsPage() {
-  const user = await requireUser();
-  const base = await getBaseCurrency(user.userId);
-  const accounts = await getAccountBalances(user.userId);
+  const ctx = await requireHousehold();
+  const base = await getBaseCurrency(ctx.householdId);
+  const accounts = await getAccountBalances(ctx.householdId);
   const totalInBase = await sumInCurrency(
     accounts.map((a) => ({ amount: a.balance, currency: a.currency })),
     base,

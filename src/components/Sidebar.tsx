@@ -9,11 +9,13 @@ import {
   PiggyBank,
   TrendingUp,
   Wallet,
+  Users,
   Settings,
   LogOut,
 } from "lucide-react";
 import { logoutAction } from "@/app/actions/auth";
 import { ThemeToggle } from "@/components/ThemeToggle";
+import { HouseholdSwitcher } from "@/components/HouseholdSwitcher";
 import { cn } from "@/lib/utils";
 
 const NAV = [
@@ -23,10 +25,31 @@ const NAV = [
   { href: "/budgets", label: "Budgets", icon: PiggyBank },
   { href: "/investments", label: "Investments", icon: TrendingUp },
   { href: "/accounts", label: "Accounts", icon: Wallet },
+  { href: "/household", label: "Household", icon: Users },
   { href: "/settings", label: "Settings", icon: Settings },
 ];
 
-export function Sidebar({ userName }: { userName?: string | null }) {
+type HouseholdOption = {
+  householdId: string;
+  name: string;
+  role: string;
+  baseCurrency: string;
+  memberCount: number;
+};
+
+export function Sidebar({
+  userName,
+  role,
+  activeHouseholdId,
+  households,
+  pendingInvites = 0,
+}: {
+  userName?: string | null;
+  role: string;
+  activeHouseholdId: string;
+  households: HouseholdOption[];
+  pendingInvites?: number;
+}) {
   const pathname = usePathname();
 
   return (
@@ -37,6 +60,8 @@ export function Sidebar({ userName }: { userName?: string | null }) {
         </span>
         <span className="font-semibold">FinanceManager</span>
       </div>
+
+      <HouseholdSwitcher households={households} activeId={activeHouseholdId} role={role} />
 
       <nav className="flex-1 p-3 space-y-1">
         {NAV.map(({ href, label, icon: Icon }) => {
@@ -54,6 +79,9 @@ export function Sidebar({ userName }: { userName?: string | null }) {
             >
               <Icon size={18} />
               {label}
+              {href === "/household" && pendingInvites > 0 && (
+                <span className="ml-auto badge bg-brand-600 text-white">{pendingInvites}</span>
+              )}
             </Link>
           );
         })}

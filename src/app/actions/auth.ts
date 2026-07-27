@@ -5,7 +5,8 @@ import { prisma } from "@/lib/prisma";
 import { hashPassword, verifyPassword } from "@/lib/auth";
 import { setSessionCookie, clearSessionCookie } from "@/lib/session";
 import { loginSchema, registerSchema } from "@/lib/validation";
-import { seedDefaultsForUser } from "@/lib/defaults";
+import { createHousehold } from "@/lib/defaults";
+import { acceptInvitesForUser } from "@/lib/invites";
 
 export type ActionState = { error?: string } | undefined;
 
@@ -36,8 +37,10 @@ export async function registerAction(
     },
   });
 
-  // Give the new user starter categories and a cash account.
-  await seedDefaultsForUser(user.id, baseCurrency);
+  // Give the new user their own household (OWNER) with starter data.
+  await createHousehold(user.id, `${name}'s Household`, baseCurrency);
+  // Auto-join any households they were invited to before signing up.
+  await acceptInvitesForUser(user.id, email);
 
   await setSessionCookie({ userId: user.id, email: user.email, name: user.name });
   redirect("/dashboard");

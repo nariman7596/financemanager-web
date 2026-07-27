@@ -1,21 +1,21 @@
-import { getSession } from "@/lib/session";
+import { getActiveContext } from "@/lib/household";
 import { prisma } from "@/lib/prisma";
 import { toCsv } from "@/lib/csv";
 import { toNumber } from "@/lib/utils";
 
-// GET /api/export/transactions -> downloads the current user's transactions as
-// CSV. Columns round-trip with the importer.
+// GET /api/export/transactions -> downloads the active household's transactions
+// as CSV. Columns round-trip with the importer.
 
 export const dynamic = "force-dynamic";
 
 export async function GET() {
-  const session = await getSession();
-  if (!session) {
+  const ctx = await getActiveContext();
+  if (!ctx) {
     return new Response("Unauthorized", { status: 401 });
   }
 
   const txns = await prisma.transaction.findMany({
-    where: { userId: session.userId },
+    where: { householdId: ctx.householdId },
     include: { account: true, category: true, transferAccount: true },
     orderBy: { date: "desc" },
   });

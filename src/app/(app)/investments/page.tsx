@@ -1,5 +1,5 @@
 import { Plus } from "lucide-react";
-import { requireUser } from "@/lib/auth";
+import { requireHousehold } from "@/lib/household";
 import { getBaseCurrency, getInvestments } from "@/lib/queries";
 import { sumInCurrency } from "@/lib/currency";
 import { getFxAsOf } from "@/lib/marketdata";
@@ -16,9 +16,9 @@ import { deleteInvestment } from "@/app/actions/investments";
 export const dynamic = "force-dynamic";
 
 export default async function InvestmentsPage() {
-  const user = await requireUser();
-  const base = await getBaseCurrency(user.userId);
-  const holdings = await getInvestments(user.userId);
+  const ctx = await requireHousehold();
+  const base = await getBaseCurrency(ctx.householdId);
+  const holdings = await getInvestments(ctx.householdId);
   const fxAsOf = await getFxAsOf();
 
   const [totalValue, totalCost] = await Promise.all([

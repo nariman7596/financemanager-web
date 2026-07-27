@@ -6,6 +6,11 @@
 //   3. run `npm run db:migrate`
 // Note: SQLite has no native enums, so "enum-like" fields are stored as
 // strings and validated in the app layer (see src/lib/constants.ts + zod).
+//
+// OWNERSHIP MODEL: financial data belongs to a Household, not a User. Users
+// join households via Membership (with a role); every query is scoped by
+// householdId and gated by the caller's membership + role (src/lib/household.ts).
+// `createdById` records who added a row (informational; a plain id, no FK).
 // ---------------------------------------------------------------------------
 
 generator client {
@@ -22,10 +27,23 @@ model User {
   email        String   @unique
   name         String?
   passwordHash String
-  baseCurrency String   @default("USD") // display/reporting currency
+  baseCurrency String   @default("USD") // personal default for new households
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
+  memberships Membership[]
+}
+
+// A shared financial space. A user working solo has a household of one.
+model Household {
+  id           String   @id @default(cuid())
+  name         String
+  baseCurrency String   @default("USD") // reporting currency for this household
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  members      Membership[]
+  invitations  Invitation[]
   accounts     Account[]
   categories   Category[]
   transactions Transaction[]
@@ -34,10 +52,44 @@ model User {
   recurring    RecurringTransaction[]
 }
 
+// Links a user to a household with a role.
+// Roles (rank): VIEWER < MEMBER < ADMIN < OWNER.
+model Membership {
+  id          String   @id @default(cuid())
+  householdId String
+  userId      String
+  role        String   @default("MEMBER") // OWNER | ADMIN | MEMBER | VIEWER
+  createdAt   DateTime @default(now())
+
+  household Household @relation(fields: [householdId], references: [id], onDelete: Cascade)
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([householdId, userId])
+  @@index([userId])
+  @@index([householdId])
+}
+
+// A pending invitation to join a household, keyed by email. Accepting it
+// creates a Membership; the invitee may already have an account or sign up later.
+model Invitation {
+  id          String   @id @default(cuid())
+  householdId String
+  email       String // lowercased invitee email
+  role        String   @default("MEMBER")
+  invitedById String?
+  createdAt   DateTime @default(now())
+
+  household Household @relation(fields: [householdId], references: [id], onDelete: Cascade)
+
+  @@unique([householdId, email])
+  @@index([email])
+}
+
 // A place money lives: checking, savings, cash, credit card, etc.
 model Account {
   id             String   @id @default(cuid())
-  userId         String
+  householdId    String
+  createdById    String?
   name           String
   type           String   @default("CHECKING") // CHECKING | SAVINGS | CASH | CREDIT_CARD | INVESTMENT | OTHER
   currency       String   @default("USD")
@@ -46,40 +98,42 @@ model Account {
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
 
-  user                 User          @relation(fields: [userId], references: [id], onDelete: Cascade)
-  transactions         Transaction[] @relation("AccountTransactions")
-  transferTransactions Transaction[] @relation("TransferAccount")
+  household            Household              @relation(fields: [householdId], references: [id], onDelete: Cascade)
+  transactions         Transaction[]          @relation("AccountTransactions")
+  transferTransactions Transaction[]          @relation("TransferAccount")
   investments          Investment[]
   recurring            RecurringTransaction[] @relation("RecurringAccount")
   recurringTransfers   RecurringTransaction[] @relation("RecurringTransferAccount")
 
-  @@index([userId])
+  @@index([householdId])
 }
 
-// User-defined income / expense category.
+// Income / expense category.
 model Category {
-  id         String   @id @default(cuid())
-  userId     String
-  name       String
-  type       String   @default("EXPENSE") // INCOME | EXPENSE
-  color      String   @default("#328eff")
-  icon       String?
-  isArchived Boolean  @default(false)
-  createdAt  DateTime @default(now())
+  id          String   @id @default(cuid())
+  householdId String
+  createdById String?
+  name        String
+  type        String   @default("EXPENSE") // INCOME | EXPENSE
+  color       String   @default("#328eff")
+  icon        String?
+  isArchived  Boolean  @default(false)
+  createdAt   DateTime @default(now())
 
-  user         User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  household    Household              @relation(fields: [householdId], references: [id], onDelete: Cascade)
   transactions Transaction[]
   budgets      Budget[]
   recurring    RecurringTransaction[]
 
-  @@unique([userId, name, type])
-  @@index([userId])
+  @@unique([householdId, name, type])
+  @@index([householdId])
 }
 
 // A single money movement.
 model Transaction {
   id          String   @id @default(cuid())
-  userId      String
+  householdId String
+  createdById String?
   accountId   String
   categoryId  String?
   type        String   @default("EXPENSE") // INCOME | EXPENSE | TRANSFER
@@ -89,37 +143,33 @@ model Transaction {
   description String?
   notes       String?
 
-  // Recurrence (a template flag; a scheduler/cron can materialize future ones)
+  // Legacy per-transaction recurrence flags (unused; see RecurringTransaction).
   isRecurring Boolean @default(false)
-  recurrence  String? // DAILY | WEEKLY | MONTHLY | YEARLY
+  recurrence  String?
 
-  // For TRANSFER: the destination account
   transferAccountId String?
-
-  // Set when this transaction was auto-generated by a recurring rule.
-  recurringId String?
+  recurringId       String?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  user            User                  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  household       Household             @relation(fields: [householdId], references: [id], onDelete: Cascade)
   account         Account               @relation("AccountTransactions", fields: [accountId], references: [id], onDelete: Cascade)
   transferAccount Account?              @relation("TransferAccount", fields: [transferAccountId], references: [id])
   category        Category?             @relation(fields: [categoryId], references: [id])
   recurring       RecurringTransaction? @relation(fields: [recurringId], references: [id], onDelete: SetNull)
 
-  @@index([userId, date])
+  @@index([householdId, date])
   @@index([accountId])
   @@index([categoryId])
   @@index([recurringId])
 }
 
-// A recurring rule / template. The posting engine (src/lib/recurring.ts)
-// materializes real Transactions from active rules whose nextRunDate is due,
-// then advances nextRunDate. Triggered by /api/cron/recurring or "Run now".
+// A recurring rule / template (see src/lib/recurring.ts).
 model RecurringTransaction {
   id                String   @id @default(cuid())
-  userId            String
+  householdId       String
+  createdById       String?
   accountId         String
   categoryId        String?
   transferAccountId String?
@@ -130,74 +180,76 @@ model RecurringTransaction {
   notes             String?
 
   frequency   String // DAILY | WEEKLY | MONTHLY | YEARLY
-  interval    Int      @default(1) // every N frequency units
+  interval    Int       @default(1) // every N frequency units
   startDate   DateTime // first occurrence
   nextRunDate DateTime // next date to post
   endDate     DateTime? // optional stop date (inclusive)
   lastPosted  DateTime?
-  isActive    Boolean  @default(true)
+  isActive    Boolean   @default(true)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  user            User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  household       Household     @relation(fields: [householdId], references: [id], onDelete: Cascade)
   account         Account       @relation("RecurringAccount", fields: [accountId], references: [id], onDelete: Cascade)
   transferAccount Account?      @relation("RecurringTransferAccount", fields: [transferAccountId], references: [id])
   category        Category?     @relation(fields: [categoryId], references: [id])
   transactions    Transaction[]
 
-  @@index([userId])
+  @@index([householdId])
   @@index([isActive, nextRunDate])
 }
 
 // Monthly/weekly/yearly spending target for a category.
 model Budget {
-  id         String   @id @default(cuid())
-  userId     String
-  categoryId String
-  amount     Decimal
-  currency   String   @default("USD")
-  period     String   @default("MONTHLY") // WEEKLY | MONTHLY | YEARLY
-  startDate  DateTime @default(now())
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
+  id          String   @id @default(cuid())
+  householdId String
+  createdById String?
+  categoryId  String
+  amount      Decimal
+  currency    String   @default("USD")
+  period      String   @default("MONTHLY") // WEEKLY | MONTHLY | YEARLY
+  startDate   DateTime @default(now())
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 
-  user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  category Category @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  household Household @relation(fields: [householdId], references: [id], onDelete: Cascade)
+  category  Category  @relation(fields: [categoryId], references: [id], onDelete: Cascade)
 
-  @@unique([userId, categoryId, period])
-  @@index([userId])
+  @@unique([householdId, categoryId, period])
+  @@index([householdId])
 }
 
 // An investment holding: stock, crypto, ETF, etc.
 model Investment {
   id           String   @id @default(cuid())
-  userId       String
+  householdId  String
+  createdById  String?
   accountId    String?
   symbol       String
   name         String
   type         String   @default("STOCK") // STOCK | ETF | CRYPTO | BOND | REAL_ESTATE | CASH | OTHER
   quantity     Decimal
-  costBasis    Decimal // total amount originally paid (in `currency`)
-  currentPrice Decimal  @default(0) // price per unit; refreshable via an API later
+  costBasis    Decimal
+  currentPrice Decimal  @default(0)
   currency     String   @default("USD")
   purchaseDate DateTime @default(now())
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
-  user    User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  account Account? @relation(fields: [accountId], references: [id])
+  household Household @relation(fields: [householdId], references: [id], onDelete: Cascade)
+  account   Account?  @relation(fields: [accountId], references: [id])
 
-  @@index([userId])
+  @@index([householdId])
 }
 
 // Exchange rate cache for multi-currency conversion (quote per 1 base).
 model ExchangeRate {
-  id     String   @id @default(cuid())
-  base   String // e.g. "USD"
-  quote  String // e.g. "EUR"
-  rate   Decimal
-  asOf   DateTime @default(now())
+  id    String   @id @default(cuid())
+  base  String
+  quote String
+  rate  Decimal
+  asOf  DateTime @default(now())
 
   @@unique([base, quote])
 }

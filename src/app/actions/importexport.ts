@@ -1,9 +1,9 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { requireUser } from "@/lib/auth";
+import { checkHousehold } from "@/lib/household";
 import {
-  importTransactionsForUser,
+  importTransactionsForHousehold,
   MAX_BYTES,
   type ImportResult,
 } from "@/lib/importer";
@@ -21,7 +21,8 @@ const empty: ImportResult = {
 export async function importTransactions(
   formData: FormData,
 ): Promise<ImportResult> {
-  const user = await requireUser();
+  const { ctx, error } = await checkHousehold("MEMBER");
+  if (!ctx) return { ...empty, error };
 
   const file = formData.get("file");
   if (!(file instanceof File) || file.size === 0) {
@@ -31,7 +32,11 @@ export async function importTransactions(
     return { ...empty, error: "File is too large (max 5 MB)" };
   }
 
-  const result = await importTransactionsForUser(user.userId, await file.text());
+  const result = await importTransactionsForHousehold(
+    ctx.householdId,
+    await file.text(),
+    ctx.userId,
+  );
 
   if (result.imported > 0) {
     revalidatePath("/transactions");

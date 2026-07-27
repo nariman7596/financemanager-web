@@ -1,5 +1,5 @@
 import { Plus } from "lucide-react";
-import { requireUser } from "@/lib/auth";
+import { requireHousehold } from "@/lib/household";
 import { prisma } from "@/lib/prisma";
 import { formatMoney, formatDate, toNumber } from "@/lib/utils";
 import { Topbar } from "@/components/Topbar";
@@ -27,21 +27,21 @@ function cadence(interval: number, frequency: string) {
 }
 
 export default async function RecurringPage() {
-  const user = await requireUser();
+  const ctx = await requireHousehold();
 
   const [accounts, categories, rules] = await Promise.all([
     prisma.account.findMany({
-      where: { userId: user.userId, isArchived: false },
+      where: { householdId: ctx.householdId, isArchived: false },
       select: { id: true, name: true, currency: true },
       orderBy: { createdAt: "asc" },
     }),
     prisma.category.findMany({
-      where: { userId: user.userId, isArchived: false },
+      where: { householdId: ctx.householdId, isArchived: false },
       select: { id: true, name: true, type: true },
       orderBy: { name: "asc" },
     }),
     prisma.recurringTransaction.findMany({
-      where: { userId: user.userId },
+      where: { householdId: ctx.householdId },
       include: { account: true, category: true, transferAccount: true },
       orderBy: [{ isActive: "desc" }, { nextRunDate: "asc" }],
     }),

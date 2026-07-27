@@ -1,4 +1,4 @@
-import { requireUser } from "@/lib/auth";
+import { requireHousehold } from "@/lib/household";
 import {
   getBaseCurrency,
   getNetWorth,
@@ -17,15 +17,15 @@ import Link from "next/link";
 export const dynamic = "force-dynamic";
 
 export default async function DashboardPage() {
-  const user = await requireUser();
-  const base = await getBaseCurrency(user.userId);
+  const ctx = await requireHousehold();
+  const base = await getBaseCurrency(ctx.householdId);
 
   const [netWorth, flow, series, spending, budgets] = await Promise.all([
-    getNetWorth(user.userId, base),
-    getMonthlyFlow(user.userId, base),
-    getCashFlowSeries(user.userId, base, 6),
-    getSpendingByCategory(user.userId, base),
-    getBudgetProgress(user.userId),
+    getNetWorth(ctx.householdId, base),
+    getMonthlyFlow(ctx.householdId, base),
+    getCashFlowSeries(ctx.householdId, base, 6),
+    getSpendingByCategory(ctx.householdId, base),
+    getBudgetProgress(ctx.householdId),
   ]);
 
   const monthName = new Date().toLocaleString("en-US", { month: "long" });
@@ -33,7 +33,7 @@ export default async function DashboardPage() {
   return (
     <>
       <Topbar
-        title={`Welcome${user.name ? `, ${user.name.split(" ")[0]}` : ""}`}
+        title={`Welcome${ctx.name ? `, ${ctx.name.split(" ")[0]}` : ""}`}
         subtitle={`Your money at a glance · ${monthName}`}
       />
 

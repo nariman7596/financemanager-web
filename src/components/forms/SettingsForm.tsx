@@ -2,32 +2,26 @@
 
 import { useState } from "react";
 import { useFormStatus } from "react-dom";
-import { updateSettings } from "@/app/actions/settings";
-import { CURRENCIES } from "@/lib/constants";
+import { updateProfile } from "@/app/actions/settings";
 
 function Submit() {
   const { pending } = useFormStatus();
   return (
     <button type="submit" className="btn-primary" disabled={pending}>
-      {pending ? "Saving…" : "Save changes"}
+      {pending ? "Saving…" : "Save"}
     </button>
   );
 }
 
-export function SettingsForm({
-  name,
-  baseCurrency,
-}: {
-  name: string;
-  baseCurrency: string;
-}) {
+/** Personal profile: display name. */
+export function SettingsForm({ name }: { name: string }) {
   const [msg, setMsg] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   async function action(formData: FormData) {
     setMsg(null);
     setError(null);
-    const res = await updateSettings(formData);
+    const res = await updateProfile(formData);
     if (res?.error) setError(res.error);
     else setMsg("Saved");
   }
@@ -37,17 +31,6 @@ export function SettingsForm({
       <div>
         <label className="label">Name</label>
         <input name="name" defaultValue={name} required className="input" />
-      </div>
-      <div>
-        <label className="label">Base currency</label>
-        <select name="baseCurrency" defaultValue={baseCurrency} className="input">
-          {CURRENCIES.map((c) => (
-            <option key={c.code} value={c.code}>{c.code} — {c.name}</option>
-          ))}
-        </select>
-        <p className="text-xs text-slate-400 mt-1">
-          Dashboards and totals are converted into this currency.
-        </p>
       </div>
       <div className="flex items-center gap-3">
         <Submit />

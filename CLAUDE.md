@@ -18,13 +18,20 @@ npm run db:push           # create schema
 npm run db:seed           # optional demo data
 npm run dev               # http://localhost:3000
 ```
-Demo login: **demo@financemanager.app / demo1234**
+Demo logins (same household, different roles):
+- **demo@financemanager.app / demo1234** — OWNER
+- **partner@financemanager.app / demo1234** — MEMBER
 
 ## Conventions
 - SQLite has no enums → "enum-like" fields are `String`, with allowed values in
   `src/lib/constants.ts` and enforced by zod in `src/lib/validation.ts`.
-- Mutations are Server Actions in `src/app/actions/*`; every action calls
-  `requireUser()` and scopes queries by `userId` (data isolation).
+- **Ownership = Household, not User.** Every owned model has `householdId`
+  (scoping) + `createdById` (informational). Server Actions call
+  `checkHousehold(minRole)` and pages call `requireHousehold()` — both from
+  `src/lib/household.ts` — then scope ALL queries by the returned `householdId`.
+  Never query owned data by a householdId that didn't come from that layer.
+  Role ranks (src/lib/roles.ts): VIEWER < MEMBER < ADMIN < OWNER. Writes need
+  MEMBER; member management needs ADMIN.
 - Money handled as Prisma `Decimal`; convert to number with `toNumber()`.
 - Multi-currency conversion via `src/lib/currency.ts` using the `ExchangeRate`
   table; dashboards convert everything into the user's `baseCurrency`.
@@ -35,15 +42,38 @@ Demo login: **demo@financemanager.app / demo1234**
 - `cookies()` is async in Next 15 — always `await` it.
 
 ## Data model (prisma/schema.prisma)
-User · Account · Category · Transaction (INCOME/EXPENSE/TRANSFER) · Budget ·
-Investment · ExchangeRate. New users get default categories + a Cash account
-via `src/lib/defaults.ts`.
+User · Household · Membership (role) · Invitation · Account · Category ·
+Transaction (INCOME/EXPENSE/TRANSFER) · Budget · Investment · ExchangeRate.
+Owned models belong to a Household (`householdId`). New users get their own
+household (OWNER) with default categories + a Cash account via
+`createHousehold` in `src/lib/defaults.ts`.
+
+## Households & roles (`src/lib/household.ts`)
+- `getActiveContext()` resolves the caller's active household from the
+  `fm_household` cookie **verified against a real Membership** (falls back to
+  their first membership if the cookie is missing/forged — a forged cookie to a
+  household you don't belong to grants nothing).
+- `requireHousehold(minRole)` (pages, redirects/throws) and
+  `checkHousehold(minRole)` (actions, returns `{ctx}|{error}`) are the gates.
+- Household mgmt actions in `src/app/actions/household.ts`: invite (existing
+  user → instant membership; new email → pending Invitation accepted on
+  signup), change role, remove, cancel invite, switch active household, create,
+  leave, accept/decline. Guards: only ADMIN+ manages members; OWNER role can't
+  be assigned/changed/removed via the UI (no ownership transfer yet → prevents
+  lockout); last owner / last member can't leave.
+- UI: `HouseholdSwitcher` in the sidebar; `/household` page for members, roles,
+  invites; pending-invite badge on the Household nav item.
+- **Prod note:** ownership moved User→Household. Dev DB was reset + reseeded.
+  A prod DB with existing data needs a backfill (create a household +
+  OWNER membership per user, set householdId on their rows) before the
+  non-null columns apply.
 
 ## Status — foundation complete & verified
 Production build passes; all routes smoke-tested (200) with demo data.
 Done: auth, accounts, transactions (add/**edit**/delete), budgets, investments,
 dashboard, settings, categories, multi-currency, seed data, **live data
-refresh**, **recurring auto-posting**, **CSV import/export**, **dark mode**.
+refresh**, **recurring auto-posting**, **CSV import/export**, **dark mode**,
+**shared households + per-member roles**.
 
 ## Theming / dark mode
 - Tailwind `darkMode: "class"`. Semantic tokens live as CSS vars in
@@ -100,9 +130,9 @@ refresh**, **recurring auto-posting**, **CSV import/export**, **dark mode**.
   (fetch→parse→store→update all correct) + graceful-failure + cron auth gating.
 
 ## WHERE TO CONTINUE (next steps, prioritized)
-1. **Shared household budgets** & per-member roles (multi-user is built; roles
-   are not). Meaty: households/memberships schema + permission enforcement on
-   every query — security-critical, deserves its own focused pass.
+1. **Ownership transfer** — no way to promote another member to OWNER or hand
+   off ownership; needed before "delete household" is safe. Also add per-member
+   spending views (data already carries `createdById`).
 2. **Bank sync** — the manual CSV import is done; automated bank/Plaid sync is not.
 3. **Chart theming** — Recharts axis/grid/tooltip still use light-mode colors;
    thread the theme through the chart components.
@@ -111,7 +141,13 @@ refresh**, **recurring auto-posting**, **CSV import/export**, **dark mode**.
 5. **Edit recurring rules** — currently add/pause/delete (no edit form yet).
 
 ## Recently done
-- **Dark mode** (this commit): CSS-var theme tokens + `.dark` overrides,
+- **Shared households + per-member roles** (this commit): ownership moved
+  User→Household; Membership/Invitation models; centralized access layer
+  (`household.ts`) with role gates; `/household` mgmt page + sidebar switcher.
+  Verified: 13-assertion suite (role policy, invites, isolation, cascade) +
+  runtime isolation incl. forged-cookie defense (non-member with a forged
+  household cookie sees 0 rows) + MEMBER shared access + all pages 200 both roles.
+- **Dark mode**: CSS-var theme tokens + `.dark` overrides,
   `ThemeToggle` (localStorage + pre-paint script, no FOUC), themed shared
   component classes. Verified: build + all routes 200 in both themes, no
   hydration warnings.

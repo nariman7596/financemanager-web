@@ -1,5 +1,5 @@
 import { Plus } from "lucide-react";
-import { requireUser } from "@/lib/auth";
+import { requireHousehold } from "@/lib/household";
 import { prisma } from "@/lib/prisma";
 import { getBaseCurrency, getBudgetProgress } from "@/lib/queries";
 import { Topbar } from "@/components/Topbar";
@@ -12,16 +12,16 @@ import { deleteBudget } from "@/app/actions/budgets";
 export const dynamic = "force-dynamic";
 
 export default async function BudgetsPage() {
-  const user = await requireUser();
-  const base = await getBaseCurrency(user.userId);
+  const ctx = await requireHousehold();
+  const base = await getBaseCurrency(ctx.householdId);
 
   const [expenseCategories, budgets] = await Promise.all([
     prisma.category.findMany({
-      where: { userId: user.userId, type: "EXPENSE", isArchived: false },
+      where: { householdId: ctx.householdId, type: "EXPENSE", isArchived: false },
       select: { id: true, name: true },
       orderBy: { name: "asc" },
     }),
-    getBudgetProgress(user.userId),
+    getBudgetProgress(ctx.householdId),
   ]);
 
   const monthName = new Date().toLocaleString("en-US", { month: "long" });

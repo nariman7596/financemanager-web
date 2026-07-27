@@ -2,11 +2,13 @@
 
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
-import { requireUser } from "@/lib/auth";
+import { checkHousehold } from "@/lib/household";
 import { categorySchema } from "@/lib/validation";
 
 export async function createCategory(formData: FormData) {
-  const user = await requireUser();
+  const { ctx, error } = await checkHousehold("MEMBER");
+  if (!ctx) return { error };
+
   const parsed = categorySchema.safeParse({
     name: formData.get("name"),
     type: formData.get("type"),
@@ -15,9 +17,11 @@ export async function createCategory(formData: FormData) {
   if (!parsed.success) return { error: parsed.error.issues[0]?.message };
 
   try {
-    await prisma.category.create({ data: { ...parsed.data, userId: user.userId } });
+    await prisma.category.create({
+      data: { ...parsed.data, householdId: ctx.householdId, createdById: ctx.userId },
+    });
   } catch {
-    return { error: "You already have a category with that name and type" };
+    return { error: "This household already has a category with that name and type" };
   }
   revalidatePath("/settings");
   revalidatePath("/budgets");
@@ -25,9 +29,10 @@ export async function createCategory(formData: FormData) {
 }
 
 export async function deleteCategory(formData: FormData) {
-  const user = await requireUser();
+  const { ctx, error } = await checkHousehold("MEMBER");
+  if (!ctx) return { error };
   const id = String(formData.get("id"));
-  await prisma.category.deleteMany({ where: { id, userId: user.userId } });
+  await prisma.category.deleteMany({ where: { id, householdId: ctx.householdId } });
   revalidatePath("/settings");
   return { ok: true };
 }
