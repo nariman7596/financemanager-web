@@ -99,7 +99,7 @@ export default async function DashboardPage() {
 function Row({ label, value, bold }: { label: string; value: string; bold?: boolean }) {
   return (
     <div className="flex items-center justify-between">
-      <span className={bold ? "font-medium" : "text-slate-600"}>{label}</span>
+      <span className={bold ? "font-medium" : "text-[var(--muted)]"}>{label}</span>
       <span className={`tabular-nums ${bold ? "font-semibold" : ""}`}>{value}</span>
     </div>
   );

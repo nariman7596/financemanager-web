@@ -23,7 +23,7 @@ export function BudgetBar({
           {formatMoney(budget.spent, budget.currency)} / {formatMoney(budget.limit, budget.currency)}
         </span>
       </div>
-      <div className="h-2 rounded-full bg-slate-100 overflow-hidden">
+      <div className="h-2 rounded-full bg-[var(--subtle-strong)] overflow-hidden">
         <div
           className="h-full rounded-full transition-all"
           style={{ width: `${Math.min(100, budget.pct)}%`, backgroundColor: barColor }}

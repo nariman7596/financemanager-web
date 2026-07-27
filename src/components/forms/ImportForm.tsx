@@ -29,8 +29,8 @@ export function ImportForm() {
 
   return (
     <div className="space-y-4">
-      <div className="text-xs text-slate-500 bg-slate-50 rounded-lg p-3 space-y-1">
-        <p className="font-medium text-slate-600">Expected columns (header row required):</p>
+      <div className="text-xs text-[var(--muted)] surface-subtle rounded-lg p-3 space-y-1">
+        <p className="font-medium text-[var(--muted)]">Expected columns (header row required):</p>
         <code className="block text-[11px] text-slate-500">
           date, type, amount, currency, account, category, transferAccount, description
         </code>
@@ -48,7 +48,7 @@ export function ImportForm() {
           name="file"
           accept=".csv,text/csv"
           required
-          className="block w-full text-sm text-slate-600 file:mr-3 file:rounded-lg file:border-0 file:bg-brand-50 file:px-3 file:py-2 file:text-brand-700 file:font-medium hover:file:bg-brand-100"
+          className="block w-full text-sm text-[var(--muted)] file:mr-3 file:rounded-lg file:border-0 file:bg-brand-50 file:px-3 file:py-2 file:text-brand-700 file:font-medium hover:file:bg-brand-100"
         />
         <Submit />
       </form>

@@ -43,7 +43,21 @@ via `src/lib/defaults.ts`.
 Production build passes; all routes smoke-tested (200) with demo data.
 Done: auth, accounts, transactions (add/**edit**/delete), budgets, investments,
 dashboard, settings, categories, multi-currency, seed data, **live data
-refresh**, **recurring auto-posting**, **CSV import/export**.
+refresh**, **recurring auto-posting**, **CSV import/export**, **dark mode**.
+
+## Theming / dark mode
+- Tailwind `darkMode: "class"`. Semantic tokens live as CSS vars in
+  `globals.css` — `--bg/--card/--border/--text/--muted/--subtle/--subtle-strong/
+  --hover` — with a `.dark` block overriding them (+ `color-scheme`).
+- Shared component classes (`.card/.input/.btn-*/.label/.badge`) and helpers
+  (`.surface-subtle`, `.row-hover`) consume the tokens, so most theming is
+  automatic. A few accents use `dark:` variants (e.g. sidebar active link).
+- `ThemeToggle` flips `.dark` on `<html>` + persists to `localStorage`. A tiny
+  inline script in the root layout applies it pre-paint (no FOUC); `<html>` has
+  `suppressHydrationWarning`. Toggle lives in the sidebar footer.
+- Prefer theme tokens over hardcoded `bg-white`/`bg-slate-*`/`text-slate-600`
+  for new surfaces so they work in both themes. (slate-400/500 muted text is
+  left as-is; it reads fine on dark. Charts are not fully themed yet.)
 
 ## CSV import/export
 - Export: `GET /api/export/transactions` (session-authed) streams all the user's
@@ -87,16 +101,21 @@ refresh**, **recurring auto-posting**, **CSV import/export**.
 
 ## WHERE TO CONTINUE (next steps, prioritized)
 1. **Shared household budgets** & per-member roles (multi-user is built; roles
-   are not).
-2. **Dark mode** — theme scaffolding (`darkMode: "class"`, CSS vars) is in place;
-   just needs a toggle + `dark:` styles.
-3. **Bank sync** — the manual CSV import is done; automated bank/Plaid sync is not.
+   are not). Meaty: households/memberships schema + permission enforcement on
+   every query — security-critical, deserves its own focused pass.
+2. **Bank sync** — the manual CSV import is done; automated bank/Plaid sync is not.
+3. **Chart theming** — Recharts axis/grid/tooltip still use light-mode colors;
+   thread the theme through the chart components.
 4. **Stock symbol→id coverage** — `CRYPTO_IDS` map in marketdata.ts is a small
    starter; extend, or swap to a lookup API.
 5. **Edit recurring rules** — currently add/pause/delete (no edit form yet).
 
 ## Recently done
-- **CSV import/export** (this commit): export route + testable importer core
+- **Dark mode** (this commit): CSS-var theme tokens + `.dark` overrides,
+  `ThemeToggle` (localStorage + pre-paint script, no FOUC), themed shared
+  component classes. Verified: build + all routes 200 in both themes, no
+  hydration warnings.
+- **CSV import/export**: export route + testable importer core
   (auto-creates accounts/categories, skips bad rows) + Transactions-page UI.
   19-assertion test suite passes; export verified live (auth, headers, round-trip).
 - **Recurring auto-posting**: `RecurringTransaction` model +

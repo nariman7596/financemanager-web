@@ -3,11 +3,27 @@
 @tailwind utilities;
 
 :root {
+  color-scheme: light;
   --bg: #f6f8fb;
   --card: #ffffff;
   --border: #e6eaf0;
   --text: #0f172a;
   --muted: #64748b;
+  --subtle: #f8fafc; /* faint surface: table headers, info boxes */
+  --subtle-strong: #f1f5f9; /* progress tracks */
+  --hover: #f1f5f9; /* row / item hover */
+}
+
+.dark {
+  color-scheme: dark;
+  --bg: #0b1120;
+  --card: #111827;
+  --border: #1f2a3b;
+  --text: #e5e7eb;
+  --muted: #93a3b8;
+  --subtle: #0f1830;
+  --subtle-strong: #1f2a3b;
+  --hover: #172136;
 }
 
 html,
@@ -26,7 +42,10 @@ body {
 
 @layer components {
   .card {
-    @apply bg-white border border-[var(--border)] rounded-xl shadow-sm;
+    border-radius: 0.75rem;
+    background: var(--card);
+    border: 1px solid var(--border);
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
   }
   .btn {
     @apply inline-flex items-center justify-center gap-2 rounded-lg px-4 py-2 text-sm font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed;
@@ -35,18 +54,47 @@ body {
     @apply btn bg-brand-600 text-white hover:bg-brand-700;
   }
   .btn-ghost {
-    @apply btn bg-transparent text-slate-600 hover:bg-slate-100;
+    @apply btn bg-transparent;
+    color: var(--muted);
+  }
+  .btn-ghost:hover {
+    background: var(--hover);
+    color: var(--text);
   }
   .btn-danger {
-    @apply btn bg-red-50 text-red-600 hover:bg-red-100;
+    @apply btn;
+    color: #ef4444;
+    background: rgba(239, 68, 68, 0.1);
+  }
+  .btn-danger:hover {
+    background: rgba(239, 68, 68, 0.18);
   }
   .input {
-    @apply w-full rounded-lg border border-[var(--border)] bg-white px-3 py-2 text-sm outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-100;
+    width: 100%;
+    border-radius: 0.5rem;
+    border: 1px solid var(--border);
+    background: var(--card);
+    color: var(--text);
+    padding: 0.5rem 0.75rem;
+    font-size: 0.875rem;
+    outline: none;
+  }
+  .input:focus {
+    border-color: #328eff;
+    box-shadow: 0 0 0 3px rgba(50, 142, 255, 0.15);
   }
   .label {
-    @apply block text-xs font-medium text-slate-500 mb-1;
+    @apply block text-xs font-medium mb-1;
+    color: var(--muted);
   }
   .badge {
     @apply inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium;
+  }
+  /* Faint surfaces + hovers driven by theme tokens */
+  .surface-subtle {
+    background: var(--subtle);
+  }
+  .row-hover:hover {
+    background: var(--hover);
   }
 }

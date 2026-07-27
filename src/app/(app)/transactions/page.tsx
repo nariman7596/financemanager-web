@@ -81,7 +81,7 @@ export default async function TransactionsPage() {
       ) : (
         <div className="card overflow-hidden">
           <table className="w-full text-sm">
-            <thead className="bg-slate-50 text-slate-500 text-left">
+            <thead className="surface-subtle text-[var(--muted)] text-left">
               <tr>
                 <th className="px-4 py-3 font-medium">Date</th>
                 <th className="px-4 py-3 font-medium">Description</th>
@@ -96,7 +96,7 @@ export default async function TransactionsPage() {
                 const amt = toNumber(t.amount);
                 const sign = t.type === "INCOME" ? "+" : t.type === "EXPENSE" ? "−" : "";
                 return (
-                  <tr key={t.id} className="border-t border-[var(--border)] hover:bg-slate-50/60">
+                  <tr key={t.id} className="border-t border-[var(--border)] row-hover">
                     <td className="px-4 py-3 whitespace-nowrap text-slate-500">{formatDate(t.date)}</td>
                     <td className="px-4 py-3">
                       {t.description || <span className="text-slate-400">—</span>}

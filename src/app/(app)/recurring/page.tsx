@@ -79,7 +79,7 @@ export default async function RecurringPage() {
       ) : (
         <div className="card overflow-hidden">
           <table className="w-full text-sm">
-            <thead className="bg-slate-50 text-slate-500 text-left">
+            <thead className="surface-subtle text-[var(--muted)] text-left">
               <tr>
                 <th className="px-4 py-3 font-medium">Description</th>
                 <th className="px-4 py-3 font-medium">Schedule</th>
@@ -91,7 +91,7 @@ export default async function RecurringPage() {
             </thead>
             <tbody>
               {rules.map((r) => (
-                <tr key={r.id} className="border-t border-[var(--border)] hover:bg-slate-50/60">
+                <tr key={r.id} className="border-t border-[var(--border)] row-hover">
                   <td className="px-4 py-3">
                     <p className="font-medium">
                       {r.description || <span className="text-slate-400">Untitled</span>}
@@ -118,7 +118,7 @@ export default async function RecurringPage() {
                     {r.isActive ? (
                       <span className="badge bg-green-50 text-green-700">Active</span>
                     ) : (
-                      <span className="badge bg-slate-100 text-slate-500">Paused</span>
+                      <span className="badge surface-subtle text-[var(--muted)]">Paused</span>
                     )}
                   </td>
                   <td className="px-2 py-3">

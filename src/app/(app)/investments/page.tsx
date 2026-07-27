@@ -63,7 +63,7 @@ export default async function InvestmentsPage() {
       ) : (
         <div className="card overflow-hidden">
           <table className="w-full text-sm">
-            <thead className="bg-slate-50 text-slate-500 text-left">
+            <thead className="surface-subtle text-[var(--muted)] text-left">
               <tr>
                 <th className="px-4 py-3 font-medium">Symbol</th>
                 <th className="px-4 py-3 font-medium">Qty</th>
@@ -75,12 +75,12 @@ export default async function InvestmentsPage() {
             </thead>
             <tbody>
               {holdings.map((h) => (
-                <tr key={h.id} className="border-t border-[var(--border)] hover:bg-slate-50/60">
+                <tr key={h.id} className="border-t border-[var(--border)] row-hover">
                   <td className="px-4 py-3">
                     <p className="font-medium">{h.symbol}</p>
                     <p className="text-xs text-slate-400">{h.name} · {h.type.toLowerCase()}</p>
                   </td>
-                  <td className="px-4 py-3 tabular-nums text-slate-600">{h.quantity}</td>
+                  <td className="px-4 py-3 tabular-nums text-[var(--muted)]">{h.quantity}</td>
                   <td className="px-4 py-3">
                     <PriceForm id={h.id} currentPrice={h.currentPrice} currency={h.currency} />
                   </td>

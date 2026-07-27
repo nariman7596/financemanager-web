@@ -145,11 +145,16 @@ On the **Transactions** page:
   rows are skipped and reported, and a file exported from here re-imports
   cleanly.
 
+## Dark mode
+
+Toggle light/dark from the sidebar footer. Your choice is saved and applied
+before first paint (no flash); with no saved choice the app follows your OS
+setting.
+
 ## Roadmap ideas
 
 - Automated bank sync (e.g. Plaid)
 - Shared household budgets & per-member roles
-- Dark mode (the theme scaffolding is already in place)
 
 ---
 
