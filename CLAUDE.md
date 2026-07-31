@@ -132,17 +132,23 @@ refresh**, **recurring auto-posting**, **CSV import/export**, **dark mode**,
   (fetch→parse→store→update all correct) + graceful-failure + cron auth gating.
 
 ## WHERE TO CONTINUE (next steps, prioritized)
-1. **Per-member spending views** — data already carries `createdById`; add
-   "who spent what" breakdowns per household member.
-2. **Bank sync** — the manual CSV import is done; automated bank/Plaid sync is not.
-3. **Chart theming** — Recharts axis/grid/tooltip still use light-mode colors;
+1. **Bank sync** — the manual CSV import is done; automated bank/Plaid sync is not.
+2. **Chart theming** — Recharts axis/grid/tooltip still use light-mode colors;
    thread the theme through the chart components.
-4. **Stock symbol→id coverage** — `CRYPTO_IDS` map in marketdata.ts is a small
+3. **Stock symbol→id coverage** — `CRYPTO_IDS` map in marketdata.ts is a small
    starter; extend, or swap to a lookup API.
-5. **Edit recurring rules** — currently add/pause/delete (no edit form yet).
+4. **Edit recurring rules** — currently add/pause/delete (no edit form yet).
+5. **Per-member views, more** — spending-by-member is on the dashboard; could add
+   a date-range filter or a dedicated per-member report page.
 
 ## Recently done
-- **Ownership transfer + delete household** (this commit): OWNER can hand off
+- **Per-member spending views** (this commit): `getSpendingByMember` groups the
+  month's income/expense by `Transaction.createdById` → member name (base
+  currency; includes every member + an "Unknown" bucket). Dashboard shows a
+  "Spending by member" card (only when >1 member); Transactions rows show
+  "by {member}" in shared households. Verified at runtime (Demo $1,800 / Partner
+  $375, correct creator labels).
+- **Ownership transfer + delete household**: OWNER can hand off
   ownership (target→OWNER, self→ADMIN) via `transferOwnershipTo`, and delete a
   household (cascade) via `deleteHouseholdFor` — both pure cores in
   `src/lib/ownership.ts`, wrapped by OWNER-gated actions. Delete is blocked on

@@ -184,6 +184,67 @@ export async function getBudgetProgress(householdId: string, month = new Date())
   });
 }
 
+/**
+ * "Who spent what" for the month: expense + income per household member
+ * (base currency). Includes every current member (even with zero activity) so
+ * the caller can tell a shared household from a solo one, plus an "Unknown"
+ * bucket for rows with no recorded creator (e.g. older imports).
+ */
+export async function getSpendingByMember(householdId: string, base: string, month = new Date()) {
+  const rates = await loadRates();
+
+  const [members, txns] = await Promise.all([
+    prisma.membership.findMany({
+      where: { householdId },
+      include: { user: { select: { id: true, name: true, email: true } } },
+      orderBy: { createdAt: "asc" },
+    }),
+    prisma.transaction.findMany({
+      where: {
+        householdId,
+        type: { in: ["INCOME", "EXPENSE"] },
+        date: { gte: startOfMonth(month), lte: endOfMonth(month) },
+      },
+      select: { type: true, amount: true, currency: true, createdById: true },
+    }),
+  ]);
+
+  const nameFor = new Map<string, string>(
+    members.map((m) => [m.userId, m.user.name ?? m.user.email]),
+  );
+
+  type Row = { id: string; name: string; spent: number; earned: number };
+  const rows = new Map<string, Row>();
+  // Seed a row per current member so everyone appears.
+  for (const m of members) {
+    rows.set(m.userId, { id: m.userId, name: nameFor.get(m.userId) ?? "Member", spent: 0, earned: 0 });
+  }
+
+  for (const t of txns) {
+    const key = t.createdById ?? "unknown";
+    if (!rows.has(key)) {
+      rows.set(key, {
+        id: key,
+        name: key === "unknown" ? "Unknown" : nameFor.get(key) ?? "Former member",
+        spent: 0,
+        earned: 0,
+      });
+    }
+    const row = rows.get(key)!;
+    const v = convert(toNumber(t.amount), t.currency, base, rates);
+    if (t.type === "EXPENSE") row.spent += v;
+    else row.earned += v;
+  }
+
+  const result = Array.from(rows.values()).map((r) => ({
+    ...r,
+    spent: Math.round(r.spent * 100) / 100,
+    earned: Math.round(r.earned * 100) / 100,
+  }));
+  result.sort((a, b) => b.spent - a.spent);
+  return { members: members.length, rows: result };
+}
+
 export async function getInvestments(householdId: string) {
   const items = await prisma.investment.findMany({
     where: { householdId },

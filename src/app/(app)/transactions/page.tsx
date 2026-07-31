@@ -34,6 +34,14 @@ export default async function TransactionsPage() {
     }),
   ]);
 
+  // Map createdById -> member name, to show "who added it" in shared households.
+  const members = await prisma.membership.findMany({
+    where: { householdId: ctx.householdId },
+    include: { user: { select: { id: true, name: true, email: true } } },
+  });
+  const memberName = new Map(members.map((m) => [m.userId, m.user.name ?? m.user.email]));
+  const shared = members.length > 1;
+
   return (
     <>
       <Topbar
@@ -102,6 +110,9 @@ export default async function TransactionsPage() {
                       {t.description || <span className="text-slate-400">—</span>}
                       {t.type === "TRANSFER" && t.transferAccount && (
                         <span className="text-slate-400"> → {t.transferAccount.name}</span>
+                      )}
+                      {shared && t.createdById && memberName.has(t.createdById) && (
+                        <span className="block text-xs text-slate-400">by {memberName.get(t.createdById)}</span>
                       )}
                     </td>
                     <td className="px-4 py-3">

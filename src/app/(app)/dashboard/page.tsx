@@ -6,12 +6,14 @@ import {
   getCashFlowSeries,
   getSpendingByCategory,
   getBudgetProgress,
+  getSpendingByMember,
 } from "@/lib/queries";
 import { formatMoney } from "@/lib/utils";
 import { Topbar } from "@/components/Topbar";
 import { StatCard } from "@/components/StatCard";
 import { CashFlowChart, SpendingPieChart } from "@/components/Charts";
 import { BudgetBar } from "@/components/BudgetBar";
+import { MemberSpending } from "@/components/MemberSpending";
 import Link from "next/link";
 
 export const dynamic = "force-dynamic";
@@ -20,12 +22,13 @@ export default async function DashboardPage() {
   const ctx = await requireHousehold();
   const base = await getBaseCurrency(ctx.householdId);
 
-  const [netWorth, flow, series, spending, budgets] = await Promise.all([
+  const [netWorth, flow, series, spending, budgets, byMember] = await Promise.all([
     getNetWorth(ctx.householdId, base),
     getMonthlyFlow(ctx.householdId, base),
     getCashFlowSeries(ctx.householdId, base, 6),
     getSpendingByCategory(ctx.householdId, base),
     getBudgetProgress(ctx.householdId),
+    getSpendingByMember(ctx.householdId, base),
   ]);
 
   const monthName = new Date().toLocaleString("en-US", { month: "long" });
@@ -92,6 +95,18 @@ export default async function DashboardPage() {
           )}
         </div>
       </section>
+
+      {byMember.members > 1 && (
+        <section className="mt-4">
+          <div className="card p-5">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="font-semibold">Spending by member · {monthName}</h2>
+              <span className="text-sm text-slate-400">who spent what</span>
+            </div>
+            <MemberSpending rows={byMember.rows} currency={base} />
+          </div>
+        </section>
+      )}
     </>
   );
 }
