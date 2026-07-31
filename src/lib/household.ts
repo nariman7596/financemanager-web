@@ -107,6 +107,12 @@ export async function setActiveHousehold(householdId: string): Promise<boolean> 
   return true;
 }
 
+/** Clear the active-household cookie (e.g. after deleting/leaving it). */
+export async function clearActiveHousehold() {
+  const store = await cookies();
+  store.delete(ACTIVE_COOKIE);
+}
+
 export const ACTIVE_HOUSEHOLD_COOKIE = ACTIVE_COOKIE;
 
 /** All households the current user belongs to (with their role + counts). */

@@ -58,9 +58,11 @@ household (OWNER) with default categories + a Cash account via
 - Household mgmt actions in `src/app/actions/household.ts`: invite (existing
   user → instant membership; new email → pending Invitation accepted on
   signup), change role, remove, cancel invite, switch active household, create,
-  leave, accept/decline. Guards: only ADMIN+ manages members; OWNER role can't
-  be assigned/changed/removed via the UI (no ownership transfer yet → prevents
-  lockout); last owner / last member can't leave.
+  leave, accept/decline, **transfer ownership**, **delete household**. Guards:
+  only ADMIN+ manages members; OWNER role isn't set via changeRole (use transfer
+  ownership, OWNER-only, which demotes the acting owner to ADMIN); owners can't
+  be removed; last owner / last member can't leave; you can't delete your only
+  household.
 - UI: `HouseholdSwitcher` in the sidebar; `/household` page for members, roles,
   invites; pending-invite badge on the Household nav item.
 - **Prod note:** ownership moved User→Household. Dev DB was reset + reseeded.
@@ -130,9 +132,8 @@ refresh**, **recurring auto-posting**, **CSV import/export**, **dark mode**,
   (fetch→parse→store→update all correct) + graceful-failure + cron auth gating.
 
 ## WHERE TO CONTINUE (next steps, prioritized)
-1. **Ownership transfer** — no way to promote another member to OWNER or hand
-   off ownership; needed before "delete household" is safe. Also add per-member
-   spending views (data already carries `createdById`).
+1. **Per-member spending views** — data already carries `createdById`; add
+   "who spent what" breakdowns per household member.
 2. **Bank sync** — the manual CSV import is done; automated bank/Plaid sync is not.
 3. **Chart theming** — Recharts axis/grid/tooltip still use light-mode colors;
    thread the theme through the chart components.
@@ -141,7 +142,14 @@ refresh**, **recurring auto-posting**, **CSV import/export**, **dark mode**,
 5. **Edit recurring rules** — currently add/pause/delete (no edit form yet).
 
 ## Recently done
-- **Shared households + per-member roles** (this commit): ownership moved
+- **Ownership transfer + delete household** (this commit): OWNER can hand off
+  ownership (target→OWNER, self→ADMIN) via `transferOwnershipTo`, and delete a
+  household (cascade) via `deleteHouseholdFor` — both pure cores in
+  `src/lib/ownership.ts`, wrapped by OWNER-gated actions. Delete is blocked on
+  your only household. UI: "Make owner" per member + "Delete household" danger
+  action, OWNER-only. Verified: 13-assertion suite (transfer effects + guards,
+  cascade, last-household block) + owner-only control visibility by role.
+- **Shared households + per-member roles**: ownership moved
   User→Household; Membership/Invitation models; centralized access layer
   (`household.ts`) with role gates; `/household` mgmt page + sidebar switcher.
   Verified: 13-assertion suite (role policy, invites, isolation, cascade) +

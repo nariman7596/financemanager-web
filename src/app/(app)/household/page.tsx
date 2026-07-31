@@ -6,11 +6,13 @@ import {
   InviteForm,
   RoleSelect,
   RemoveMemberButton,
+  MakeOwnerButton,
   CancelInviteButton,
   InviteResponse,
   HouseholdSettingsForm,
   NewHouseholdForm,
   LeaveHouseholdButton,
+  DeleteHouseholdButton,
 } from "@/components/household-controls";
 
 export const dynamic = "force-dynamic";
@@ -25,6 +27,7 @@ const ROLE_BADGE: Record<string, string> = {
 export default async function HouseholdPage() {
   const ctx = await requireHousehold();
   const isAdmin = roleAtLeast(ctx.role, "ADMIN");
+  const isOwner = ctx.role === "OWNER";
 
   const [household, myInvites] = await Promise.all([
     prisma.household.findUnique({
@@ -116,8 +119,13 @@ export default async function HouseholdPage() {
                           </span>
                         )}
                       </td>
-                      <td className="px-3 py-2 text-right">
-                        {editable && <RemoveMemberButton membershipId={m.id} name={m.user.name ?? m.user.email} />}
+                      <td className="px-3 py-2">
+                        <div className="flex items-center justify-end gap-1">
+                          {isOwner && m.role !== "OWNER" && !isSelf && (
+                            <MakeOwnerButton membershipId={m.id} name={m.user.name ?? m.user.email} />
+                          )}
+                          {editable && <RemoveMemberButton membershipId={m.id} name={m.user.name ?? m.user.email} />}
+                        </div>
                       </td>
                     </tr>
                   );
@@ -157,8 +165,9 @@ export default async function HouseholdPage() {
             </p>
             <NewHouseholdForm />
           </div>
-          <div className="pt-4 border-t border-[var(--border)]">
+          <div className="pt-4 border-t border-[var(--border)] flex flex-wrap items-start gap-6">
             <LeaveHouseholdButton />
+            {isOwner && <DeleteHouseholdButton />}
           </div>
         </div>
       </div>

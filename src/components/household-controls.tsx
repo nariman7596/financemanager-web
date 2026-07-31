@@ -15,6 +15,8 @@ import {
   leaveHousehold,
   acceptInvite,
   declineInvite,
+  transferOwnership,
+  deleteHousehold,
 } from "@/app/actions/household";
 
 type Result = { ok?: boolean; error?: string } | undefined;
@@ -123,6 +125,45 @@ export function RemoveMemberButton({ membershipId, name }: { membershipId: strin
         Remove
       </button>
     </ActionForm>
+  );
+}
+
+export function MakeOwnerButton({ membershipId, name }: { membershipId: string; name: string }) {
+  return (
+    <ActionForm
+      action={transferOwnership}
+      confirm={`Make ${name} the owner? You'll step down to admin — this can't be undone by you afterwards.`}
+    >
+      <input type="hidden" name="membershipId" value={membershipId} />
+      <button type="submit" className="btn-ghost px-2 py-1 text-sm hover:bg-[var(--hover)]">
+        Make owner
+      </button>
+    </ActionForm>
+  );
+}
+
+export function DeleteHouseholdButton() {
+  const router = useRouter();
+  const [error, setError] = useState<string | null>(null);
+  async function action() {
+    setError(null);
+    const res = await deleteHousehold();
+    if (res?.error) setError(res.error);
+    else router.refresh();
+  }
+  return (
+    <form
+      action={action}
+      onSubmit={(e) => {
+        if (!window.confirm("Delete this household and ALL its data for every member? This cannot be undone."))
+          e.preventDefault();
+      }}
+    >
+      <button type="submit" className="btn-ghost text-red-600 hover:bg-red-50">
+        Delete household
+      </button>
+      {error && <p className="text-sm text-red-600 mt-1">{error}</p>}
+    </form>
   );
 }
 

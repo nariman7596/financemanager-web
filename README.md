@@ -172,7 +172,9 @@ people from the **Household** page and give each a role:
 
 Switch between your households from the sidebar. Invites by email attach
 instantly if the person already has an account, otherwise they’re pending and
-accepted automatically when that email signs up.
+accepted automatically when that email signs up. An owner can **hand off
+ownership** to another member (they become owner, you step down to admin) and
+**delete a household** (with all its data) — except your last one.
 
 ## Dark mode
 

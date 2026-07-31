@@ -7,9 +7,11 @@ import {
   checkHousehold,
   setActiveHousehold,
   getActiveContext,
+  clearActiveHousehold,
   type Role,
 } from "@/lib/household";
 import { createHousehold } from "@/lib/defaults";
+import { transferOwnershipTo, deleteHouseholdFor } from "@/lib/ownership";
 import { CURRENCY_CODES } from "@/lib/constants";
 
 // Roles an ADMIN may assign / invite at (never OWNER — ownership isn't
@@ -144,6 +146,27 @@ export async function removeMember(formData: FormData) {
 
   await prisma.membership.delete({ where: { id: target.id } });
   revalidateHousehold();
+  return { ok: true };
+}
+
+export async function transferOwnership(formData: FormData) {
+  const { ctx, error } = await checkHousehold("OWNER");
+  if (!ctx) return { error };
+  const membershipId = String(formData.get("membershipId"));
+  const res = await transferOwnershipTo(ctx.householdId, ctx.userId, membershipId);
+  if (res.error) return { error: res.error };
+  revalidatePath("/household");
+  revalidatePath("/", "layout");
+  return { ok: true };
+}
+
+export async function deleteHousehold() {
+  const { ctx, error } = await checkHousehold("OWNER");
+  if (!ctx) return { error };
+  const res = await deleteHouseholdFor(ctx.householdId, ctx.userId);
+  if (res.error) return { error: res.error };
+  await clearActiveHousehold();
+  revalidatePath("/", "layout");
   return { ok: true };
 }
 
