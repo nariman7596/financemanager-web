@@ -113,9 +113,12 @@ refresh**, **recurring auto-posting**, **CSV import/export**, **dark mode**,
 - `postDueRecurring(userId?, asOf)` materializes every due occurrence, catching
   up if behind (capped at 366/rule), advances `nextRunDate`, and deactivates a
   rule once past `endDate`. Idempotent (re-running posts nothing new).
-- Triggers: `/recurring` page (add/pause/resume/delete + **Run due now**) and
-  scheduled `GET/POST /api/cron/recurring` (guarded by `CRON_SECRET`, all users).
-  Creating a rule auto-posts anything already due.
+- Triggers: `/recurring` page (add/**edit**/pause/resume/delete + **Run due
+  now**) and scheduled `GET/POST /api/cron/recurring` (guarded by `CRON_SECRET`,
+  all users). Creating or editing a rule auto-posts anything already due.
+- Edit reuses `RecurringForm` (`rule` prop) → `updateRecurring`. nextRunDate
+  follows the new startDate only while the rule hasn't posted yet (lastPosted
+  null); once posting has begun the cursor is preserved.
 - The one-off `TransactionForm` no longer has a recurring checkbox (it did
   nothing); recurrence is now this dedicated feature. `Transaction.isRecurring/
   recurrence` columns remain but are unused/legacy.
@@ -136,14 +139,19 @@ refresh**, **recurring auto-posting**, **CSV import/export**, **dark mode**,
 
 ## WHERE TO CONTINUE (next steps, prioritized)
 1. **Bank sync** — the manual CSV import is done; automated bank/Plaid sync is not.
-2. **Edit recurring rules** — currently add/pause/delete (no edit form yet).
-3. **Stock symbol→id coverage** — `CRYPTO_IDS` map in marketdata.ts is a small
+2. **Stock symbol→id coverage** — `CRYPTO_IDS` map in marketdata.ts is a small
    starter; extend, or swap to a lookup API.
-4. **Per-member views, more** — spending-by-member is on the dashboard; could add
+3. **Per-member views, more** — spending-by-member is on the dashboard; could add
    a date-range filter or a dedicated per-member report page.
+4. **Reports/exports** — richer reporting (date ranges, per-category trends),
+   PDF/Excel export.
 
 ## Recently done
-- **Chart theming** (this commit): `useIsDark` hook + `chartTheme()` thread
+- **Edit recurring rules** (this commit): `updateRecurring` action + edit mode
+  in `RecurringForm` (`rule` prop) + per-row Edit button. nextRunDate follows a
+  new start date only while unposted. Verified: 5-assertion suite (field update,
+  both nextRunDate branches, household scoping) + page renders the control.
+- **Chart theming**: `useIsDark` hook + `chartTheme()` thread
   dark/light colors through the Recharts grid/axis/tooltip/legend; verified with
   Chromium screenshots of the dashboard in both themes.
 - **Per-member spending views**: `getSpendingByMember` groups the

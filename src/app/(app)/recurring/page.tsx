@@ -1,4 +1,4 @@
-import { Plus } from "lucide-react";
+import { Plus, Pencil } from "lucide-react";
 import { requireHousehold } from "@/lib/household";
 import { prisma } from "@/lib/prisma";
 import { formatMoney, formatDate, toNumber } from "@/lib/utils";
@@ -123,6 +123,37 @@ export default async function RecurringPage() {
                   </td>
                   <td className="px-2 py-3">
                     <div className="flex items-center justify-end gap-0.5">
+                      <Modal
+                        title="Edit recurring rule"
+                        trigger={
+                          <button
+                            className="btn-ghost p-1.5 text-slate-400 hover:text-brand-600 hover:bg-brand-50"
+                            aria-label="Edit rule"
+                            title="Edit"
+                          >
+                            <Pencil size={16} />
+                          </button>
+                        }
+                      >
+                        <RecurringForm
+                          accounts={accounts}
+                          categories={categories}
+                          rule={{
+                            id: r.id,
+                            type: r.type,
+                            accountId: r.accountId,
+                            categoryId: r.categoryId,
+                            transferAccountId: r.transferAccountId,
+                            amount: toNumber(r.amount),
+                            currency: r.currency,
+                            description: r.description,
+                            frequency: r.frequency,
+                            interval: r.interval,
+                            startDate: r.startDate.toISOString().slice(0, 10),
+                            endDate: r.endDate ? r.endDate.toISOString().slice(0, 10) : null,
+                          }}
+                        />
+                      </Modal>
                       <RecurringToggle id={r.id} active={r.isActive} />
                       <DeleteButton action={deleteRecurring} id={r.id} label="Delete rule" />
                     </div>
