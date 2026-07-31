@@ -89,7 +89,10 @@ refresh**, **recurring auto-posting**, **CSV import/export**, **dark mode**,
   `suppressHydrationWarning`. Toggle lives in the sidebar footer.
 - Prefer theme tokens over hardcoded `bg-white`/`bg-slate-*`/`text-slate-600`
   for new surfaces so they work in both themes. (slate-400/500 muted text is
-  left as-is; it reads fine on dark. Charts are not fully themed yet.)
+  left as-is; it reads fine on dark.)
+- **Charts** (Recharts) can't use CSS vars for SVG colors, so `src/lib/useIsDark.ts`
+  (MutationObserver on `<html>.dark`) + `chartTheme(dark)` drive grid/axis/
+  tooltip/legend colors; charts re-theme live on toggle.
 
 ## CSV import/export
 - Export: `GET /api/export/transactions` (session-authed) streams all the user's
@@ -133,16 +136,17 @@ refresh**, **recurring auto-posting**, **CSV import/export**, **dark mode**,
 
 ## WHERE TO CONTINUE (next steps, prioritized)
 1. **Bank sync** — the manual CSV import is done; automated bank/Plaid sync is not.
-2. **Chart theming** — Recharts axis/grid/tooltip still use light-mode colors;
-   thread the theme through the chart components.
+2. **Edit recurring rules** — currently add/pause/delete (no edit form yet).
 3. **Stock symbol→id coverage** — `CRYPTO_IDS` map in marketdata.ts is a small
    starter; extend, or swap to a lookup API.
-4. **Edit recurring rules** — currently add/pause/delete (no edit form yet).
-5. **Per-member views, more** — spending-by-member is on the dashboard; could add
+4. **Per-member views, more** — spending-by-member is on the dashboard; could add
    a date-range filter or a dedicated per-member report page.
 
 ## Recently done
-- **Per-member spending views** (this commit): `getSpendingByMember` groups the
+- **Chart theming** (this commit): `useIsDark` hook + `chartTheme()` thread
+  dark/light colors through the Recharts grid/axis/tooltip/legend; verified with
+  Chromium screenshots of the dashboard in both themes.
+- **Per-member spending views**: `getSpendingByMember` groups the
   month's income/expense by `Transaction.createdById` → member name (base
   currency; includes every member + an "Unknown" bucket). Dashboard shows a
   "Spending by member" card (only when >1 member); Transactions rows show
