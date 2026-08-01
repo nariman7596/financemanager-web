@@ -1,9 +1,17 @@
 // FinanceManager data model
 // ---------------------------------------------------------------------------
-// Dev uses SQLite (zero setup). To move to Postgres for production:
-//   1. change `provider` below to "postgresql"
-//   2. set DATABASE_URL to your Postgres connection string
-//   3. run `npm run db:migrate`
+// Dev uses SQLite (zero setup). To move to Postgres for production, replace the
+// `datasource db { … }` block below with this one (see docs/DEPLOYMENT.md):
+//
+//   datasource db {
+//     provider  = "postgresql"
+//     url       = env("DATABASE_URL")   // pooled connection (runtime)
+//     directUrl = env("DIRECT_URL")     // direct connection (migrations)
+//   }
+//
+// then: npx prisma migrate dev --name init   (creates the first migration)
+//       npx prisma migrate deploy            (applies it in prod / CI)
+// Every model is already Postgres-compatible — no other schema change needed.
 // Note: SQLite has no native enums, so "enum-like" fields are stored as
 // strings and validated in the app layer (see src/lib/constants.ts + zod).
 //

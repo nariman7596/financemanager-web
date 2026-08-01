@@ -110,17 +110,15 @@ openssl rand -base64 32   # CRON_SECRET
 
 1. Push the repo to GitHub and **Import Project** in Vercel.
 2. Add all env vars from §3 (Project → Settings → Environment Variables).
-3. Set the **Build Command** so migrations run on each deploy:
-   ```
-   prisma generate && prisma migrate deploy && next build
-   ```
-   (The repo's `build` script already does `prisma generate && next build`;
-   inserting `prisma migrate deploy` applies pending migrations at deploy time.)
+3. The committed **`vercel.json`** already sets the build command to
+   `prisma generate && prisma migrate deploy && next build` (so migrations apply
+   on every deploy) and registers the cron jobs — nothing to configure.
 4. Deploy. Visit the URL and register your account — you'll get your own
    household (OWNER) automatically.
 
-Other hosts (Fly.io, Railway, a container) work the same: set env, run
-`prisma migrate deploy` on release, `next build`, `next start`.
+Other hosts (Fly.io, Railway, a container) work the same: set env, then run
+`npm run build:prod` (= generate + `migrate deploy` + build) on release and
+`npm start`.
 
 ---
 
@@ -133,7 +131,9 @@ Two endpoints do the background work, both guarded by `CRON_SECRET`:
 
 **Vercel Cron** is the easiest — it automatically sends
 `Authorization: Bearer $CRON_SECRET`, which is exactly what these routes check.
-Add `vercel.json`:
+The committed **`vercel.json`** already declares both jobs (daily recurring post
+at 06:00 UTC, hourly price refresh) — just make sure `CRON_SECRET` is set in the
+Vercel env. Adjust the schedules there if you like:
 
 ```json
 {
@@ -143,8 +143,6 @@ Add `vercel.json`:
   ]
 }
 ```
-
-(Daily recurring post at 06:00 UTC; hourly price refresh.)
 
 **Alternatives** — any scheduler that can send the bearer token:
 

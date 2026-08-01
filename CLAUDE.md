@@ -22,6 +22,16 @@ Demo logins (same household, different roles):
 - **demo@financemanager.app / demo1234** — OWNER
 - **partner@financemanager.app / demo1234** — MEMBER
 
+## Deploy
+Dev stays on SQLite (zero setup). Production = Postgres — full guide in
+`docs/DEPLOYMENT.md`. Scaffolding is in the repo: `vercel.json` (build command +
+cron jobs for `/api/cron/recurring` & `/refresh`), `build:prod` script
+(`generate + migrate deploy + build`), `.env.example` (DATABASE_URL/DIRECT_URL/
+AUTH_SECRET/CRON_SECRET), and a copy-paste Postgres datasource block in
+`schema.prisma`. Flip: swap the datasource to postgresql, `prisma migrate dev
+--name init`, deploy. Vercel Cron auto-sends the `Bearer $CRON_SECRET` the cron
+routes already check.
+
 ## Conventions
 - SQLite has no enums → "enum-like" fields are `String`, with allowed values in
   `src/lib/constants.ts` and enforced by zod in `src/lib/validation.ts`.
