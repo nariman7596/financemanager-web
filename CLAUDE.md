@@ -36,7 +36,8 @@ Postgres everywhere via Docker. Three guides:
 - **`docs/VPS.md`** — bare-metal (systemd + Caddy, no Docker) alternative.
 - **`docs/DEPLOYMENT.md`** — managed hosting (Vercel + Neon), `vercel.json` +
   `build:prod` still present for that path.
-Cron: hit the `CRON_SECRET`-guarded `/api/cron/recurring` + `/refresh`.
+Cron: hit the `CRON_SECRET`-guarded `/api/cron/recurring` + `/refresh` +
+`/bank-sync`.
 
 ## Conventions
 - "enum-like" fields are `String` (kept portable rather than DB enums), with
@@ -70,9 +71,9 @@ Cron: hit the `CRON_SECRET`-guarded `/api/cron/recurring` + `/refresh`.
 
 ## Data model (prisma/schema.prisma)
 User · Household · Membership (role) · Invitation · Account · Category ·
-Transaction (INCOME/EXPENSE/TRANSFER) · Budget · Investment · ExchangeRate.
-Owned models belong to a Household (`householdId`). New users get their own
-household (OWNER) with default categories + a Cash account via
+Transaction (INCOME/EXPENSE/TRANSFER) · Budget · Investment · ExchangeRate ·
+PlaidItem. Owned models belong to a Household (`householdId`). New users get
+their own household (OWNER) with default categories + a Cash account via
 `createHousehold` in `src/lib/defaults.ts`.
 
 ## Households & roles (`src/lib/household.ts`)
@@ -102,7 +103,7 @@ Production build passes; all routes smoke-tested (200) with demo data.
 Done: auth, accounts, transactions (add/**edit**/delete), budgets, investments,
 dashboard, settings, categories, multi-currency, seed data, **live data
 refresh**, **recurring auto-posting**, **CSV import/export**, **dark mode**,
-**shared households + per-member roles**.
+**shared households + per-member roles**, **bank sync (Plaid, sandbox)**.
 
 ## Theming / dark mode
 - Tailwind `darkMode: "class"`. Semantic tokens live as CSS vars in
@@ -164,8 +165,42 @@ refresh**, **recurring auto-posting**, **CSV import/export**, **dark mode**,
   so the live fetch can't run here; verified end-to-end against a localhost mock
   (fetch→parse→store→update all correct) + graceful-failure + cron auth gating.
 
+## Bank sync (`src/lib/plaid.ts`)
+- `PlaidItem` = one linked bank connection (encrypted `accessToken`, cursor,
+  status). An `Account` opts in via `source="PLAID"` + `plaidItemId`/
+  `plaidAccountId` — sync merges into that **existing** Account rather than
+  auto-creating a parallel "linked" one; a household member explicitly maps
+  each Plaid-returned account during connect (`PlaidAccountMappingForm`), or
+  skips it.
+- `syncTransactionsForItem(item)` pages Plaid's `/transactions/sync` from the
+  stored cursor and **upserts by `Transaction.plaidTransactionId`** — the
+  dedup key the CSV importer still lacks. Cursor only advances after a
+  successful page (idempotent re-run, same pattern as `recurring.ts`'s
+  `nextRunDate`). Failures are recorded on `PlaidItem.status/error`, never
+  thrown, so one broken item doesn't block others.
+- `refreshBankSync(householdId?)` fans that out over every `PlaidItem` in
+  scope. Triggers: **Sync now** button (`BankSyncButton`) and scheduled
+  `GET/POST /api/cron/bank-sync` (guarded by `CRON_SECRET`, all households).
+- `src/lib/crypto.ts`: AES-256-GCM `encrypt`/`decrypt`, keyed by
+  `TOKEN_ENCRYPTION_KEY` — the only encrypted-at-rest field in this schema,
+  since a Plaid access token is a live bank credential.
+- Whole feature no-ops gracefully (UI hidden, cron returns an empty summary)
+  when `PLAID_CLIENT_ID`/`PLAID_SECRET` aren't set — same convention as
+  `STOCK_API_KEY` in `marketdata.ts`.
+- UI lives on `/accounts` (no separate nav item): "Connect a bank" modal,
+  per-account "Link to bank"/"Unlink", and "Sync now". `PlaidLinkButton` is
+  this app's first use of `next/script` (loads Plaid's Link JS — no npm
+  widget for it).
+- **Sandbox only so far** — needs real `PLAID_CLIENT_ID`/`PLAID_SECRET` (free,
+  instant at dashboard.plaid.com) + `TOKEN_ENCRYPTION_KEY` in `.env` to
+  exercise live; sandbox test login is `user_good`/`pass_good` at any
+  institution.
+
 ## WHERE TO CONTINUE (next steps, prioritized)
-1. **Bank sync** — the manual CSV import is done; automated bank/Plaid sync is not.
+1. **Bank sync production readiness** — sandbox-only so far (see "Bank sync"
+   above). Needs real Plaid credentials to test live, then production
+   `PLAID_ENV` + webhook-based sync (instead of relying only on cron polling)
+   before going beyond sandbox users.
 2. **PDF/Excel report export** — Reports exports summary + transactions CSV;
    richer formats (PDF/xlsx) would need a library (better added in prod env).
 3. **Stock symbol→id coverage** — `CRYPTO_IDS` map in marketdata.ts is a small
@@ -174,6 +209,17 @@ refresh**, **recurring auto-posting**, **CSV import/export**, **dark mode**,
    "last month" as time passes; consider seeding into the current month.
 
 ## Recently done
+- **Bank sync (Plaid, sandbox)** (commit `1534122`): `PlaidItem` model +
+  `Account.source/plaidItemId/plaidAccountId` +
+  `Transaction.plaidTransactionId/pending`; `src/lib/plaid.ts` (Link token, exchange,
+  cursor-based `/transactions/sync` upserting by `plaidTransactionId`) +
+  `src/lib/crypto.ts` (AES-256-GCM token encryption); `/api/cron/bank-sync`;
+  `banksync.ts` actions (ADMIN-gated linking, MEMBER-gated sync); `/accounts`
+  page gained Connect-a-bank / Link-to-bank / Unlink / Sync-now, all hidden
+  when unconfigured. Verified: build clean, 7-assertion mapping-logic suite
+  (Plaid amount sign → EXPENSE/INCOME, category fallback), cron auth guard
+  live (503/401/200). Not yet exercised end-to-end — needs real sandbox
+  `PLAID_CLIENT_ID`/`PLAID_SECRET`/`TOKEN_ENCRYPTION_KEY`.
 - **Report summary export** (this commit): `reportCsv.ts` pure builder +
   `/api/export/report` route; Reports page offers Summary + Transactions CSV.
   Verified: 8-assertion builder suite + runtime route (auth, headers, real
@@ -233,6 +279,12 @@ Lives in its own repo **`nariman7596/financemanager-web`**, default branch
 a Mac in VS Code + Docker (see `docs/WORKFLOW.md`).
 
 ## On return
-- Working tree is clean; everything committed. `npm audit` is 0 vulnerabilities.
-- Pick up from the "WHERE TO CONTINUE" list above (bank sync, stock-symbol
+- Working tree is clean; everything committed and pushed to `main`
+  (`3710dbf`). `npm audit` is 0 vulnerabilities.
+- Bank sync (Plaid) just landed but is sandbox-only and unverified live — get
+  free sandbox keys at dashboard.plaid.com, set `PLAID_CLIENT_ID`/
+  `PLAID_SECRET`/`PLAID_ENV=sandbox`/`TOKEN_ENCRYPTION_KEY` in `.env`, then
+  drive Connect a bank → map → Sync now in a browser (sandbox login
+  `user_good`/`pass_good`) before considering it done.
+- Otherwise pick up from the "WHERE TO CONTINUE" list above (stock-symbol
   coverage, PDF/Excel export, etc.).
