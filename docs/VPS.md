@@ -200,6 +200,68 @@ OWNER), and start adding accounts and transactions.
 
 ---
 
+## Running several projects on one VPS
+
+One Postgres server and one Caddy can host many apps side by side — the trick is
+to give **each project its own isolated slice** of every shared resource. Nothing
+in this app is hard-coded to a port or DB name, so isolation is pure convention:
+
+| Resource | This app | Another project |
+| --- | --- | --- |
+| Linux user | `fm` | `projb` (own user = filesystem/process isolation) |
+| Directory | `/home/fm/financemanager` | `/home/projb/appb` |
+| Port | `3000` | `3001` (set via `Environment=PORT=` in its unit) |
+| Postgres DB + role | `financemanager` / `fm` | `appb` / `projb` |
+| systemd unit | `financemanager.service` | `appb.service` |
+| Caddy site block | `finance.example.com → :3000` | `appb.example.com → :3001` |
+| `.env` | its own | its own |
+| Cron | `fm` crontab | `projb` crontab |
+
+Each app **binds a different port** and points `DATABASE_URL` at **its own
+database**. Postgres runs continuously and serves all of them — separate
+databases never collide. Caddy holds one site block per project:
+
+```
+finance.example.com { reverse_proxy localhost:3000 }
+appb.example.com    { reverse_proxy localhost:3001 }
+```
+
+### Running one at a time
+
+Because each app is its own systemd service, you just stop one and start another
+(and cron for a stopped app harmlessly fails, so pause it too):
+
+```bash
+sudo systemctl stop financemanager
+sudo systemctl start appb
+```
+
+To keep only one running across reboots, `systemctl disable` the idle ones and
+`enable` the active one. A tiny switch helper:
+
+```bash
+sudo tee /usr/local/bin/switch-project >/dev/null <<'SH'
+#!/usr/bin/env bash
+# usage: switch-project appb   → stops all known apps, starts the named one
+APPS="financemanager appb"
+for a in $APPS; do sudo systemctl stop "$a" 2>/dev/null; done
+sudo systemctl start "$1" && echo "running: $1"
+SH
+sudo chmod +x /usr/local/bin/switch-project
+```
+
+> They can also run **simultaneously** if the VPS has the RAM (`next start` is
+> ~150 MB each) — distinct ports mean no conflict. "One at a time" is only about
+> saving resources, not correctness.
+
+### Stronger isolation with Docker (optional)
+
+If projects have conflicting stacks (different Node/Postgres versions) or you
+want bulletproof separation, give each its own `docker-compose.yml` (app + its
+own Postgres container) on a unique published port, and point host Caddy at that
+port. Then one-at-a-time is just `docker compose up -d` / `docker compose down`
+per project — no shared Node, no shared Postgres, nothing to collide.
+
 ## Updating to a new version
 
 ```bash
