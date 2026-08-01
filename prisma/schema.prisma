@@ -52,6 +52,7 @@ model Household {
   budgets      Budget[]
   investments  Investment[]
   recurring    RecurringTransaction[]
+  plaidItems   PlaidItem[]
 }
 
 // Links a user to a household with a role.
@@ -100,13 +101,21 @@ model Account {
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
 
+  // Bank sync (see src/lib/plaid.ts): set when this Account is linked to a
+  // real bank account via Plaid instead of being purely manually tracked.
+  source         String    @default("MANUAL") // MANUAL | PLAID
+  plaidItemId    String?
+  plaidAccountId String? // Plaid's account_id within the item
+
   household            Household              @relation(fields: [householdId], references: [id], onDelete: Cascade)
+  plaidItem            PlaidItem?             @relation(fields: [plaidItemId], references: [id], onDelete: SetNull)
   transactions         Transaction[]          @relation("AccountTransactions")
   transferTransactions Transaction[]          @relation("TransferAccount")
   investments          Investment[]
   recurring            RecurringTransaction[] @relation("RecurringAccount")
   recurringTransfers   RecurringTransaction[] @relation("RecurringTransferAccount")
 
+  @@unique([plaidItemId, plaidAccountId])
   @@index([householdId])
 }
 
@@ -151,6 +160,12 @@ model Transaction {
 
   transferAccountId String?
   recurringId       String?
+
+  // Bank sync: set when this row was materialized from a Plaid transaction
+  // (see src/lib/plaid.ts). plaidTransactionId is the dedup key — sync
+  // upserts on it instead of blindly inserting, unlike the CSV importer.
+  plaidTransactionId String? @unique
+  pending             Boolean @default(false)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -241,6 +256,29 @@ model Investment {
 
   household Household @relation(fields: [householdId], references: [id], onDelete: Cascade)
   account   Account?  @relation(fields: [accountId], references: [id])
+
+  @@index([householdId])
+}
+
+// A linked bank connection via Plaid (see src/lib/plaid.ts). One item can
+// cover multiple of the institution's accounts; each gets mapped to at most
+// one local Account (Account.plaidItemId/plaidAccountId).
+model PlaidItem {
+  id                 String    @id @default(cuid())
+  householdId        String
+  createdById        String?
+  itemId             String    @unique // Plaid item_id
+  accessToken        String // AES-256-GCM encrypted, see src/lib/crypto.ts
+  institutionName    String?
+  status             String    @default("ACTIVE") // ACTIVE | ERROR | REVOKED
+  error              String?
+  transactionsCursor String? // Plaid /transactions/sync cursor
+  lastSyncedAt       DateTime?
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
+
+  household Household @relation(fields: [householdId], references: [id], onDelete: Cascade)
+  accounts  Account[]
 
   @@index([householdId])
 }

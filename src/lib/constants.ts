@@ -23,6 +23,9 @@ export type Recurrence = (typeof RECURRENCES)[number];
 export const BUDGET_PERIODS = ["WEEKLY", "MONTHLY", "YEARLY"] as const;
 export type BudgetPeriod = (typeof BUDGET_PERIODS)[number];
 
+export const ACCOUNT_SOURCES = ["MANUAL", "PLAID"] as const;
+export type AccountSource = (typeof ACCOUNT_SOURCES)[number];
+
 export const INVESTMENT_TYPES = [
   "STOCK",
   "ETF",
