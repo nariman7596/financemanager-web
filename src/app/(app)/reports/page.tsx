@@ -35,7 +35,7 @@ export default async function ReportsPage({
   ]);
 
   const totalExpense = categories.reduce((s, c) => s + c.value, 0);
-  const exportHref = `/api/export/transactions?from=${range.fromStr}&to=${range.toStr}`;
+  const rangeQuery = `from=${range.fromStr}&to=${range.toStr}`;
 
   return (
     <>
@@ -43,9 +43,22 @@ export default async function ReportsPage({
         title="Reports"
         subtitle={range.label}
         action={
-          <a href={exportHref} className="btn-ghost border border-[var(--border)]" title="Export transactions in this range">
-            <Download size={16} /> Export
-          </a>
+          <div className="flex items-center gap-2">
+            <a
+              href={`/api/export/report?${rangeQuery}`}
+              className="btn-ghost border border-[var(--border)]"
+              title="Export a summary report (totals + breakdowns) as CSV"
+            >
+              <Download size={16} /> Summary
+            </a>
+            <a
+              href={`/api/export/transactions?${rangeQuery}`}
+              className="btn-ghost border border-[var(--border)]"
+              title="Export the transactions in this range as CSV"
+            >
+              <Download size={16} /> Transactions
+            </a>
+          </div>
         }
       />
 

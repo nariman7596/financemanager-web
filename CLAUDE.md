@@ -41,7 +41,10 @@ Demo logins (same household, different roles):
   `getSpendingByCategory`, `getSpendingByMember`) are thin wrappers over them.
   `src/lib/dateRange.ts` (pure) resolves `?preset=/from=/to=` params into a
   concrete range. `/reports` page + `DateRangePicker`. Transaction export takes
-  optional `?from&to`.
+  optional `?from&to`. **Report export:** `src/lib/reportCsv.ts` (pure) builds a
+  multi-section summary CSV (totals + category + per-member breakdowns); served
+  by `/api/export/report?preset=|from&to`. Reports page has Summary + Transactions
+  export buttons.
 - Modals: `Modal` exposes a `useCloseModal()` context hook. Do NOT pass function
   children from Server Components to the client `Modal` (breaks the RSC boundary).
 - Forms passing a Server Action to a `<form action>` where the action returns a
@@ -146,15 +149,19 @@ refresh**, **recurring auto-posting**, **CSV import/export**, **dark mode**,
 
 ## WHERE TO CONTINUE (next steps, prioritized)
 1. **Bank sync** — the manual CSV import is done; automated bank/Plaid sync is not.
-2. **PDF/Excel report export** — Reports page exports filtered CSV; richer
-   formats (PDF/xlsx) are not done.
+2. **PDF/Excel report export** — Reports exports summary + transactions CSV;
+   richer formats (PDF/xlsx) would need a library (better added in prod env).
 3. **Stock symbol→id coverage** — `CRYPTO_IDS` map in marketdata.ts is a small
    starter; extend, or swap to a lookup API.
 4. **Demo seed dates** — seeded relative to seed time, so demo data drifts to
    "last month" as time passes; consider seeding into the current month.
 
 ## Recently done
-- **Reports + date ranges** (this commit): `/reports` page with preset + custom
+- **Report summary export** (this commit): `reportCsv.ts` pure builder +
+  `/api/export/report` route; Reports page offers Summary + Transactions CSV.
+  Verified: 8-assertion builder suite + runtime route (auth, headers, real
+  demo values, category shares, member breakdown).
+- **Reports + date ranges**: `/reports` page with preset + custom
   date ranges (`dateRange.ts`, 9-assertion test), range-based query cores that
   the dashboard helpers now delegate to, income/expense trend + category +
   per-member breakdowns, and range-filtered CSV export. Verified at runtime

@@ -11,16 +11,19 @@ function encodeField(value: string | number | null | undefined): string {
   return s;
 }
 
+/** Serialize arbitrary (possibly jagged) rows to CSV. */
+export function serializeCsv(
+  rows: (string | number | null | undefined)[][],
+): string {
+  return rows.map((row) => row.map(encodeField).join(",")).join("\r\n");
+}
+
 /** Build a CSV string from a header + rows. */
 export function toCsv(
   header: string[],
   rows: (string | number | null | undefined)[][],
 ): string {
-  const lines = [header.map(encodeField).join(",")];
-  for (const row of rows) {
-    lines.push(row.map(encodeField).join(","));
-  }
-  return lines.join("\r\n");
+  return serializeCsv([header, ...rows]);
 }
 
 /** Parse CSV text into an array of rows (each a string[]). */

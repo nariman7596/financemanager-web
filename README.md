@@ -181,8 +181,9 @@ ownership** to another member (they become owner, you step down to admin) and
 The **Reports** page analyzes any date range — presets (this month, last 3/6
 months, this year, last 12 months) or a custom from/to. It shows income vs
 expense totals and a monthly trend, spending by category, and spending by member
-(shared households), all in your base currency. **Export** downloads the
-transactions in the selected range as CSV.
+(shared households), all in your base currency. Two exports: a **Summary** CSV
+(totals + category + per-member breakdowns) and the raw **Transactions** in the
+selected range.
 
 ## Dark mode
 
