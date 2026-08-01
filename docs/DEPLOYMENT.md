@@ -7,6 +7,10 @@ deployment: **PostgreSQL**, a host (Vercel), **scheduled jobs**, and the
 Work top to bottom — each step is self-contained and notes exactly what in this
 codebase it touches.
 
+> **Self-hosting on your own server instead?** See **[VPS.md](VPS.md)** for a
+> from-scratch Ubuntu 24.04 setup (PostgreSQL + systemd + Caddy + cron). This
+> document covers managed hosting (Vercel).
+
 ---
 
 ## 0. What actually changes dev → prod

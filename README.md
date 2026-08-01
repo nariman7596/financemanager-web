@@ -106,9 +106,13 @@ another's data.
 
 ## Moving to production
 
-Full step-by-step guide: **[docs/DEPLOYMENT.md](docs/DEPLOYMENT.md)** — Postgres,
-migrations, env vars, Vercel deploy, scheduled jobs, live market data, data
-backfill, and where bank sync (Plaid) plugs in.
+Two step-by-step guides:
+
+- **[docs/DEPLOYMENT.md](docs/DEPLOYMENT.md)** — managed hosting (Vercel + Neon/
+  Supabase Postgres): migrations, env vars, scheduled jobs, live market data,
+  data backfill, and where bank sync (Plaid) plugs in.
+- **[docs/VPS.md](docs/VPS.md)** — self-hosting from scratch on an Ubuntu 24.04
+  VPS: PostgreSQL, Node, systemd, Caddy (auto-HTTPS), system cron, and backups.
 
 The short version:
 
