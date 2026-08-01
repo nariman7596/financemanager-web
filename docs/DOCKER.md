@@ -151,18 +151,26 @@ own household as OWNER. 🎉
 
 ---
 
-## Part 3 — Background jobs (cron)
+## Part 3 — Background jobs (already built in)
 
-The recurring-poster and price-refresh endpoints are guarded by `CRON_SECRET`.
-Schedule them from the host's crontab (paste your real secret):
+Nothing to set up — the stack includes a tiny **`cron` container** (see
+`deploy/cron/`) that runs alongside the app and calls its scheduled endpoints
+using `CRON_SECRET`:
+
+- **price/FX refresh** — every hour
+- **recurring auto-post** — once a day, ~06:00 UTC
+
+It talks to the app privately over the `web` network, so nothing is exposed to
+the internet. Watch it work:
 
 ```bash
-crontab -e
+docker compose logs -f cron
+# cron: refreshed prices/FX at 2026-08-01T14:00:03Z
 ```
-```cron
-0 6 * * * curl -fsS -H "Authorization: Bearer YOUR_CRON_SECRET" https://finance.example.com/api/cron/recurring >/dev/null
-0 * * * * curl -fsS -H "Authorization: Bearer YOUR_CRON_SECRET" https://finance.example.com/api/cron/refresh   >/dev/null
-```
+
+To change the schedule, edit `deploy/cron/tick.sh` and
+`docker compose up -d --build cron`. (Prefer the host's crontab instead? You can
+still `curl` the endpoints with the bearer token — but the container is simpler.)
 
 ---
 

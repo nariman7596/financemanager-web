@@ -40,6 +40,19 @@ services:
       web:
         aliases: [financemanager]
 
+  # Built-in scheduler: fires the app's cron endpoints (price refresh hourly,
+  # recurring auto-post daily) — no host crontab needed. Reaches the app over
+  # the `web` network as "financemanager".
+  cron:
+    build: ./deploy/cron
+    restart: unless-stopped
+    environment:
+      CRON_SECRET: ${CRON_SECRET:?set CRON_SECRET in .env}
+    depends_on:
+      app:
+        condition: service_started
+    networks: [web]
+
 volumes:
   db-data:
 
