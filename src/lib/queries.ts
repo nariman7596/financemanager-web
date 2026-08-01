@@ -1,5 +1,5 @@
 import "server-only";
-import { startOfMonth, endOfMonth, subMonths, format } from "date-fns";
+import { startOfMonth, endOfMonth, subMonths, addMonths, format } from "date-fns";
 import { prisma } from "./prisma";
 import { toNumber } from "./utils";
 import { convert, loadRates } from "./currency";
@@ -68,13 +68,13 @@ export async function getNetWorth(householdId: string, base: string) {
   return { cash, investments: invValue, total: cash + invValue };
 }
 
-/** Income / expense totals (base currency) for the given month. */
-export async function getMonthlyFlow(householdId: string, base: string, month = new Date()) {
+/** Income / expense totals (base currency) between two dates (inclusive). */
+export async function getFlowInRange(householdId: string, base: string, start: Date, end: Date) {
   const rates = await loadRates();
   const txns = await prisma.transaction.findMany({
     where: {
       householdId,
-      date: { gte: startOfMonth(month), lte: endOfMonth(month) },
+      date: { gte: start, lte: end },
       type: { in: ["INCOME", "EXPENSE"] },
     },
     select: { type: true, amount: true, currency: true },
@@ -88,6 +88,11 @@ export async function getMonthlyFlow(householdId: string, base: string, month = 
     else expense += v;
   }
   return { income, expense, net: income - expense };
+}
+
+/** Income / expense totals for the given month (dashboard helper). */
+export async function getMonthlyFlow(householdId: string, base: string, month = new Date()) {
+  return getFlowInRange(householdId, base, startOfMonth(month), endOfMonth(month));
 }
 
 /** Income vs expense per month for the last N months (for the trend chart). */
@@ -122,14 +127,14 @@ export async function getCashFlowSeries(householdId: string, base: string, month
   }));
 }
 
-/** Expense breakdown by category (base currency) for the given month. */
-export async function getSpendingByCategory(householdId: string, base: string, month = new Date()) {
+/** Expense breakdown by category (base currency) between two dates (inclusive). */
+export async function getCategoryBreakdown(householdId: string, base: string, start: Date, end: Date) {
   const rates = await loadRates();
   const txns = await prisma.transaction.findMany({
     where: {
       householdId,
       type: "EXPENSE",
-      date: { gte: startOfMonth(month), lte: endOfMonth(month) },
+      date: { gte: start, lte: end },
     },
     select: { amount: true, currency: true, category: { select: { name: true, color: true } } },
   });
@@ -147,6 +152,46 @@ export async function getSpendingByCategory(householdId: string, base: string, m
   return Array.from(map.values())
     .map((x) => ({ ...x, value: Math.round(x.value * 100) / 100 }))
     .sort((a, b) => b.value - a.value);
+}
+
+/** Expense breakdown by category for the given month (dashboard helper). */
+export async function getSpendingByCategory(householdId: string, base: string, month = new Date()) {
+  return getCategoryBreakdown(householdId, base, startOfMonth(month), endOfMonth(month));
+}
+
+/** Income vs expense per month across an arbitrary date range (for the trend chart). */
+export async function getSeriesInRange(householdId: string, base: string, start: Date, end: Date) {
+  const rates = await loadRates();
+  const from = startOfMonth(start);
+  const txns = await prisma.transaction.findMany({
+    where: { householdId, date: { gte: from, lte: end }, type: { in: ["INCOME", "EXPENSE"] } },
+    select: { type: true, amount: true, currency: true, date: true },
+  });
+
+  // Build an ordered set of month buckets between start and end.
+  const buckets = new Map<string, { income: number; expense: number }>();
+  let cursor = from;
+  const endMonth = startOfMonth(end);
+  while (cursor <= endMonth) {
+    buckets.set(format(cursor, "yyyy-MM"), { income: 0, expense: 0 });
+    cursor = addMonths(cursor, 1);
+  }
+
+  for (const t of txns) {
+    const b = buckets.get(format(t.date, "yyyy-MM"));
+    if (!b) continue;
+    const v = convert(toNumber(t.amount), t.currency, base, rates);
+    if (t.type === "INCOME") b.income += v;
+    else b.expense += v;
+  }
+
+  const multiYear = start.getFullYear() !== end.getFullYear();
+  return Array.from(buckets.entries()).map(([key, v]) => ({
+    month: format(new Date(`${key}-01`), multiYear ? "MMM ''yy" : "MMM"),
+    income: Math.round(v.income),
+    expense: Math.round(v.expense),
+    net: Math.round(v.income - v.expense),
+  }));
 }
 
 /** Budgets with actual spend this month (in each budget's currency). */
@@ -190,7 +235,7 @@ export async function getBudgetProgress(householdId: string, month = new Date())
  * the caller can tell a shared household from a solo one, plus an "Unknown"
  * bucket for rows with no recorded creator (e.g. older imports).
  */
-export async function getSpendingByMember(householdId: string, base: string, month = new Date()) {
+export async function getMemberBreakdown(householdId: string, base: string, start: Date, end: Date) {
   const rates = await loadRates();
 
   const [members, txns] = await Promise.all([
@@ -203,7 +248,7 @@ export async function getSpendingByMember(householdId: string, base: string, mon
       where: {
         householdId,
         type: { in: ["INCOME", "EXPENSE"] },
-        date: { gte: startOfMonth(month), lte: endOfMonth(month) },
+        date: { gte: start, lte: end },
       },
       select: { type: true, amount: true, currency: true, createdById: true },
     }),
@@ -243,6 +288,11 @@ export async function getSpendingByMember(householdId: string, base: string, mon
   }));
   result.sort((a, b) => b.spent - a.spent);
   return { members: members.length, rows: result };
+}
+
+/** Per-member spending for the given month (dashboard helper). */
+export async function getSpendingByMember(householdId: string, base: string, month = new Date()) {
+  return getMemberBreakdown(householdId, base, startOfMonth(month), endOfMonth(month));
 }
 
 export async function getInvestments(householdId: string) {

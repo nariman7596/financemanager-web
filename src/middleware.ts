@@ -12,6 +12,7 @@ const PROTECTED_PREFIXES = [
   "/budgets",
   "/investments",
   "/accounts",
+  "/reports",
   "/household",
   "/settings",
 ];

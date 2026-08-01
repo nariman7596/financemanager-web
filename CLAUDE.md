@@ -35,6 +35,13 @@ Demo logins (same household, different roles):
 - Money handled as Prisma `Decimal`; convert to number with `toNumber()`.
 - Multi-currency conversion via `src/lib/currency.ts` using the `ExchangeRate`
   table; dashboards convert everything into the user's `baseCurrency`.
+- **Reports / date ranges:** range-based query cores in `queries.ts`
+  (`getFlowInRange`, `getSeriesInRange`, `getCategoryBreakdown`,
+  `getMemberBreakdown`); the month-based dashboard helpers (`getMonthlyFlow`,
+  `getSpendingByCategory`, `getSpendingByMember`) are thin wrappers over them.
+  `src/lib/dateRange.ts` (pure) resolves `?preset=/from=/to=` params into a
+  concrete range. `/reports` page + `DateRangePicker`. Transaction export takes
+  optional `?from&to`.
 - Modals: `Modal` exposes a `useCloseModal()` context hook. Do NOT pass function
   children from Server Components to the client `Modal` (breaks the RSC boundary).
 - Forms passing a Server Action to a `<form action>` where the action returns a
@@ -139,15 +146,20 @@ refresh**, **recurring auto-posting**, **CSV import/export**, **dark mode**,
 
 ## WHERE TO CONTINUE (next steps, prioritized)
 1. **Bank sync** — the manual CSV import is done; automated bank/Plaid sync is not.
-2. **Stock symbol→id coverage** — `CRYPTO_IDS` map in marketdata.ts is a small
+2. **PDF/Excel report export** — Reports page exports filtered CSV; richer
+   formats (PDF/xlsx) are not done.
+3. **Stock symbol→id coverage** — `CRYPTO_IDS` map in marketdata.ts is a small
    starter; extend, or swap to a lookup API.
-3. **Per-member views, more** — spending-by-member is on the dashboard; could add
-   a date-range filter or a dedicated per-member report page.
-4. **Reports/exports** — richer reporting (date ranges, per-category trends),
-   PDF/Excel export.
+4. **Demo seed dates** — seeded relative to seed time, so demo data drifts to
+   "last month" as time passes; consider seeding into the current month.
 
 ## Recently done
-- **Edit recurring rules** (this commit): `updateRecurring` action + edit mode
+- **Reports + date ranges** (this commit): `/reports` page with preset + custom
+  date ranges (`dateRange.ts`, 9-assertion test), range-based query cores that
+  the dashboard helpers now delegate to, income/expense trend + category +
+  per-member breakdowns, and range-filtered CSV export. Verified at runtime
+  (totals, preset switch, export row counts) + dashboard unaffected.
+- **Edit recurring rules**: `updateRecurring` action + edit mode
   in `RecurringForm` (`rule` prop) + per-row Edit button. nextRunDate follows a
   new start date only while unposted. Verified: 5-assertion suite (field update,
   both nextRunDate branches, household scoping) + page renders the control.

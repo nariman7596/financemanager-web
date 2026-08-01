@@ -1,21 +1,34 @@
+import type { NextRequest } from "next/server";
+import { parseISO, isValid, startOfDay, endOfDay } from "date-fns";
 import { getActiveContext } from "@/lib/household";
 import { prisma } from "@/lib/prisma";
 import { toCsv } from "@/lib/csv";
 import { toNumber } from "@/lib/utils";
 
 // GET /api/export/transactions -> downloads the active household's transactions
-// as CSV. Columns round-trip with the importer.
+// as CSV. Optional ?from=YYYY-MM-DD&to=YYYY-MM-DD filters by date (used by the
+// Reports page). Columns round-trip with the importer.
 
 export const dynamic = "force-dynamic";
 
-export async function GET() {
+export async function GET(req: NextRequest) {
   const ctx = await getActiveContext();
   if (!ctx) {
     return new Response("Unauthorized", { status: 401 });
   }
 
+  // Optional date-range filter.
+  const fromParam = req.nextUrl.searchParams.get("from");
+  const toParam = req.nextUrl.searchParams.get("to");
+  const from = fromParam ? parseISO(fromParam) : null;
+  const to = toParam ? parseISO(toParam) : null;
+  const dateFilter =
+    from && isValid(from) && to && isValid(to)
+      ? { date: { gte: startOfDay(from), lte: endOfDay(to) } }
+      : {};
+
   const txns = await prisma.transaction.findMany({
-    where: { householdId: ctx.householdId },
+    where: { householdId: ctx.householdId, ...dateFilter },
     include: { account: true, category: true, transferAccount: true },
     orderBy: { date: "desc" },
   });
