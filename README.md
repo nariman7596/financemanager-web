@@ -104,13 +104,22 @@ caller's active household from a cookie **verified against a real membership**
 scope by the resulting `householdId`, so members of one household can never see
 another's data.
 
-## Moving to production (PostgreSQL)
+## Moving to production
 
-1. In `prisma/schema.prisma` set `datasource.provider = "postgresql"`.
-2. Point `DATABASE_URL` at your Postgres instance.
-3. Run `npm run db:migrate`.
-4. Set a strong `AUTH_SECRET`.
-5. Deploy (e.g. Vercel + a hosted Postgres like Neon/Supabase).
+Full step-by-step guide: **[docs/DEPLOYMENT.md](docs/DEPLOYMENT.md)** — Postgres,
+migrations, env vars, Vercel deploy, scheduled jobs, live market data, data
+backfill, and where bank sync (Plaid) plugs in.
+
+The short version:
+
+1. In `prisma/schema.prisma` set `datasource.provider = "postgresql"` (add a
+   `directUrl` if your Postgres is pooled).
+2. Point `DATABASE_URL` at your Postgres instance; create the first migration
+   with `npx prisma migrate dev --name init`.
+3. Set strong `AUTH_SECRET` and `CRON_SECRET`.
+4. Deploy (e.g. Vercel + Neon/Supabase) with build command
+   `prisma generate && prisma migrate deploy && next build`.
+5. Schedule the `/api/cron/*` jobs (see the guide).
 
 ## Live market data
 
