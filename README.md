@@ -21,7 +21,8 @@ Built with **Next.js 15 (App Router) · TypeScript · Prisma · Tailwind CSS · 
 ## Quick start
 
 Uses **PostgreSQL** (run locally via Docker). Full container/VPS walkthrough:
-**[docs/DOCKER.md](docs/DOCKER.md)**.
+**[docs/DOCKER.md](docs/DOCKER.md)**. New to the toolchain (VS Code + Claude Code
++ Docker + git on a Mac)? Start with **[docs/WORKFLOW.md](docs/WORKFLOW.md)**.
 
 ```bash
 # 1. Start a local Postgres (needs Docker)
