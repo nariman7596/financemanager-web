@@ -48,8 +48,8 @@ search "Claude Code") for an in-editor chat panel. The CLI alone also works fine
 Claude Code is always scoped to the folder you open.
 
 ```bash
-git clone https://github.com/nariman7596/financemanager.git
-cd financemanager
+git clone https://github.com/nariman7596/financemanager-web.git
+cd financemanager-web
 code .            # opens this folder in VS Code
 ```
 

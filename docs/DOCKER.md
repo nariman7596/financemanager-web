@@ -54,8 +54,8 @@ and `deploy/proxy/` (the receptionist).
    *Docker* and *Prisma*.
 2. **Get the code** and open it in VS Code:
    ```bash
-   git clone https://github.com/nariman7596/financemanager.git
-   cd financemanager
+   git clone https://github.com/nariman7596/financemanager-web.git
+   cd financemanager-web
    code .
    ```
 3. **Start a local database** (a Postgres box on your Mac):
@@ -118,8 +118,8 @@ docker network create web
 Get the code and launch the proxy:
 
 ```bash
-git clone https://github.com/nariman7596/financemanager.git
-cd financemanager/deploy/proxy
+git clone https://github.com/nariman7596/financemanager-web.git
+cd financemanager-web/deploy/proxy
 nano Caddyfile        # change finance.example.com to YOUR domain
 docker compose up -d
 ```

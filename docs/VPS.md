@@ -52,8 +52,8 @@ postgresql://fm:CHANGE_ME_STRONG@localhost:5432/financemanager?schema=public
 
 ```bash
 sudo -iu fm            # become the app user
-git clone https://github.com/nariman7596/financemanager.git
-cd financemanager
+git clone https://github.com/nariman7596/financemanager-web.git
+cd financemanager-web
 npm ci
 ```
 
@@ -259,7 +259,7 @@ per project — no shared Node, no shared Postgres, nothing to collide.
 
 ```bash
 sudo -iu fm
-cd financemanager
+cd financemanager-web
 git pull
 npm ci
 npm run db:push        # only if the schema changed

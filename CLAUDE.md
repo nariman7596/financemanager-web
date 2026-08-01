@@ -227,14 +227,12 @@ refresh**, **recurring auto-posting**, **CSV import/export**, **dark mode**,
   edit mode in `TransactionForm` + per-row Edit button. Ownership-scoped,
   verified persisting.
 
-## Branch
-Develop on `claude/financial-app-design-x39nuq` (this is the repo's default branch).
+## Repo & branch
+Lives in its own repo **`nariman7596/financemanager-web`**, default branch
+**`main`**. Develop on `main` (or feature branches off it). Local dev happens on
+a Mac in VS Code + Docker (see `docs/WORKFLOW.md`).
 
-## On return — open loop
-- **Verify Dependabot alert #1 closed.** The postcss fix (override → 8.5.21,
-  `npm audit` = 0 vulnerabilities) is already committed + pushed to the default
-  branch. Dependabot auto-closes on its next scan (minutes–hours). Check:
-  https://github.com/nariman7596/financemanager/security/dependabot/1 — expect
-  "Closed · fixed". Nothing to do unless it's still open.
-- Everything else through the postcss fix is committed and pushed; working tree
-  clean. Pick up from the "WHERE TO CONTINUE" list above.
+## On return
+- Working tree is clean; everything committed. `npm audit` is 0 vulnerabilities.
+- Pick up from the "WHERE TO CONTINUE" list above (bank sync, stock-symbol
+  coverage, PDF/Excel export, etc.).
