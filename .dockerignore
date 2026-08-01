@@ -1,0 +1,19 @@
+# Keep the build context small and secret-free.
+node_modules
+.next
+.git
+.gitignore
+.env
+.env*.local
+prisma/*.db
+prisma/*.db-journal
+prisma/dev.db*
+npm-debug.log*
+.vscode
+.DS_Store
+docs
+*.md
+Dockerfile
+.dockerignore
+docker-compose*.yml
+deploy

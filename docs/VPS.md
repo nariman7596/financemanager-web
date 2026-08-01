@@ -57,17 +57,10 @@ cd financemanager
 npm ci
 ```
 
-## 5. Point Prisma at PostgreSQL
+## 5. Prisma is already on PostgreSQL
 
-Edit `prisma/schema.prisma` — replace the `datasource db { … }` block with
-(single local DB needs no pooling / directUrl):
-
-```prisma
-datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
-}
-```
+`prisma/schema.prisma` ships with `provider = "postgresql"` — nothing to change.
+`DATABASE_URL` (next step) points it at your local Postgres.
 
 ## 6. Environment file
 

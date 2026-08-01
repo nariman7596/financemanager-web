@@ -20,25 +20,30 @@ Built with **Next.js 15 (App Router) · TypeScript · Prisma · Tailwind CSS · 
 
 ## Quick start
 
+Uses **PostgreSQL** (run locally via Docker). Full container/VPS walkthrough:
+**[docs/DOCKER.md](docs/DOCKER.md)**.
+
 ```bash
-# 1. Install dependencies
+# 1. Start a local Postgres (needs Docker)
+docker compose -f docker-compose.dev.yml up -d
+
+# 2. Install dependencies
 npm install
 
-# 2. Create your env file and set a secret
+# 3. Env file (DATABASE_URL already points at the local DB above)
 cp .env.example .env
-#   then edit .env — set AUTH_SECRET to a long random string:
-#   openssl rand -base64 32
+#   set AUTH_SECRET to a long random string:  openssl rand -base64 32
 
-# 3. Create the database schema (SQLite by default — zero setup)
+# 4. Create the schema
 npm run db:push
 
-# 4. (Optional) seed a demo household + sample data + FX rates
+# 5. (Optional) seed a demo household + sample data + FX rates
 npm run db:seed
 #   Demo logins (same household):
 #     demo@financemanager.app     / demo1234   (owner)
 #     partner@financemanager.app  / demo1234   (member)
 
-# 5. Run the dev server
+# 6. Run the dev server
 npm run dev
 ```
 
@@ -106,13 +111,15 @@ another's data.
 
 ## Moving to production
 
-Two step-by-step guides:
+Three step-by-step guides:
 
+- **[docs/DOCKER.md](docs/DOCKER.md)** — recommended: Docker with maximum
+  isolation (each project = its own app + Postgres containers) behind a shared
+  Caddy reverse proxy with automatic HTTPS. Beginner-friendly, edit on your Mac.
+- **[docs/VPS.md](docs/VPS.md)** — bare-metal self-hosting on Ubuntu 24.04
+  (PostgreSQL + systemd + Caddy + cron), no Docker.
 - **[docs/DEPLOYMENT.md](docs/DEPLOYMENT.md)** — managed hosting (Vercel + Neon/
-  Supabase Postgres): migrations, env vars, scheduled jobs, live market data,
-  data backfill, and where bank sync (Plaid) plugs in.
-- **[docs/VPS.md](docs/VPS.md)** — self-hosting from scratch on an Ubuntu 24.04
-  VPS: PostgreSQL, Node, systemd, Caddy (auto-HTTPS), system cron, and backups.
+  Supabase Postgres): scheduled jobs, live market data, backfill, Plaid outline.
 
 The short version:
 

@@ -1,0 +1,28 @@
+# The shared reverse proxy (one per VPS). Caddy terminates HTTPS (automatic
+# Let's Encrypt) and forwards each domain to the right project container over
+# the external `web` network. Run this ONCE; every project joins `web`.
+#
+# Setup:  docker network create web   (if not already)
+#         docker compose up -d
+name: proxy
+
+services:
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data
+      - caddy-config:/config
+    networks: [web]
+
+volumes:
+  caddy-data:
+  caddy-config:
+
+networks:
+  web:
+    external: true

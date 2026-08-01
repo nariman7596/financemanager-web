@@ -1,0 +1,22 @@
+# Local development database for your Mac (or any dev machine).
+# Start it:   docker compose -f docker-compose.dev.yml up -d
+# Then set DATABASE_URL in .env and run the app with hot-reload via `npm run dev`:
+#   DATABASE_URL="postgresql://fm:devpassword@localhost:5432/financemanager?schema=public"
+# Postgres is exposed on localhost:5432 so the app (running on the host) can reach it.
+name: financemanager-dev
+
+services:
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: fm
+      POSTGRES_PASSWORD: devpassword
+      POSTGRES_DB: financemanager
+    ports:
+      - "5432:5432"
+    volumes:
+      - dev-db:/var/lib/postgresql/data
+
+volumes:
+  dev-db:

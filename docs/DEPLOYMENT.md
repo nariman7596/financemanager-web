@@ -1,8 +1,8 @@
 # Deploying FinanceManager to production
 
-This guide takes the app from local dev (SQLite, no external services) to a real
-deployment: **PostgreSQL**, a host (Vercel), **scheduled jobs**, and the
-**live market-data** + optional **bank-sync** integrations.
+This guide covers **managed hosting** (Vercel + a hosted Postgres like Neon).
+For self-hosting, prefer **[DOCKER.md](DOCKER.md)** (containers, most isolation)
+or **[VPS.md](VPS.md)** (bare metal). The app uses **PostgreSQL** everywhere.
 
 Work top to bottom — each step is self-contained and notes exactly what in this
 codebase it touches.
@@ -17,15 +17,18 @@ codebase it touches.
 
 | Concern | Dev (now) | Production |
 | --- | --- | --- |
-| Database | SQLite file (`prisma/dev.db`) | PostgreSQL (Neon / Supabase / RDS) |
+| Database | local Postgres (Docker) | PostgreSQL (Neon / Supabase / RDS) |
 | Schema apply | `prisma db push` | `prisma migrate deploy` (versioned) |
 | Secrets | `.env` with a dev `AUTH_SECRET` | strong `AUTH_SECRET` + `CRON_SECRET` in host env |
 | FX / prices | keyless APIs (blocked in this sandbox) | reachable in prod; optional `STOCK_API_KEY` |
 | Recurring / refresh | manual buttons | scheduled cron hitting `/api/cron/*` |
 | Bank sync | not built | Plaid (see §7) |
 
-The code is already Postgres-ready: money is `Decimal`, "enum-like" fields are
-validated strings, and no SQLite-specific features are used.
+The code already uses PostgreSQL (`provider = "postgresql"` in
+`prisma/schema.prisma`): money is `Decimal`, "enum-like" fields are validated
+strings, and no SQLite-specific features are used. For a **pooled** Postgres
+(common on serverless), add `directUrl = env("DIRECT_URL")` to the datasource;
+for a plain single database you can ignore `DIRECT_URL`.
 
 ---
 
@@ -53,8 +56,8 @@ datasource db {
 }
 ```
 
-> Change `provider = "sqlite"` → `"postgresql"`. That's the only schema edit
-> required — every model is already compatible.
+> The schema is already `provider = "postgresql"`; you only add the `directUrl`
+> line above if your Postgres is pooled.
 
 ---
 

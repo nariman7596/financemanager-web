@@ -1,0 +1,49 @@
+# Production stack for FinanceManager: the app + its own Postgres, fully
+# isolated. The app is reachable by the shared reverse proxy over the external
+# `web` network (as "financemanager"); Postgres lives on a private network and
+# is never exposed to the host or the proxy.
+#
+# Prereqs (once on the VPS):  docker network create web
+# Then:  cp .env.docker.example .env  (fill it in)  &&  docker compose up -d --build
+name: financemanager
+
+services:
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: fm
+      POSTGRES_PASSWORD: ${DB_PASSWORD:?set DB_PASSWORD in .env}
+      POSTGRES_DB: financemanager
+    volumes:
+      - db-data:/var/lib/postgresql/data
+    networks: [internal]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U fm -d financemanager"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  app:
+    build: .
+    restart: unless-stopped
+    environment:
+      DATABASE_URL: postgresql://fm:${DB_PASSWORD}@db:5432/financemanager?schema=public
+      AUTH_SECRET: ${AUTH_SECRET:?set AUTH_SECRET in .env}
+      CRON_SECRET: ${CRON_SECRET:?set CRON_SECRET in .env}
+      STOCK_API_KEY: ${STOCK_API_KEY:-}
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      internal:
+      web:
+        aliases: [financemanager]
+
+volumes:
+  db-data:
+
+networks:
+  internal:
+  web:
+    external: true

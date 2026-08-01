@@ -1,19 +1,13 @@
 // FinanceManager data model
 // ---------------------------------------------------------------------------
-// Dev uses SQLite (zero setup). To move to Postgres for production, replace the
-// `datasource db { … }` block below with this one (see docs/DEPLOYMENT.md):
+// PostgreSQL everywhere (dev + prod), run via Docker — see docs/DOCKER.md.
+// Locally: `docker compose -f docker-compose.dev.yml up -d` gives you Postgres;
+// in production the app + its Postgres run as containers (docker-compose.yml).
+// Note: Postgres has native enums, but we keep "enum-like" fields as validated
+// strings (see src/lib/constants.ts + zod) to stay portable.
 //
-//   datasource db {
-//     provider  = "postgresql"
-//     url       = env("DATABASE_URL")   // pooled connection (runtime)
-//     directUrl = env("DIRECT_URL")     // direct connection (migrations)
-//   }
-//
-// then: npx prisma migrate dev --name init   (creates the first migration)
-//       npx prisma migrate deploy            (applies it in prod / CI)
-// Every model is already Postgres-compatible — no other schema change needed.
-// Note: SQLite has no native enums, so "enum-like" fields are stored as
-// strings and validated in the app layer (see src/lib/constants.ts + zod).
+// If you have a pooled Postgres (e.g. serverless), add:
+//   directUrl = env("DIRECT_URL")   // direct connection for migrations
 //
 // OWNERSHIP MODEL: financial data belongs to a Household, not a User. Users
 // join households via Membership (with a role); every query is scoped by
@@ -26,7 +20,7 @@ generator client {
 }
 
 datasource db {
-  provider = "sqlite"
+  provider = "postgresql"
   url      = env("DATABASE_URL")
 }
 

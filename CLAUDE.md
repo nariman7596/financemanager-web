@@ -5,36 +5,43 @@ budgets, and investments with full control over money flows.
 
 ## Stack
 - Next.js 15 (App Router) + TypeScript
-- Prisma ORM — SQLite for dev (`prisma/dev.db`), Postgres-ready for prod
+- Prisma ORM — **PostgreSQL everywhere** (dev + prod), run via Docker
 - Tailwind CSS · Recharts · lucide-react · zod
 - Auth: custom signed httpOnly JWT sessions (`jose` + `bcryptjs`), no third-party
   auth service. Route protection in `src/middleware.ts`.
 
-## Run it
+## Run it (local dev)
 ```bash
+docker compose -f docker-compose.dev.yml up -d   # local Postgres on :5432
 npm install
-cp .env.example .env      # set AUTH_SECRET: openssl rand -base64 32
-npm run db:push           # create schema
+cp .env.example .env      # DATABASE_URL already points at the dev DB
+npm run db:push           # create schema  (set AUTH_SECRET too: openssl rand -base64 32)
 npm run db:seed           # optional demo data
 npm run dev               # http://localhost:3000
 ```
+Full container/VPS guide: `docs/DOCKER.md`.
 Demo logins (same household, different roles):
 - **demo@financemanager.app / demo1234** — OWNER
 - **partner@financemanager.app / demo1234** — MEMBER
 
 ## Deploy
-Dev stays on SQLite (zero setup). Production = Postgres — full guide in
-`docs/DEPLOYMENT.md`. Scaffolding is in the repo: `vercel.json` (build command +
-cron jobs for `/api/cron/recurring` & `/refresh`), `build:prod` script
-(`generate + migrate deploy + build`), `.env.example` (DATABASE_URL/DIRECT_URL/
-AUTH_SECRET/CRON_SECRET), and a copy-paste Postgres datasource block in
-`schema.prisma`. Flip: swap the datasource to postgresql, `prisma migrate dev
---name init`, deploy. Vercel Cron auto-sends the `Bearer $CRON_SECRET` the cron
-routes already check.
+Postgres everywhere via Docker. Three guides:
+- **`docs/DOCKER.md`** — primary, ELI5: Docker on a VPS with per-project
+  isolation (app box + its own Postgres box) behind a shared Caddy reverse
+  proxy (auto-HTTPS). Repo ships `Dockerfile`, `docker-entrypoint.sh` (applies
+  schema via `migrate deploy` if migrations exist else `db push`, then
+  `next start`), `docker-compose.yml` (app + private Postgres, joins external
+  `web` network as alias `financemanager`), `docker-compose.dev.yml` (local DB),
+  `deploy/proxy/` (Caddy), `.env.docker.example`, `.dockerignore`.
+- **`docs/VPS.md`** — bare-metal (systemd + Caddy, no Docker) alternative.
+- **`docs/DEPLOYMENT.md`** — managed hosting (Vercel + Neon), `vercel.json` +
+  `build:prod` still present for that path.
+Cron: hit the `CRON_SECRET`-guarded `/api/cron/recurring` + `/refresh`.
 
 ## Conventions
-- SQLite has no enums → "enum-like" fields are `String`, with allowed values in
-  `src/lib/constants.ts` and enforced by zod in `src/lib/validation.ts`.
+- "enum-like" fields are `String` (kept portable rather than DB enums), with
+  allowed values in `src/lib/constants.ts` and enforced by zod in
+  `src/lib/validation.ts`.
 - **Ownership = Household, not User.** Every owned model has `householdId`
   (scoping) + `createdById` (informational). Server Actions call
   `checkHousehold(minRole)` and pages call `requireHousehold()` — both from

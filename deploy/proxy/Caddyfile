@@ -1,0 +1,8 @@
+# One block per project. Caddy fetches + renews HTTPS certificates automatically.
+# The target (financemanager:3000) is the app container's network alias on `web`.
+# Add more projects by adding more blocks, e.g.:
+#   appb.example.com { reverse_proxy appb:3000 }
+
+finance.example.com {
+	reverse_proxy financemanager:3000
+}
