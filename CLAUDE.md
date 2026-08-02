@@ -122,6 +122,27 @@ refresh**, **recurring auto-posting**, **CSV import/export**, **dark mode**,
   (MutationObserver on `<html>.dark`) + `chartTheme(dark)` drive grid/axis/
   tooltip/legend colors; charts re-theme live on toggle.
 
+## Internationalization (i18n) — English + Persian (RTL)
+- Cookie-based locale (`fm_locale` = `en` | `fa`), no locale routing segments. Also
+  persisted per user via `User.locale` (default `en`). `getActiveContext`/auth are
+  unaffected; the cookie is the source of truth for rendering, and login copies the
+  user's saved `locale` onto the cookie.
+- `src/lib/i18n/`: `config.ts` (locales, `LOCALE_COOKIE`, `dirFor`, `isLocale`,
+  `LOCALE_NAMES`), `dictionaries/en.ts` + `fa.ts` (flat, namespaced keys — MUST stay
+  key-symmetric), `translate.ts` (`createT(locale)` → `t(key, vars?)` with `{var}`
+  interpolation + English fallback), `server.ts` (`getLocale`/`getT`, reads the cookie),
+  `client.tsx` (`I18nProvider` + `useT()`/`useLocale()` hooks).
+- **Server Components:** `const t = await getT()`; pass `t` (type `TFunc`) as a prop to
+  non-async helper components in the same file. **Client Components:** `const t = useT()`.
+- Root layout sets `<html lang dir>` from the locale and wraps everything in
+  `I18nProvider`; Persian flips to `dir="rtl"` (use logical `border-e`/`start`/`end`
+  Tailwind utilities for new chrome so both directions work).
+- Enum display values are translated via `t("enum.<group>.<VALUE>")` (txnType,
+  accountType, period, invType, role) — stored values stay English.
+- `LanguageSwitcher` (`inline` pills on login/register, `menu` in sidebar + settings) →
+  `setLocale` action (cookie + profile) → `router.refresh()`.
+- To translate a new string: add the SAME key to en.ts AND fa.ts, then `t("key")`.
+
 ## CSV import/export
 - Export: `GET /api/export/transactions` (session-authed) streams all the user's
   transactions as CSV. Columns: date,type,amount,currency,account,category,
@@ -209,6 +230,14 @@ refresh**, **recurring auto-posting**, **CSV import/export**, **dark mode**,
    "last month" as time passes; consider seeding into the current month.
 
 ## Recently done
+- **Persian translation + language switcher (i18n)** (this commit): cookie + per-user
+  `User.locale`; `src/lib/i18n/` (config, en/fa dictionaries, `createT`, server `getT`,
+  client `I18nProvider`/`useT`); `LanguageSwitcher` on login/register + sidebar + settings;
+  root layout drives `lang`/`dir` (Persian = RTL). Every page/form/component wired to `t()`;
+  enum labels translated by value. Verified: prod build clean, full `tsc` clean, en/fa
+  dictionaries key-symmetric (342 keys each), runtime screenshots confirm `dir=rtl` +
+  Persian on `/login` and `/register` with English intact. Needs `db push` to add the
+  `locale` column (default `en`, so no backfill).
 - **Bank sync (Plaid, sandbox)** (commit `1534122`): `PlaidItem` model +
   `Account.source/plaidItemId/plaidAccountId` +
   `Transaction.plaidTransactionId/pending`; `src/lib/plaid.ts` (Link token, exchange,

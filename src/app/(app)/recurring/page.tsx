@@ -9,25 +9,27 @@ import { RunRecurringButton } from "@/components/RunRecurringButton";
 import { RecurringToggle } from "@/components/RecurringToggle";
 import { DeleteButton } from "@/components/DeleteButton";
 import { deleteRecurring } from "@/app/actions/recurring";
+import { getT } from "@/lib/i18n/server";
+import type { TFunc } from "@/lib/i18n/translate";
 
 export const dynamic = "force-dynamic";
 
-function cadence(interval: number, frequency: string) {
-  const unit = frequency.toLowerCase().replace(/ly$/, (m) =>
-    frequency === "DAILY" ? "day" : m,
-  );
-  const label: Record<string, string> = {
-    DAILY: "day",
-    WEEKLY: "week",
-    MONTHLY: "month",
-    YEARLY: "year",
+function cadence(t: TFunc, interval: number, frequency: string) {
+  const unitKey: Record<string, string> = {
+    DAILY: "recurring.unit.day",
+    WEEKLY: "recurring.unit.week",
+    MONTHLY: "recurring.unit.month",
+    YEARLY: "recurring.unit.year",
   };
-  const u = label[frequency] ?? unit;
-  return interval === 1 ? `every ${u}` : `every ${interval} ${u}s`;
+  const unitKeyName = unitKey[frequency] ?? "recurring.unit.day";
+  return interval === 1
+    ? t("recurring.every", { unit: t(unitKeyName) })
+    : t("recurring.everyN", { n: interval, unit: t(unitKeyName) });
 }
 
 export default async function RecurringPage() {
   const ctx = await requireHousehold();
+  const t = await getT();
 
   const [accounts, categories, rules] = await Promise.all([
     prisma.account.findMany({
@@ -50,15 +52,15 @@ export default async function RecurringPage() {
   return (
     <>
       <Topbar
-        title="Recurring"
-        subtitle="Rules that auto-post transactions on schedule"
+        title={t("recurring.title")}
+        subtitle={t("recurring.subtitle")}
         action={
           accounts.length > 0 ? (
             <div className="flex items-center gap-3">
               <RunRecurringButton />
               <Modal
-                title="New recurring rule"
-                trigger={<button className="btn-primary"><Plus size={18} /> Add</button>}
+                title={t("recurring.new")}
+                trigger={<button className="btn-primary"><Plus size={18} /> {t("common.add")}</button>}
               >
                 <RecurringForm accounts={accounts} categories={categories} />
               </Modal>
@@ -69,23 +71,23 @@ export default async function RecurringPage() {
 
       {accounts.length === 0 ? (
         <div className="card p-10 text-center">
-          <p className="text-slate-500 mb-2">You need an account first.</p>
-          <a href="/accounts" className="text-brand-600 font-medium hover:underline">Create an account →</a>
+          <p className="text-slate-500 mb-2">{t("recurring.needAccount")}</p>
+          <a href="/accounts" className="text-brand-600 font-medium hover:underline">{t("recurring.createAccount")}</a>
         </div>
       ) : rules.length === 0 ? (
         <div className="card p-10 text-center text-slate-400">
-          No recurring rules yet. Add salary, rent, subscriptions and they’ll post automatically.
+          {t("recurring.empty")}
         </div>
       ) : (
         <div className="card overflow-hidden">
           <table className="w-full text-sm">
             <thead className="surface-subtle text-[var(--muted)] text-left">
               <tr>
-                <th className="px-4 py-3 font-medium">Description</th>
-                <th className="px-4 py-3 font-medium">Schedule</th>
-                <th className="px-4 py-3 font-medium">Next run</th>
-                <th className="px-4 py-3 font-medium text-right">Amount</th>
-                <th className="px-4 py-3 font-medium">Status</th>
+                <th className="px-4 py-3 font-medium">{t("recurring.colDescription")}</th>
+                <th className="px-4 py-3 font-medium">{t("recurring.colSchedule")}</th>
+                <th className="px-4 py-3 font-medium">{t("recurring.colNextRun")}</th>
+                <th className="px-4 py-3 font-medium text-right">{t("recurring.colAmount")}</th>
+                <th className="px-4 py-3 font-medium">{t("recurring.colStatus")}</th>
                 <th className="px-4 py-3"></th>
               </tr>
             </thead>
@@ -94,18 +96,22 @@ export default async function RecurringPage() {
                 <tr key={r.id} className="border-t border-[var(--border)] row-hover">
                   <td className="px-4 py-3">
                     <p className="font-medium">
-                      {r.description || <span className="text-slate-400">Untitled</span>}
+                      {r.description || <span className="text-slate-400">{t("recurring.untitled")}</span>}
                     </p>
                     <p className="text-xs text-slate-400">
                       {r.type === "TRANSFER"
-                        ? `Transfer · ${r.account.name} → ${r.transferAccount?.name ?? "?"}`
-                        : `${r.type.toLowerCase()} · ${r.category?.name ?? "Uncategorized"} · ${r.account.name}`}
+                        ? t("recurring.transferDesc", { from: r.account.name, to: r.transferAccount?.name ?? "?" })
+                        : t("recurring.typeDesc", {
+                            type: t("enum.txnType." + r.type),
+                            category: r.category?.name ?? t("recurring.uncategorized"),
+                            account: r.account.name,
+                          })}
                     </p>
                   </td>
-                  <td className="px-4 py-3 text-slate-500 capitalize">
-                    {cadence(r.interval, r.frequency)}
+                  <td className="px-4 py-3 text-slate-500">
+                    {cadence(t, r.interval, r.frequency)}
                     {r.endDate && (
-                      <span className="block text-xs text-slate-400">until {formatDate(r.endDate)}</span>
+                      <span className="block text-xs text-slate-400">{t("recurring.until", { date: formatDate(r.endDate) })}</span>
                     )}
                   </td>
                   <td className="px-4 py-3 text-slate-500">
@@ -116,20 +122,20 @@ export default async function RecurringPage() {
                   </td>
                   <td className="px-4 py-3">
                     {r.isActive ? (
-                      <span className="badge bg-green-50 text-green-700">Active</span>
+                      <span className="badge bg-green-50 text-green-700">{t("recurring.active")}</span>
                     ) : (
-                      <span className="badge surface-subtle text-[var(--muted)]">Paused</span>
+                      <span className="badge surface-subtle text-[var(--muted)]">{t("recurring.paused")}</span>
                     )}
                   </td>
                   <td className="px-2 py-3">
                     <div className="flex items-center justify-end gap-0.5">
                       <Modal
-                        title="Edit recurring rule"
+                        title={t("recurring.edit")}
                         trigger={
                           <button
                             className="btn-ghost p-1.5 text-slate-400 hover:text-brand-600 hover:bg-brand-50"
-                            aria-label="Edit rule"
-                            title="Edit"
+                            aria-label={t("recurring.editAria")}
+                            title={t("common.edit")}
                           >
                             <Pencil size={16} />
                           </button>
@@ -155,7 +161,7 @@ export default async function RecurringPage() {
                         />
                       </Modal>
                       <RecurringToggle id={r.id} active={r.isActive} />
-                      <DeleteButton action={deleteRecurring} id={r.id} label="Delete rule" />
+                      <DeleteButton action={deleteRecurring} id={r.id} label={t("recurring.deleteRule")} />
                     </div>
                   </td>
                 </tr>

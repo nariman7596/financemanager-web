@@ -4,6 +4,7 @@ import { useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { ChevronsUpDown } from "lucide-react";
 import { switchHousehold } from "@/app/actions/household";
+import { useT } from "@/lib/i18n/client";
 
 type HouseholdOption = {
   householdId: string;
@@ -22,6 +23,7 @@ export function HouseholdSwitcher({
   role: string;
 }) {
   const router = useRouter();
+  const t = useT();
   const [pending, startTransition] = useTransition();
 
   async function onChange(e: React.ChangeEvent<HTMLSelectElement>) {
@@ -35,7 +37,7 @@ export function HouseholdSwitcher({
 
   return (
     <div className="px-3 py-3 border-b border-[var(--border)]">
-      <label className="label mb-1">Household</label>
+      <label className="label mb-1">{t("shell.household")}</label>
       <div className="relative">
         <select
           value={activeId}
@@ -51,10 +53,10 @@ export function HouseholdSwitcher({
         </select>
         <ChevronsUpDown
           size={15}
-          className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400"
+          className="pointer-events-none absolute end-2.5 top-1/2 -translate-y-1/2 text-slate-400"
         />
       </div>
-      <p className="text-[11px] text-slate-400 mt-1 capitalize">{role.toLowerCase()}</p>
+      <p className="text-[11px] text-slate-400 mt-1">{t(`enum.role.${role}`)}</p>
     </div>
   );
 }

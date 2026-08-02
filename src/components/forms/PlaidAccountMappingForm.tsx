@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { mapPlaidAccounts, type AccountMapping } from "@/app/actions/banksync";
 import { useCloseModal } from "@/components/Modal";
 import type { PlaidAccountOption } from "@/lib/plaid";
+import { useT } from "@/lib/i18n/client";
 
 type UnlinkedAccount = { id: string; name: string; currency: string };
 
@@ -25,6 +26,7 @@ export function PlaidAccountMappingForm({
   unlinkedAccounts: UnlinkedAccount[];
   presetAccountId?: string;
 }) {
+  const t = useT();
   const close = useCloseModal();
   const router = useRouter();
   const [, startTransition] = useTransition();
@@ -58,10 +60,10 @@ export function PlaidAccountMappingForm({
     return (
       <div className="space-y-3">
         <p className="text-sm text-green-700 bg-green-50 rounded-lg px-3 py-2">
-          Bank connected. Transactions will appear shortly.
+          {t("plaid.connected")}
         </p>
         <button onClick={close} className="btn-ghost border border-[var(--border)] w-full">
-          Done
+          {t("common.done")}
         </button>
       </div>
     );
@@ -70,8 +72,7 @@ export function PlaidAccountMappingForm({
   return (
     <div className="space-y-4">
       <p className="text-sm text-[var(--muted)]">
-        Match each account from your bank to an existing account here, or leave it
-        skipped.
+        {t("plaid.mapHint")}
       </p>
       <div className="space-y-3">
         {plaidAccounts.map((pa) => (
@@ -87,7 +88,7 @@ export function PlaidAccountMappingForm({
                 setChoices((c) => ({ ...c, [pa.plaidAccountId]: e.target.value }))
               }
             >
-              <option value="">Skip</option>
+              <option value="">{t("plaid.skip")}</option>
               {unlinkedAccounts.map((a) => (
                 <option key={a.id} value={a.id}>
                   {a.name} ({a.currency})
@@ -99,7 +100,7 @@ export function PlaidAccountMappingForm({
       </div>
       {error && <p className="text-sm text-red-600 bg-red-50 rounded-lg px-3 py-2">{error}</p>}
       <button onClick={submit} disabled={busy} className="btn-primary w-full">
-        {busy ? "Linking…" : "Link selected accounts"}
+        {busy ? t("plaid.linking") : t("plaid.linkSelected")}
       </button>
     </div>
   );

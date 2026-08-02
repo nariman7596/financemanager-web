@@ -1,6 +1,7 @@
 import { requireHousehold, roleAtLeast } from "@/lib/household";
 import { prisma } from "@/lib/prisma";
 import { formatDate } from "@/lib/utils";
+import { getT } from "@/lib/i18n/server";
 import { Topbar } from "@/components/Topbar";
 import {
   InviteForm,
@@ -25,6 +26,7 @@ const ROLE_BADGE: Record<string, string> = {
 };
 
 export default async function HouseholdPage() {
+  const t = await getT();
   const ctx = await requireHousehold();
   const isAdmin = roleAtLeast(ctx.role, "ADMIN");
   const isOwner = ctx.role === "OWNER";
@@ -48,18 +50,18 @@ export default async function HouseholdPage() {
 
   return (
     <>
-      <Topbar title="Household" subtitle="Members, roles and invitations" />
+      <Topbar title={t("household.title")} subtitle={t("household.subtitle")} />
 
       <div className="space-y-6">
         {myInvites.length > 0 && (
           <div className="card p-6 border-brand-200 dark:border-brand-500/30">
-            <h2 className="font-semibold mb-3">Your invitations</h2>
+            <h2 className="font-semibold mb-3">{t("household.yourInvitations")}</h2>
             <ul className="space-y-2">
               {myInvites.map((inv) => (
                 <li key={inv.id} className="flex items-center justify-between gap-3 flex-wrap">
                   <span className="text-sm">
                     <span className="font-medium">{inv.household.name}</span>{" "}
-                    <span className="text-slate-400">· as {inv.role.toLowerCase()}</span>
+                    <span className="text-slate-400">{t("household.invitedAs", { role: t("enum.role." + inv.role) })}</span>
                   </span>
                   <InviteResponse id={inv.id} />
                 </li>
@@ -74,25 +76,26 @@ export default async function HouseholdPage() {
             <HouseholdSettingsForm name={household.name} baseCurrency={household.baseCurrency} />
           ) : (
             <p className="text-sm text-[var(--muted)]">
-              Reporting currency: {household.baseCurrency}. Your role:{" "}
-              <span className="capitalize">{ctx.role.toLowerCase()}</span> (only admins can change
-              household settings).
+              {t("household.reportingCurrencyInfo", {
+                currency: household.baseCurrency,
+                role: t("enum.role." + ctx.role),
+              })}
             </p>
           )}
         </div>
 
         <div className="card p-6">
           <div className="flex items-center justify-between mb-4">
-            <h2 className="font-semibold">Members ({household.members.length})</h2>
+            <h2 className="font-semibold">{t("household.members", { count: household.members.length })}</h2>
           </div>
 
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead className="surface-subtle text-[var(--muted)] text-left">
                 <tr>
-                  <th className="px-3 py-2 font-medium rounded-l-lg">Member</th>
-                  <th className="px-3 py-2 font-medium">Joined</th>
-                  <th className="px-3 py-2 font-medium">Role</th>
+                  <th className="px-3 py-2 font-medium rounded-l-lg">{t("household.colMember")}</th>
+                  <th className="px-3 py-2 font-medium">{t("household.colJoined")}</th>
+                  <th className="px-3 py-2 font-medium">{t("household.colRole")}</th>
                   <th className="px-3 py-2 rounded-r-lg"></th>
                 </tr>
               </thead>
@@ -105,7 +108,7 @@ export default async function HouseholdPage() {
                       <td className="px-3 py-2">
                         <p className="font-medium">
                           {m.user.name ?? m.user.email}
-                          {isSelf && <span className="text-slate-400 font-normal"> (you)</span>}
+                          {isSelf && <span className="text-slate-400 font-normal">{t("household.you")}</span>}
                         </p>
                         <p className="text-xs text-slate-400">{m.user.email}</p>
                       </td>
@@ -114,8 +117,8 @@ export default async function HouseholdPage() {
                         {editable ? (
                           <RoleSelect membershipId={m.id} role={m.role} />
                         ) : (
-                          <span className={`badge capitalize ${ROLE_BADGE[m.role] ?? ""}`}>
-                            {m.role.toLowerCase()}
+                          <span className={`badge ${ROLE_BADGE[m.role] ?? ""}`}>
+                            {t("enum.role." + m.role)}
                           </span>
                         )}
                       </td>
@@ -143,12 +146,12 @@ export default async function HouseholdPage() {
 
         {isAdmin && household.invitations.length > 0 && (
           <div className="card p-6">
-            <h2 className="font-semibold mb-3">Pending invitations</h2>
+            <h2 className="font-semibold mb-3">{t("household.pendingInvitations")}</h2>
             <ul className="space-y-2">
               {household.invitations.map((inv) => (
                 <li key={inv.id} className="flex items-center justify-between gap-3">
                   <span className="text-sm">
-                    {inv.email} <span className="text-slate-400">· {inv.role.toLowerCase()}</span>
+                    {inv.email} <span className="text-slate-400">· {t("enum.role." + inv.role)}</span>
                   </span>
                   <CancelInviteButton id={inv.id} />
                 </li>
@@ -159,9 +162,9 @@ export default async function HouseholdPage() {
 
         <div className="card p-6 space-y-6">
           <div>
-            <h2 className="font-semibold mb-1">Create another household</h2>
+            <h2 className="font-semibold mb-1">{t("household.createAnother")}</h2>
             <p className="text-xs text-slate-400 mb-3">
-              A separate shared space — e.g. a joint budget or a side project.
+              {t("household.createAnotherHint")}
             </p>
             <NewHouseholdForm />
           </div>

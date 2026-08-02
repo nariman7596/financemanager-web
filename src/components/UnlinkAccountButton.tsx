@@ -2,8 +2,10 @@
 
 import { useFormStatus } from "react-dom";
 import { unlinkAccount } from "@/app/actions/banksync";
+import { useT } from "@/lib/i18n/client";
 
 function Inner() {
+  const t = useT();
   const { pending } = useFormStatus();
   return (
     <button
@@ -11,13 +13,14 @@ function Inner() {
       disabled={pending}
       className="text-xs text-slate-400 hover:text-red-600 underline underline-offset-2"
     >
-      {pending ? "Unlinking…" : "Unlink"}
+      {pending ? t("accounts.unlinking") : t("accounts.unlink")}
     </button>
   );
 }
 
 /** Unlinks an Account from its PlaidItem; transaction history is kept. */
 export function UnlinkAccountButton({ id }: { id: string }) {
+  const t = useT();
   const formAction = async (formData: FormData) => {
     await unlinkAccount(formData);
   };
@@ -26,7 +29,7 @@ export function UnlinkAccountButton({ id }: { id: string }) {
     <form
       action={formAction}
       onSubmit={(e) => {
-        if (!window.confirm("Unlink this account from your bank? Transaction history stays.")) {
+        if (!window.confirm(t("accounts.unlinkConfirm"))) {
           e.preventDefault();
         }
       }}
