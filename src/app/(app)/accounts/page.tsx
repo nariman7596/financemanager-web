@@ -14,19 +14,12 @@ import { PlaidLinkButton } from "@/components/PlaidLinkButton";
 import { BankSyncButton } from "@/components/BankSyncButton";
 import { deleteAccount } from "@/app/actions/accounts";
 import { sumInCurrency } from "@/lib/currency";
+import { getT } from "@/lib/i18n/server";
 
 export const dynamic = "force-dynamic";
 
-const TYPE_LABEL: Record<string, string> = {
-  CHECKING: "Checking",
-  SAVINGS: "Savings",
-  CASH: "Cash",
-  CREDIT_CARD: "Credit Card",
-  INVESTMENT: "Investment",
-  OTHER: "Other",
-};
-
 export default async function AccountsPage() {
+  const t = await getT();
   const ctx = await requireHousehold();
   const base = await getBaseCurrency(ctx.householdId);
   const accounts = await getAccountBalances(ctx.householdId);
@@ -50,17 +43,17 @@ export default async function AccountsPage() {
   return (
     <>
       <Topbar
-        title="Accounts"
-        subtitle="Where your money lives"
+        title={t("accounts.title")}
+        subtitle={t("accounts.subtitle")}
         action={
           <div className="flex items-center gap-3">
             {bankSyncEnabled && plaidItems.length > 0 && <BankSyncButton />}
             {bankSyncEnabled && (
               <Modal
-                title="Connect a bank"
+                title={t("accounts.connectBank")}
                 trigger={
                   <button className="btn-ghost border border-[var(--border)]">
-                    <Landmark size={18} /> Connect a bank
+                    <Landmark size={18} /> {t("accounts.connectBank")}
                   </button>
                 }
               >
@@ -68,8 +61,8 @@ export default async function AccountsPage() {
               </Modal>
             )}
             <Modal
-              title="New account"
-              trigger={<button className="btn-primary"><Plus size={18} /> Add</button>}
+              title={t("accounts.new")}
+              trigger={<button className="btn-primary"><Plus size={18} /> {t("common.add")}</button>}
             >
               <AccountForm />
             </Modal>
@@ -78,13 +71,13 @@ export default async function AccountsPage() {
       />
 
       <div className="grid sm:grid-cols-3 gap-4 mb-6">
-        <StatCard label="Total balance" value={formatMoney(totalInBase, base)} hint={`in ${base}`} />
-        <StatCard label="Accounts" value={String(accounts.length)} />
+        <StatCard label={t("accounts.totalBalance")} value={formatMoney(totalInBase, base)} hint={t("common.inCurrency", { code: base })} />
+        <StatCard label={t("accounts.count")} value={String(accounts.length)} />
       </div>
 
       {accounts.length === 0 ? (
         <div className="card p-10 text-center text-slate-400">
-          No accounts yet. Add your first account to start tracking.
+          {t("accounts.empty")}
         </div>
       ) : (
         <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -95,39 +88,39 @@ export default async function AccountsPage() {
                 <div className="flex items-start justify-between">
                   <div>
                     <p className="font-medium">{a.name}</p>
-                    <p className="text-xs text-slate-400">{TYPE_LABEL[a.type] ?? a.type} · {a.currency}</p>
+                    <p className="text-xs text-slate-400">{t("enum.accountType." + a.type)} · {a.currency}</p>
                   </div>
-                  <DeleteButton action={deleteAccount} id={a.id} label="Delete account" />
+                  <DeleteButton action={deleteAccount} id={a.id} label={t("accounts.deleteAccount")} />
                 </div>
                 <p className="text-2xl font-semibold mt-4 tabular-nums">
                   {formatMoney(a.balance, a.currency)}
                 </p>
                 <p className="text-xs text-slate-400 mt-1">
-                  Opening: {formatMoney(a.openingBalance, a.currency)}
+                  {t("accounts.opening", { amount: formatMoney(a.openingBalance, a.currency) })}
                 </p>
                 <div className="mt-3 pt-3 border-t border-[var(--border)] flex items-center justify-between gap-2">
                   {linked ? (
                     <>
                       <span className="badge surface-subtle text-[var(--muted)] text-[11px]">
-                        via Plaid · {linked.institutionName ?? "bank"}
-                        {linked.status === "ERROR" && " · sync error"}
-                        {linked.lastSyncedAt && ` · synced ${formatDate(linked.lastSyncedAt)}`}
+                        {t("accounts.viaPlaid", { bank: linked.institutionName ?? t("accounts.bank") })}
+                        {linked.status === "ERROR" && t("accounts.syncError")}
+                        {linked.lastSyncedAt && t("accounts.syncedOn", { date: formatDate(linked.lastSyncedAt) })}
                       </span>
                       <UnlinkAccountButton id={a.id} />
                     </>
                   ) : bankSyncEnabled ? (
                     <Modal
-                      title={`Link "${a.name}" to a bank`}
+                      title={t("accounts.linkTitle", { name: a.name })}
                       trigger={
                         <button className="text-xs text-brand-600 hover:underline underline-offset-2">
-                          Link to bank
+                          {t("accounts.linkToBank")}
                         </button>
                       }
                     >
                       <PlaidLinkButton
                         unlinkedAccounts={unlinkedAccounts}
                         presetAccountId={a.id}
-                        label={`Connect "${a.name}"`}
+                        label={t("accounts.connectNamed", { name: a.name })}
                       />
                     </Modal>
                   ) : (

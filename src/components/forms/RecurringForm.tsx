@@ -5,6 +5,7 @@ import { useFormStatus } from "react-dom";
 import { createRecurring, updateRecurring } from "@/app/actions/recurring";
 import { useCloseModal } from "@/components/Modal";
 import { TRANSACTION_TYPES, RECURRENCES, CURRENCIES } from "@/lib/constants";
+import { useT } from "@/lib/i18n/client";
 
 type Account = { id: string; name: string; currency: string };
 type Category = { id: string; name: string; type: string };
@@ -27,9 +28,10 @@ export type EditableRecurring = {
 
 function Submit({ label }: { label: string }) {
   const { pending } = useFormStatus();
+  const t = useT();
   return (
     <button type="submit" className="btn-primary w-full" disabled={pending}>
-      {pending ? "Saving…" : label}
+      {pending ? t("common.saving") : label}
     </button>
   );
 }
@@ -44,6 +46,7 @@ export function RecurringForm({
   rule?: EditableRecurring;
 }) {
   const isEdit = !!rule;
+  const t = useT();
   const close = useCloseModal();
   const [type, setType] = useState<string>(rule?.type ?? "EXPENSE");
   const [error, setError] = useState<string | null>(null);
@@ -64,26 +67,26 @@ export function RecurringForm({
     <form action={action} className="space-y-4">
       {isEdit && <input type="hidden" name="id" value={rule.id} />}
       <div className="grid grid-cols-3 gap-2">
-        {TRANSACTION_TYPES.map((t) => (
+        {TRANSACTION_TYPES.map((val) => (
           <label
-            key={t}
+            key={val}
             className={`cursor-pointer text-center text-sm rounded-lg border px-2 py-2 capitalize ${
-              type === t ? "border-brand-500 bg-brand-50 text-brand-700 font-medium" : "border-[var(--border)]"
+              type === val ? "border-brand-500 bg-brand-50 text-brand-700 font-medium" : "border-[var(--border)]"
             }`}
           >
-            <input type="radio" name="type" value={t} className="sr-only" checked={type === t} onChange={() => setType(t)} />
-            {t.toLowerCase()}
+            <input type="radio" name="type" value={val} className="sr-only" checked={type === val} onChange={() => setType(val)} />
+            {t("enum.txnType." + val)}
           </label>
         ))}
       </div>
 
       <div className="grid grid-cols-2 gap-3">
         <div>
-          <label className="label">Amount</label>
+          <label className="label">{t("txnForm.amount")}</label>
           <input name="amount" type="number" step="0.01" min="0" required className="input" placeholder="0.00" defaultValue={rule?.amount} />
         </div>
         <div>
-          <label className="label">Currency</label>
+          <label className="label">{t("txnForm.currency")}</label>
           <select name="currency" className="input" defaultValue={rule?.currency ?? accounts[0]?.currency ?? "USD"}>
             {CURRENCIES.map((c) => (
               <option key={c.code} value={c.code}>{c.code}</option>
@@ -93,7 +96,7 @@ export function RecurringForm({
       </div>
 
       <div>
-        <label className="label">{type === "TRANSFER" ? "From account" : "Account"}</label>
+        <label className="label">{type === "TRANSFER" ? t("txnForm.fromAccount") : t("txnForm.account")}</label>
         <select name="accountId" required className="input" defaultValue={rule?.accountId}>
           {accounts.map((a) => (
             <option key={a.id} value={a.id}>{a.name} ({a.currency})</option>
@@ -103,7 +106,7 @@ export function RecurringForm({
 
       {type === "TRANSFER" ? (
         <div>
-          <label className="label">To account</label>
+          <label className="label">{t("txnForm.toAccount")}</label>
           <select name="transferAccountId" required className="input" defaultValue={rule?.transferAccountId ?? ""}>
             {accounts.map((a) => (
               <option key={a.id} value={a.id}>{a.name} ({a.currency})</option>
@@ -112,9 +115,9 @@ export function RecurringForm({
         </div>
       ) : (
         <div>
-          <label className="label">Category</label>
+          <label className="label">{t("txnForm.category")}</label>
           <select name="categoryId" className="input" defaultValue={rule?.categoryId ?? ""}>
-            <option value="">Uncategorized</option>
+            <option value="">{t("txnForm.uncategorized")}</option>
             {relevantCategories.map((c) => (
               <option key={c.id} value={c.id}>{c.name}</option>
             ))}
@@ -123,20 +126,20 @@ export function RecurringForm({
       )}
 
       <div>
-        <label className="label">Description</label>
-        <input name="description" className="input" placeholder="e.g. Rent, Salary, Netflix" defaultValue={rule?.description ?? ""} />
+        <label className="label">{t("txnForm.description")}</label>
+        <input name="description" className="input" placeholder={t("recForm.descriptionPlaceholder")} defaultValue={rule?.description ?? ""} />
       </div>
 
       <div className="grid grid-cols-2 gap-3">
         <div>
-          <label className="label">Repeats every</label>
+          <label className="label">{t("recForm.repeatsEvery")}</label>
           <input name="interval" type="number" min="1" defaultValue={rule?.interval ?? 1} className="input" />
         </div>
         <div>
-          <label className="label">Frequency</label>
+          <label className="label">{t("recForm.frequency")}</label>
           <select name="frequency" className="input" defaultValue={rule?.frequency ?? "MONTHLY"}>
-            {RECURRENCES.map((r) => (
-              <option key={r} value={r}>{r.toLowerCase()}</option>
+            {RECURRENCES.map((opt) => (
+              <option key={opt} value={opt}>{t("enum.period." + opt)}</option>
             ))}
           </select>
         </div>
@@ -144,17 +147,17 @@ export function RecurringForm({
 
       <div className="grid grid-cols-2 gap-3">
         <div>
-          <label className="label">Start date</label>
+          <label className="label">{t("recForm.startDate")}</label>
           <input name="startDate" type="date" required defaultValue={rule?.startDate ?? today} className="input" />
         </div>
         <div>
-          <label className="label">End date <span className="text-slate-400">(optional)</span></label>
+          <label className="label">{t("recForm.endDate")} <span className="text-slate-400">({t("common.optional")})</span></label>
           <input name="endDate" type="date" className="input" defaultValue={rule?.endDate ?? ""} />
         </div>
       </div>
 
       {error && <p className="text-sm text-red-600 bg-red-50 rounded-lg px-3 py-2">{error}</p>}
-      <Submit label={isEdit ? "Save changes" : "Create recurring rule"} />
+      <Submit label={isEdit ? t("recForm.saveChanges") : t("recForm.create")} />
     </form>
   );
 }

@@ -14,6 +14,8 @@ import { StatCard } from "@/components/StatCard";
 import { CashFlowChart, SpendingPieChart } from "@/components/Charts";
 import { MemberSpending } from "@/components/MemberSpending";
 import { DateRangePicker } from "@/components/DateRangePicker";
+import { getT } from "@/lib/i18n/server";
+import type { TFunc } from "@/lib/i18n/translate";
 
 export const dynamic = "force-dynamic";
 
@@ -22,6 +24,7 @@ export default async function ReportsPage({
 }: {
   searchParams: Promise<{ preset?: string; from?: string; to?: string }>;
 }) {
+  const t = await getT();
   const ctx = await requireHousehold();
   const base = await getBaseCurrency(ctx.householdId);
   const sp = await searchParams;
@@ -40,23 +43,23 @@ export default async function ReportsPage({
   return (
     <>
       <Topbar
-        title="Reports"
+        title={t("reports.title")}
         subtitle={range.label}
         action={
           <div className="flex items-center gap-2">
             <a
               href={`/api/export/report?${rangeQuery}`}
               className="btn-ghost border border-[var(--border)]"
-              title="Export a summary report (totals + breakdowns) as CSV"
+              title={t("reports.summaryTitle")}
             >
-              <Download size={16} /> Summary
+              <Download size={16} /> {t("reports.summary")}
             </a>
             <a
               href={`/api/export/transactions?${rangeQuery}`}
               className="btn-ghost border border-[var(--border)]"
-              title="Export the transactions in this range as CSV"
+              title={t("reports.transactionsTitle")}
             >
-              <Download size={16} /> Transactions
+              <Download size={16} /> {t("reports.transactions")}
             </a>
           </div>
         }
@@ -67,38 +70,38 @@ export default async function ReportsPage({
       </div>
 
       <section className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
-        <StatCard label="Income" value={formatMoney(flow.income, base)} tone="positive" />
-        <StatCard label="Expenses" value={formatMoney(flow.expense, base)} tone="negative" />
-        <StatCard label="Net" value={formatMoney(flow.net, base)} tone={flow.net >= 0 ? "positive" : "negative"} />
+        <StatCard label={t("reports.income")} value={formatMoney(flow.income, base)} tone="positive" />
+        <StatCard label={t("reports.expenses")} value={formatMoney(flow.expense, base)} tone="negative" />
+        <StatCard label={t("reports.net")} value={formatMoney(flow.net, base)} tone={flow.net >= 0 ? "positive" : "negative"} />
       </section>
 
       <section className="card p-5 mb-6">
-        <h2 className="font-semibold mb-4">Income vs expense</h2>
+        <h2 className="font-semibold mb-4">{t("reports.incomeVsExpense")}</h2>
         <CashFlowChart data={series} currency={base} />
       </section>
 
       <section className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-6">
         <div className="card p-5">
-          <h2 className="font-semibold mb-4">Spending by category</h2>
+          <h2 className="font-semibold mb-4">{t("reports.spendingByCategory")}</h2>
           <SpendingPieChart data={categories} currency={base} />
         </div>
         {byMember.members > 1 ? (
           <div className="card p-5">
-            <h2 className="font-semibold mb-4">Spending by member</h2>
-            <MemberSpending rows={byMember.rows} currency={base} />
+            <h2 className="font-semibold mb-4">{t("reports.spendingByMember")}</h2>
+            <MemberSpending rows={byMember.rows} currency={base} t={t} />
           </div>
         ) : (
           <div className="card p-5">
-            <h2 className="font-semibold mb-4">Category detail</h2>
-            <CategoryTable categories={categories} total={totalExpense} base={base} />
+            <h2 className="font-semibold mb-4">{t("reports.categoryDetail")}</h2>
+            <CategoryTable categories={categories} total={totalExpense} base={base} t={t} />
           </div>
         )}
       </section>
 
       {byMember.members > 1 && categories.length > 0 && (
         <section className="card p-5">
-          <h2 className="font-semibold mb-4">Category detail</h2>
-          <CategoryTable categories={categories} total={totalExpense} base={base} />
+          <h2 className="font-semibold mb-4">{t("reports.categoryDetail")}</h2>
+          <CategoryTable categories={categories} total={totalExpense} base={base} t={t} />
         </section>
       )}
     </>
@@ -109,13 +112,15 @@ function CategoryTable({
   categories,
   total,
   base,
+  t,
 }: {
   categories: { name: string; color: string; value: number }[];
   total: number;
   base: string;
+  t: TFunc;
 }) {
   if (categories.length === 0) {
-    return <p className="text-sm text-slate-400">No spending in this range.</p>;
+    return <p className="text-sm text-slate-400">{t("reports.noSpending")}</p>;
   }
   return (
     <table className="w-full text-sm">
@@ -137,7 +142,7 @@ function CategoryTable({
           </tr>
         ))}
         <tr className="border-t border-[var(--border)]">
-          <td className="py-2 font-medium">Total</td>
+          <td className="py-2 font-medium">{t("reports.total")}</td>
           <td></td>
           <td className="py-2 text-right tabular-nums font-semibold whitespace-nowrap pl-4">
             {formatMoney(total, base)}

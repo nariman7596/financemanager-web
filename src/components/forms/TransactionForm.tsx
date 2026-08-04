@@ -6,6 +6,7 @@ import { createTransaction, updateTransaction } from "@/app/actions/transactions
 import { useCloseModal } from "@/components/Modal";
 import Link from "next/link";
 import { TRANSACTION_TYPES, CURRENCIES } from "@/lib/constants";
+import { useT } from "@/lib/i18n/client";
 
 type Account = { id: string; name: string; currency: string };
 type Category = { id: string; name: string; type: string };
@@ -25,9 +26,10 @@ export type EditableTransaction = {
 
 function Submit({ label }: { label: string }) {
   const { pending } = useFormStatus();
+  const t = useT();
   return (
     <button type="submit" className="btn-primary w-full" disabled={pending}>
-      {pending ? "Saving…" : label}
+      {pending ? t("common.saving") : label}
     </button>
   );
 }
@@ -42,6 +44,7 @@ export function TransactionForm({
   transaction?: EditableTransaction;
 }) {
   const isEdit = !!transaction;
+  const t = useT();
   const close = useCloseModal();
   const [type, setType] = useState<string>(transaction?.type ?? "EXPENSE");
   const [error, setError] = useState<string | null>(null);
@@ -65,26 +68,26 @@ export function TransactionForm({
       {isEdit && <input type="hidden" name="id" value={transaction.id} />}
 
       <div className="grid grid-cols-3 gap-2">
-        {TRANSACTION_TYPES.map((t) => (
+        {TRANSACTION_TYPES.map((t2) => (
           <label
-            key={t}
+            key={t2}
             className={`cursor-pointer text-center text-sm rounded-lg border px-2 py-2 capitalize ${
-              type === t ? "border-brand-500 bg-brand-50 text-brand-700 font-medium" : "border-[var(--border)]"
+              type === t2 ? "border-brand-500 bg-brand-50 text-brand-700 font-medium" : "border-[var(--border)]"
             }`}
           >
-            <input type="radio" name="type" value={t} className="sr-only" checked={type === t} onChange={() => setType(t)} />
-            {t.toLowerCase()}
+            <input type="radio" name="type" value={t2} className="sr-only" checked={type === t2} onChange={() => setType(t2)} />
+            {t("enum.txnType." + t2)}
           </label>
         ))}
       </div>
 
       <div className="grid grid-cols-2 gap-3">
         <div>
-          <label className="label">Amount</label>
+          <label className="label">{t("txnForm.amount")}</label>
           <input name="amount" type="number" step="0.01" min="0" required className="input" placeholder="0.00" defaultValue={transaction?.amount} />
         </div>
         <div>
-          <label className="label">Currency</label>
+          <label className="label">{t("txnForm.currency")}</label>
           <select name="currency" className="input" defaultValue={transaction?.currency ?? accounts[0]?.currency ?? "USD"}>
             {CURRENCIES.map((c) => (
               <option key={c.code} value={c.code}>{c.code}</option>
@@ -94,7 +97,7 @@ export function TransactionForm({
       </div>
 
       <div>
-        <label className="label">{type === "TRANSFER" ? "From account" : "Account"}</label>
+        <label className="label">{type === "TRANSFER" ? t("txnForm.fromAccount") : t("txnForm.account")}</label>
         <select name="accountId" required className="input" defaultValue={transaction?.accountId}>
           {accounts.map((a) => (
             <option key={a.id} value={a.id}>{a.name} ({a.currency})</option>
@@ -104,7 +107,7 @@ export function TransactionForm({
 
       {type === "TRANSFER" ? (
         <div>
-          <label className="label">To account</label>
+          <label className="label">{t("txnForm.toAccount")}</label>
           <select name="transferAccountId" required className="input" defaultValue={transaction?.transferAccountId ?? ""}>
             {accounts.map((a) => (
               <option key={a.id} value={a.id}>{a.name} ({a.currency})</option>
@@ -113,9 +116,9 @@ export function TransactionForm({
         </div>
       ) : (
         <div>
-          <label className="label">Category</label>
+          <label className="label">{t("txnForm.category")}</label>
           <select name="categoryId" className="input" defaultValue={transaction?.categoryId ?? ""}>
-            <option value="">Uncategorized</option>
+            <option value="">{t("txnForm.uncategorized")}</option>
             {relevantCategories.map((c) => (
               <option key={c.id} value={c.id}>{c.name}</option>
             ))}
@@ -125,27 +128,27 @@ export function TransactionForm({
 
       <div className="grid grid-cols-2 gap-3">
         <div>
-          <label className="label">Date</label>
+          <label className="label">{t("txnForm.date")}</label>
           <input name="date" type="date" required defaultValue={transaction?.date ?? today} className="input" />
         </div>
         <div>
-          <label className="label">Description</label>
-          <input name="description" className="input" placeholder="Optional" defaultValue={transaction?.description ?? ""} />
+          <label className="label">{t("txnForm.description")}</label>
+          <input name="description" className="input" placeholder={t("txnForm.descriptionPlaceholder")} defaultValue={transaction?.description ?? ""} />
         </div>
       </div>
 
       {!isEdit && (
         <p className="text-xs text-slate-400">
-          Repeats on a schedule?{" "}
+          {t("txnForm.repeatsHint")}{" "}
           <Link href="/recurring" className="text-brand-600 hover:underline">
-            Set up a recurring rule
+            {t("txnForm.setupRecurring")}
           </Link>{" "}
-          instead.
+          {t("txnForm.setupRecurringSuffix")}
         </p>
       )}
 
       {error && <p className="text-sm text-red-600 bg-red-50 rounded-lg px-3 py-2">{error}</p>}
-      <Submit label={isEdit ? "Save changes" : "Add transaction"} />
+      <Submit label={isEdit ? t("txnForm.saveChanges") : t("txnForm.addTransaction")} />
     </form>
   );
 }

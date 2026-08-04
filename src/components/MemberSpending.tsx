@@ -1,4 +1,5 @@
 import { formatMoney } from "@/lib/utils";
+import type { TFunc } from "@/lib/i18n/translate";
 
 type MemberRow = { id: string; name: string; spent: number; earned: number };
 
@@ -7,16 +8,18 @@ type MemberRow = { id: string; name: string; spent: number; earned: number };
 export function MemberSpending({
   rows,
   currency,
+  t,
 }: {
   rows: MemberRow[];
   currency: string;
+  t: TFunc;
 }) {
   const max = Math.max(1, ...rows.map((r) => r.spent));
 
   if (rows.every((r) => r.spent === 0 && r.earned === 0)) {
     return (
       <div className="h-[120px] grid place-items-center text-sm text-slate-400">
-        No activity recorded this month
+        {t("member.noActivity")}
       </div>
     );
   }
@@ -28,9 +31,9 @@ export function MemberSpending({
           <div className="flex items-center justify-between text-sm mb-1">
             <span className="font-medium truncate">{r.name}</span>
             <span className="tabular-nums text-[var(--muted)]">
-              {formatMoney(r.spent, currency)} spent
+              {t("member.spent", { amount: formatMoney(r.spent, currency) })}
               {r.earned > 0 && (
-                <span className="text-green-600"> · {formatMoney(r.earned, currency)} in</span>
+                <span className="text-green-600"> {t("member.earned", { amount: formatMoney(r.earned, currency) })}</span>
               )}
             </span>
           </div>

@@ -2,12 +2,14 @@
 
 import { useFormStatus } from "react-dom";
 import { updatePrice } from "@/app/actions/investments";
+import { useT } from "@/lib/i18n/client";
 
 function SaveBtn() {
   const { pending } = useFormStatus();
+  const t = useT();
   return (
     <button type="submit" className="btn-ghost px-2 py-1 text-xs" disabled={pending}>
-      {pending ? "…" : "Save"}
+      {pending ? "…" : t("priceForm.save")}
     </button>
   );
 }

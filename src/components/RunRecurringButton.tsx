@@ -4,9 +4,11 @@ import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Play } from "lucide-react";
 import { runRecurringNow } from "@/app/actions/recurring";
+import { useT } from "@/lib/i18n/client";
 
 /** Posts all due recurring occurrences for the current user, then refreshes. */
 export function RunRecurringButton() {
+  const t = useT();
   const router = useRouter();
   const [pending, startTransition] = useTransition();
   const [busy, setBusy] = useState(false);
@@ -21,12 +23,14 @@ export function RunRecurringButton() {
       const res = await runRecurringNow();
       setMsg(
         res.posted > 0
-          ? `Posted ${res.posted} transaction${res.posted === 1 ? "" : "s"}`
-          : "Nothing due",
+          ? res.posted === 1
+            ? t("recurring.postedOne")
+            : t("recurring.posted", { n: res.posted })
+          : t("recurring.nothingDue"),
       );
       startTransition(() => router.refresh());
     } catch {
-      setMsg("Failed");
+      setMsg(t("recurring.failed"));
     } finally {
       setBusy(false);
     }
@@ -37,7 +41,7 @@ export function RunRecurringButton() {
       {msg && <span className="text-xs text-slate-500">{msg}</span>}
       <button onClick={onClick} disabled={loading} className="btn-ghost border border-[var(--border)]">
         <Play size={16} className={loading ? "animate-pulse" : ""} />
-        {loading ? "Posting…" : "Run due now"}
+        {loading ? t("recurring.posting") : t("recurring.runNow")}
       </button>
     </div>
   );

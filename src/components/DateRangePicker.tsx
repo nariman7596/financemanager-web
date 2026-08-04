@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { RANGE_PRESETS, type RangePreset } from "@/lib/dateRange";
 import { cn } from "@/lib/utils";
+import { useT } from "@/lib/i18n/client";
 
 export function DateRangePicker({
   preset,
@@ -14,6 +15,7 @@ export function DateRangePicker({
   fromStr: string;
   toStr: string;
 }) {
+  const t = useT();
   const router = useRouter();
   const [from, setFrom] = useState(fromStr);
   const [to, setTo] = useState(toStr);
@@ -43,11 +45,11 @@ export function DateRangePicker({
       </div>
       <div className="flex flex-wrap items-end gap-2">
         <div>
-          <label className="label">From</label>
+          <label className="label">{t("range.from")}</label>
           <input type="date" value={from} max={to || undefined} onChange={(e) => setFrom(e.target.value)} className="input w-auto" />
         </div>
         <div>
-          <label className="label">To</label>
+          <label className="label">{t("range.to")}</label>
           <input type="date" value={to} min={from || undefined} onChange={(e) => setTo(e.target.value)} className="input w-auto" />
         </div>
         <button
@@ -57,7 +59,7 @@ export function DateRangePicker({
             preset === "custom" && "border-brand-500 text-brand-700 dark:text-brand-300",
           )}
         >
-          Apply custom
+          {t("range.applyCustom")}
         </button>
       </div>
     </div>

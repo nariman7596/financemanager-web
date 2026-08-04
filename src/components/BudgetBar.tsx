@@ -1,7 +1,9 @@
 import { formatMoney } from "@/lib/utils";
+import type { TFunc } from "@/lib/i18n/translate";
 
 export function BudgetBar({
   budget,
+  t,
 }: {
   budget: {
     category: string;
@@ -11,6 +13,7 @@ export function BudgetBar({
     spent: number;
     pct: number;
   };
+  t: TFunc;
 }) {
   const over = budget.pct > 100;
   const barColor = over ? "#ef4444" : budget.pct > 80 ? "#f59e0b" : budget.color;
@@ -30,7 +33,7 @@ export function BudgetBar({
         />
       </div>
       {over && (
-        <p className="text-xs text-red-500 mt-1">Over budget by {budget.pct - 100}%</p>
+        <p className="text-xs text-red-500 mt-1">{t("budgets.overBy", { pct: budget.pct - 100 })}</p>
       )}
     </div>
   );

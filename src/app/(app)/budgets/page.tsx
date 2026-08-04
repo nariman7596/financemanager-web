@@ -8,10 +8,12 @@ import { BudgetForm } from "@/components/forms/BudgetForm";
 import { BudgetBar } from "@/components/BudgetBar";
 import { DeleteButton } from "@/components/DeleteButton";
 import { deleteBudget } from "@/app/actions/budgets";
+import { getT } from "@/lib/i18n/server";
 
 export const dynamic = "force-dynamic";
 
 export default async function BudgetsPage() {
+  const t = await getT();
   const ctx = await requireHousehold();
   const base = await getBaseCurrency(ctx.householdId);
 
@@ -29,12 +31,12 @@ export default async function BudgetsPage() {
   return (
     <>
       <Topbar
-        title="Budgets"
-        subtitle={`Spending limits · ${monthName}`}
+        title={t("budgets.title")}
+        subtitle={t("budgets.subtitle", { month: monthName })}
         action={
           expenseCategories.length > 0 ? (
             <Modal
-              title="Set a budget"
+              title={t("budgets.set")}
               trigger={<button className="btn-primary"><Plus size={18} /> Add</button>}
             >
               <BudgetForm categories={expenseCategories} defaultCurrency={base} />
@@ -45,7 +47,7 @@ export default async function BudgetsPage() {
 
       {budgets.length === 0 ? (
         <div className="card p-10 text-center text-slate-400">
-          No budgets yet. Set spending limits per category to stay on track.
+          {t("budgets.empty")}
         </div>
       ) : (
         <div className="grid gap-4 sm:grid-cols-2">
@@ -53,11 +55,11 @@ export default async function BudgetsPage() {
             <div key={b.id} className="card p-5">
               <div className="flex items-start justify-between mb-3">
                 <span className="badge" style={{ backgroundColor: `${b.color}1a`, color: b.color }}>
-                  {b.period.toLowerCase()}
+                  {t("enum.period." + b.period)}
                 </span>
-                <DeleteButton action={deleteBudget} id={b.id} label="Delete budget" />
+                <DeleteButton action={deleteBudget} id={b.id} label={t("budgets.deleteBudget")} />
               </div>
-              <BudgetBar budget={b} />
+              <BudgetBar budget={b} t={t} />
             </div>
           ))}
         </div>

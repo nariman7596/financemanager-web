@@ -5,12 +5,14 @@ import { useFormStatus } from "react-dom";
 import { createInvestment } from "@/app/actions/investments";
 import { useCloseModal } from "@/components/Modal";
 import { INVESTMENT_TYPES, CURRENCIES } from "@/lib/constants";
+import { useT } from "@/lib/i18n/client";
 
 function Submit() {
   const { pending } = useFormStatus();
+  const t = useT();
   return (
     <button type="submit" className="btn-primary w-full" disabled={pending}>
-      {pending ? "Saving…" : "Add holding"}
+      {pending ? t("common.saving") : t("invForm.addHolding")}
     </button>
   );
 }
@@ -21,6 +23,7 @@ export function InvestmentForm({
   defaultCurrency: string;
 }) {
   const close = useCloseModal();
+  const t = useT();
   const [error, setError] = useState<string | null>(null);
   const today = new Date().toISOString().slice(0, 10);
 
@@ -35,29 +38,29 @@ export function InvestmentForm({
     <form action={action} className="space-y-4">
       <div className="grid grid-cols-2 gap-3">
         <div>
-          <label className="label">Symbol</label>
+          <label className="label">{t("invForm.symbol")}</label>
           <input name="symbol" required className="input" placeholder="AAPL" />
         </div>
         <div>
-          <label className="label">Type</label>
+          <label className="label">{t("invForm.type")}</label>
           <select name="type" className="input" defaultValue="STOCK">
-            {INVESTMENT_TYPES.map((t) => (
-              <option key={t} value={t}>{t.replace("_", " ").toLowerCase()}</option>
+            {INVESTMENT_TYPES.map((val) => (
+              <option key={val} value={val}>{t("enum.invType." + val)}</option>
             ))}
           </select>
         </div>
       </div>
       <div>
-        <label className="label">Name</label>
-        <input name="name" required className="input" placeholder="Apple Inc." />
+        <label className="label">{t("invForm.name")}</label>
+        <input name="name" required className="input" placeholder={t("invForm.namePlaceholder")} />
       </div>
       <div className="grid grid-cols-2 gap-3">
         <div>
-          <label className="label">Quantity</label>
+          <label className="label">{t("invForm.quantity")}</label>
           <input name="quantity" type="number" step="any" min="0" required className="input" placeholder="10" />
         </div>
         <div>
-          <label className="label">Currency</label>
+          <label className="label">{t("invForm.currency")}</label>
           <select name="currency" className="input" defaultValue={defaultCurrency}>
             {CURRENCIES.map((c) => (
               <option key={c.code} value={c.code}>{c.code}</option>
@@ -67,16 +70,16 @@ export function InvestmentForm({
       </div>
       <div className="grid grid-cols-2 gap-3">
         <div>
-          <label className="label">Total cost basis</label>
+          <label className="label">{t("invForm.costBasis")}</label>
           <input name="costBasis" type="number" step="0.01" min="0" required className="input" placeholder="1500.00" />
         </div>
         <div>
-          <label className="label">Current price / unit</label>
+          <label className="label">{t("invForm.currentPrice")}</label>
           <input name="currentPrice" type="number" step="0.01" min="0" className="input" placeholder="0.00" />
         </div>
       </div>
       <div>
-        <label className="label">Purchase date</label>
+        <label className="label">{t("invForm.purchaseDate")}</label>
         <input name="purchaseDate" type="date" required defaultValue={today} className="input" />
       </div>
       {error && <p className="text-sm text-red-600 bg-red-50 rounded-lg px-3 py-2">{error}</p>}

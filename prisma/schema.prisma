@@ -30,6 +30,7 @@ model User {
   name         String?
   passwordHash String
   baseCurrency String   @default("USD") // personal default for new households
+  locale       String   @default("en") // preferred UI language (en | fa)
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 

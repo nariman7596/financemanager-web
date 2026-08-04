@@ -2,10 +2,12 @@
 
 import { useEffect, useState } from "react";
 import { Moon, Sun } from "lucide-react";
+import { useT } from "@/lib/i18n/client";
 
 // Light/dark toggle. Persists the choice to localStorage; the pre-paint script
 // in the root layout applies it on load (no flash).
 export function ThemeToggle({ className = "" }: { className?: string }) {
+  const t = useT();
   const [dark, setDark] = useState(false);
   const [mounted, setMounted] = useState(false);
 
@@ -26,7 +28,7 @@ export function ThemeToggle({ className = "" }: { className?: string }) {
   }
 
   // Avoid rendering the wrong icon before we've read the current theme.
-  const label = dark ? "Switch to light mode" : "Switch to dark mode";
+  const label = dark ? t("theme.toLight") : t("theme.toDark");
 
   return (
     <button
@@ -37,7 +39,7 @@ export function ThemeToggle({ className = "" }: { className?: string }) {
       title={label}
     >
       {mounted && dark ? <Sun size={16} /> : <Moon size={16} />}
-      <span className="text-sm">{mounted && dark ? "Light" : "Dark"}</span>
+      <span className="text-sm">{mounted && dark ? t("theme.light") : t("theme.dark")}</span>
     </button>
   );
 }

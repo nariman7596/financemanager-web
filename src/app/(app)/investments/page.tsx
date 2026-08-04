@@ -12,10 +12,12 @@ import { InvestmentForm } from "@/components/forms/InvestmentForm";
 import { DeleteButton } from "@/components/DeleteButton";
 import { PriceForm } from "@/components/forms/PriceForm";
 import { deleteInvestment } from "@/app/actions/investments";
+import { getT } from "@/lib/i18n/server";
 
 export const dynamic = "force-dynamic";
 
 export default async function InvestmentsPage() {
+  const t = await getT();
   const ctx = await requireHousehold();
   const base = await getBaseCurrency(ctx.householdId);
   const holdings = await getInvestments(ctx.householdId);
@@ -31,13 +33,13 @@ export default async function InvestmentsPage() {
   return (
     <>
       <Topbar
-        title="Investments"
-        subtitle="Your portfolio"
+        title={t("inv.title")}
+        subtitle={t("inv.subtitle")}
         action={
           <div className="flex items-center gap-3">
             <RefreshButton asOf={fxAsOf ? formatDate(fxAsOf) : null} />
             <Modal
-              title="New holding"
+              title={t("inv.new")}
               trigger={<button className="btn-primary"><Plus size={18} /> Add</button>}
             >
               <InvestmentForm defaultCurrency={base} />
@@ -47,10 +49,10 @@ export default async function InvestmentsPage() {
       />
 
       <div className="grid sm:grid-cols-3 gap-4 mb-6">
-        <StatCard label="Portfolio value" value={formatMoney(totalValue, base)} hint={`in ${base}`} />
-        <StatCard label="Total cost" value={formatMoney(totalCost, base)} />
+        <StatCard label={t("inv.portfolioValue")} value={formatMoney(totalValue, base)} hint={t("common.inCurrency", { code: base })} />
+        <StatCard label={t("inv.totalCost")} value={formatMoney(totalCost, base)} />
         <StatCard
-          label="Total gain / loss"
+          label={t("inv.totalGain")}
           value={`${formatMoney(totalGain, base)} (${totalGainPct.toFixed(1)}%)`}
           tone={totalGain >= 0 ? "positive" : "negative"}
         />
@@ -58,18 +60,18 @@ export default async function InvestmentsPage() {
 
       {holdings.length === 0 ? (
         <div className="card p-10 text-center text-slate-400">
-          No holdings yet. Add stocks, crypto, ETFs and more to track your portfolio.
+          {t("inv.empty")}
         </div>
       ) : (
         <div className="card overflow-hidden">
           <table className="w-full text-sm">
             <thead className="surface-subtle text-[var(--muted)] text-left">
               <tr>
-                <th className="px-4 py-3 font-medium">Symbol</th>
-                <th className="px-4 py-3 font-medium">Qty</th>
-                <th className="px-4 py-3 font-medium">Price</th>
-                <th className="px-4 py-3 font-medium text-right">Value</th>
-                <th className="px-4 py-3 font-medium text-right">Gain</th>
+                <th className="px-4 py-3 font-medium">{t("inv.colSymbol")}</th>
+                <th className="px-4 py-3 font-medium">{t("inv.colQty")}</th>
+                <th className="px-4 py-3 font-medium">{t("inv.colPrice")}</th>
+                <th className="px-4 py-3 font-medium text-right">{t("inv.colValue")}</th>
+                <th className="px-4 py-3 font-medium text-right">{t("inv.colGain")}</th>
                 <th className="px-4 py-3"></th>
               </tr>
             </thead>
@@ -78,7 +80,7 @@ export default async function InvestmentsPage() {
                 <tr key={h.id} className="border-t border-[var(--border)] row-hover">
                   <td className="px-4 py-3">
                     <p className="font-medium">{h.symbol}</p>
-                    <p className="text-xs text-slate-400">{h.name} · {h.type.toLowerCase()}</p>
+                    <p className="text-xs text-slate-400">{h.name} · {t("enum.invType." + h.type)}</p>
                   </td>
                   <td className="px-4 py-3 tabular-nums text-[var(--muted)]">{h.quantity}</td>
                   <td className="px-4 py-3">
@@ -95,7 +97,7 @@ export default async function InvestmentsPage() {
                     <span className="block text-xs font-normal">{h.gainPct.toFixed(1)}%</span>
                   </td>
                   <td className="px-2 py-3 text-right">
-                    <DeleteButton action={deleteInvestment} id={h.id} label="Delete holding" />
+                    <DeleteButton action={deleteInvestment} id={h.id} label={t("inv.deleteHolding")} />
                   </td>
                 </tr>
               ))}

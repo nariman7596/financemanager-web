@@ -5,9 +5,11 @@ import { useRouter } from "next/navigation";
 import { RefreshCw } from "lucide-react";
 import { syncNow } from "@/app/actions/banksync";
 import { cn } from "@/lib/utils";
+import { useT } from "@/lib/i18n/client";
 
 /** "Sync now" for linked bank accounts. Same recipe as RefreshButton. */
 export function BankSyncButton() {
+  const t = useT();
   const router = useRouter();
   const [pending, startTransition] = useTransition();
   const [busy, setBusy] = useState(false);
@@ -26,12 +28,12 @@ export function BankSyncButton() {
         setIsError(true);
         setMsg(res.error ?? res.errors.join(" · "));
       } else {
-        setMsg(`Synced ${res.items} account(s): ${res.added} new, ${res.modified} updated`);
+        setMsg(t("accounts.synced", { items: res.items, added: res.added, modified: res.modified }));
       }
       startTransition(() => router.refresh());
     } catch {
       setIsError(true);
-      setMsg("Sync failed");
+      setMsg(t("accounts.syncFailed"));
     } finally {
       setBusy(false);
     }
@@ -44,7 +46,7 @@ export function BankSyncButton() {
       )}
       <button onClick={onClick} disabled={loading} className="btn-ghost border border-[var(--border)]">
         <RefreshCw size={16} className={loading ? "animate-spin" : ""} />
-        {loading ? "Syncing…" : "Sync now"}
+        {loading ? t("accounts.syncing") : t("accounts.syncNow")}
       </button>
     </div>
   );

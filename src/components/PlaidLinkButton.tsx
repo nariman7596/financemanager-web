@@ -5,6 +5,7 @@ import Script from "next/script";
 import { createLinkToken, exchangePublicTokenAction } from "@/app/actions/banksync";
 import { PlaidAccountMappingForm } from "@/components/forms/PlaidAccountMappingForm";
 import type { PlaidAccountOption } from "@/lib/plaid";
+import { useT } from "@/lib/i18n/client";
 
 declare global {
   interface Window {
@@ -29,12 +30,14 @@ type UnlinkedAccount = { id: string; name: string; currency: string };
 export function PlaidLinkButton({
   unlinkedAccounts,
   presetAccountId,
-  label = "Connect a bank",
+  label: labelProp,
 }: {
   unlinkedAccounts: UnlinkedAccount[];
   presetAccountId?: string;
   label?: string;
 }) {
+  const t = useT();
+  const label = labelProp ?? t("accounts.connectBank");
   const [scriptReady, setScriptReady] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -49,7 +52,7 @@ export function PlaidLinkButton({
     setError(null);
     const res = await createLinkToken();
     if (res.error || !res.linkToken) {
-      setError(res.error ?? "Could not start Plaid Link");
+      setError(res.error ?? t("plaid.couldNotStart"));
       setBusy(false);
       return;
     }
@@ -59,7 +62,7 @@ export function PlaidLinkButton({
         const exch = await exchangePublicTokenAction(publicToken);
         setBusy(false);
         if (exch.error || !exch.plaidItemDbId || !exch.accounts) {
-          setError(exch.error ?? "Could not connect that bank");
+          setError(exch.error ?? t("plaid.couldNotConnect"));
           return;
         }
         setExchanged({ plaidItemDbId: exch.plaidItemDbId, accounts: exch.accounts });
@@ -88,12 +91,11 @@ export function PlaidLinkButton({
         onReady={() => setScriptReady(true)}
       />
       <p className="text-sm text-[var(--muted)]">
-        Connects via Plaid Sandbox — use the test login <code>user_good</code> /{" "}
-        <code>pass_good</code> at any institution.
+        {t("plaid.sandboxHint", { user: "user_good", pass: "pass_good" })}
       </p>
       {error && <p className="text-sm text-red-600 bg-red-50 rounded-lg px-3 py-2">{error}</p>}
       <button onClick={launch} disabled={!scriptReady || busy} className="btn-primary w-full">
-        {busy ? "Connecting…" : label}
+        {busy ? t("plaid.connecting") : label}
       </button>
     </div>
   );

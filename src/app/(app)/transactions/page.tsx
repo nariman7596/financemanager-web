@@ -9,11 +9,14 @@ import { ImportForm } from "@/components/forms/ImportForm";
 import { DeleteButton } from "@/components/DeleteButton";
 import { deleteTransaction } from "@/app/actions/transactions";
 import { cn } from "@/lib/utils";
+import { getT } from "@/lib/i18n/server";
+import type { TFunc } from "@/lib/i18n/translate";
 
 export const dynamic = "force-dynamic";
 
 export default async function TransactionsPage() {
   const ctx = await requireHousehold();
+  const t = await getT();
 
   const [accounts, categories, transactions] = await Promise.all([
     prisma.account.findMany({
@@ -45,24 +48,24 @@ export default async function TransactionsPage() {
   return (
     <>
       <Topbar
-        title="Transactions"
-        subtitle={`${transactions.length} most recent`}
+        title={t("txn.title")}
+        subtitle={t("txn.subtitle", { count: transactions.length })}
         action={
           <div className="flex items-center gap-2">
             {transactions.length > 0 && (
               <a
                 href="/api/export/transactions"
                 className="btn-ghost border border-[var(--border)]"
-                title="Export all transactions as CSV"
+                title={t("txn.exportTitle")}
               >
-                <Download size={16} /> Export
+                <Download size={16} /> {t("txn.export")}
               </a>
             )}
             <Modal
-              title="Import transactions"
+              title={t("txn.importTitle")}
               trigger={
                 <button className="btn-ghost border border-[var(--border)]">
-                  <Upload size={16} /> Import
+                  <Upload size={16} /> {t("txn.import")}
                 </button>
               }
             >
@@ -70,7 +73,7 @@ export default async function TransactionsPage() {
             </Modal>
             {accounts.length > 0 && (
               <Modal
-                title="New transaction"
+                title={t("txn.new")}
                 trigger={<button className="btn-primary"><Plus size={18} /> Add</button>}
               >
                 <TransactionForm accounts={accounts} categories={categories} />
@@ -81,68 +84,68 @@ export default async function TransactionsPage() {
       />
 
       {accounts.length === 0 ? (
-        <EmptyNoAccounts />
+        <EmptyNoAccounts t={t} />
       ) : transactions.length === 0 ? (
         <div className="card p-10 text-center text-slate-400">
-          No transactions yet. Add your first one.
+          {t("txn.empty")}
         </div>
       ) : (
         <div className="card overflow-hidden">
           <table className="w-full text-sm">
             <thead className="surface-subtle text-[var(--muted)] text-left">
               <tr>
-                <th className="px-4 py-3 font-medium">Date</th>
-                <th className="px-4 py-3 font-medium">Description</th>
-                <th className="px-4 py-3 font-medium">Category</th>
-                <th className="px-4 py-3 font-medium">Account</th>
-                <th className="px-4 py-3 font-medium text-right">Amount</th>
+                <th className="px-4 py-3 font-medium">{t("txn.colDate")}</th>
+                <th className="px-4 py-3 font-medium">{t("txn.colDescription")}</th>
+                <th className="px-4 py-3 font-medium">{t("txn.colCategory")}</th>
+                <th className="px-4 py-3 font-medium">{t("txn.colAccount")}</th>
+                <th className="px-4 py-3 font-medium text-right">{t("txn.colAmount")}</th>
                 <th className="px-4 py-3"></th>
               </tr>
             </thead>
             <tbody>
-              {transactions.map((t) => {
-                const amt = toNumber(t.amount);
-                const sign = t.type === "INCOME" ? "+" : t.type === "EXPENSE" ? "−" : "";
+              {transactions.map((txn) => {
+                const amt = toNumber(txn.amount);
+                const sign = txn.type === "INCOME" ? "+" : txn.type === "EXPENSE" ? "−" : "";
                 return (
-                  <tr key={t.id} className="border-t border-[var(--border)] row-hover">
-                    <td className="px-4 py-3 whitespace-nowrap text-slate-500">{formatDate(t.date)}</td>
+                  <tr key={txn.id} className="border-t border-[var(--border)] row-hover">
+                    <td className="px-4 py-3 whitespace-nowrap text-slate-500">{formatDate(txn.date)}</td>
                     <td className="px-4 py-3">
-                      {t.description || <span className="text-slate-400">—</span>}
-                      {t.type === "TRANSFER" && t.transferAccount && (
-                        <span className="text-slate-400"> → {t.transferAccount.name}</span>
+                      {txn.description || <span className="text-slate-400">—</span>}
+                      {txn.type === "TRANSFER" && txn.transferAccount && (
+                        <span className="text-slate-400"> → {txn.transferAccount.name}</span>
                       )}
-                      {shared && t.createdById && memberName.has(t.createdById) && (
-                        <span className="block text-xs text-slate-400">by {memberName.get(t.createdById)}</span>
+                      {shared && txn.createdById && memberName.has(txn.createdById) && (
+                        <span className="block text-xs text-slate-400">{t("txn.by", { name: memberName.get(txn.createdById)! })}</span>
                       )}
                     </td>
                     <td className="px-4 py-3">
-                      {t.category ? (
-                        <span className="badge" style={{ backgroundColor: `${t.category.color}1a`, color: t.category.color }}>
-                          {t.category.name}
+                      {txn.category ? (
+                        <span className="badge" style={{ backgroundColor: `${txn.category.color}1a`, color: txn.category.color }}>
+                          {txn.category.name}
                         </span>
                       ) : (
-                        <span className="text-slate-400">{t.type === "TRANSFER" ? "Transfer" : "—"}</span>
+                        <span className="text-slate-400">{txn.type === "TRANSFER" ? t("txn.transfer") : "—"}</span>
                       )}
                     </td>
-                    <td className="px-4 py-3 text-slate-500">{t.account.name}</td>
+                    <td className="px-4 py-3 text-slate-500">{txn.account.name}</td>
                     <td
                       className={cn(
                         "px-4 py-3 text-right tabular-nums font-medium whitespace-nowrap",
-                        t.type === "INCOME" && "text-green-600",
-                        t.type === "EXPENSE" && "text-red-600",
+                        txn.type === "INCOME" && "text-green-600",
+                        txn.type === "EXPENSE" && "text-red-600",
                       )}
                     >
-                      {sign} {formatMoney(amt, t.currency)}
+                      {sign} {formatMoney(amt, txn.currency)}
                     </td>
                     <td className="px-2 py-3">
                       <div className="flex items-center justify-end gap-0.5">
                         <Modal
-                          title="Edit transaction"
+                          title={t("txn.edit")}
                           trigger={
                             <button
                               className="btn-ghost p-1.5 text-slate-400 hover:text-brand-600 hover:bg-brand-50"
-                              aria-label="Edit transaction"
-                              title="Edit"
+                              aria-label={t("txn.editAria")}
+                              title={t("common.edit")}
                             >
                               <Pencil size={16} />
                             </button>
@@ -152,19 +155,19 @@ export default async function TransactionsPage() {
                             accounts={accounts}
                             categories={categories}
                             transaction={{
-                              id: t.id,
-                              type: t.type,
-                              accountId: t.accountId,
-                              categoryId: t.categoryId,
-                              transferAccountId: t.transferAccountId,
-                              amount: toNumber(t.amount),
-                              currency: t.currency,
-                              date: t.date.toISOString().slice(0, 10),
-                              description: t.description,
+                              id: txn.id,
+                              type: txn.type,
+                              accountId: txn.accountId,
+                              categoryId: txn.categoryId,
+                              transferAccountId: txn.transferAccountId,
+                              amount: toNumber(txn.amount),
+                              currency: txn.currency,
+                              date: txn.date.toISOString().slice(0, 10),
+                              description: txn.description,
                             }}
                           />
                         </Modal>
-                        <DeleteButton action={deleteTransaction} id={t.id} />
+                        <DeleteButton action={deleteTransaction} id={txn.id} />
                       </div>
                     </td>
                   </tr>
@@ -178,12 +181,12 @@ export default async function TransactionsPage() {
   );
 }
 
-function EmptyNoAccounts() {
+function EmptyNoAccounts({ t }: { t: TFunc }) {
   return (
     <div className="card p-10 text-center">
-      <p className="text-slate-500 mb-2">You need an account before adding transactions.</p>
+      <p className="text-slate-500 mb-2">{t("txn.needAccountTitle")}</p>
       <a href="/accounts" className="text-brand-600 font-medium hover:underline">
-        Create an account →
+        {t("txn.createAccount")}
       </a>
     </div>
   );
