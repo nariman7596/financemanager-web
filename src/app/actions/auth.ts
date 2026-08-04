@@ -42,7 +42,7 @@ export async function registerAction(
   const t = await getT();
   const locale = await currentLocale();
   if (!parsed.success) {
-    return { error: parsed.error.issues[0]?.message ?? t("auth.err.invalidInput") };
+    return { error: t(parsed.error.issues[0]?.message ?? "auth.err.invalidInput") };
   }
   const { name, email, password, baseCurrency } = parsed.data;
 

@@ -5,6 +5,7 @@ import { prisma } from "@/lib/prisma";
 import { checkHousehold } from "@/lib/household";
 import { recurringSchema } from "@/lib/validation";
 import { postDueRecurring } from "@/lib/recurring";
+import { getT } from "@/lib/i18n/server";
 
 function revalidateMoney() {
   revalidatePath("/recurring");
@@ -16,6 +17,7 @@ function revalidateMoney() {
 export async function createRecurring(formData: FormData) {
   const { ctx, error } = await checkHousehold("MEMBER");
   if (!ctx) return { error };
+  const t = await getT();
 
   const parsed = recurringSchema.safeParse({
     type: formData.get("type"),
@@ -30,7 +32,7 @@ export async function createRecurring(formData: FormData) {
     startDate: formData.get("startDate"),
     endDate: formData.get("endDate") || null,
   });
-  if (!parsed.success) return { error: parsed.error.issues[0]?.message };
+  if (!parsed.success) return { error: t(parsed.error.issues[0]?.message ?? "valid.invalid") };
   const d = parsed.data;
 
   const owned = await prisma.account.count({
@@ -39,7 +41,7 @@ export async function createRecurring(formData: FormData) {
       id: { in: [d.accountId, d.transferAccountId].filter(Boolean) as string[] },
     },
   });
-  if (owned < (d.type === "TRANSFER" ? 2 : 1)) return { error: "Invalid account" };
+  if (owned < (d.type === "TRANSFER" ? 2 : 1)) return { error: t("err.invalidAccount") };
 
   await prisma.recurringTransaction.create({
     data: {
@@ -68,12 +70,13 @@ export async function createRecurring(formData: FormData) {
 export async function updateRecurring(formData: FormData) {
   const { ctx, error } = await checkHousehold("MEMBER");
   if (!ctx) return { error };
+  const t = await getT();
   const id = String(formData.get("id"));
 
   const existing = await prisma.recurringTransaction.findFirst({
     where: { id, householdId: ctx.householdId },
   });
-  if (!existing) return { error: "Rule not found" };
+  if (!existing) return { error: t("err.ruleNotFound") };
 
   const parsed = recurringSchema.safeParse({
     type: formData.get("type"),
@@ -88,7 +91,7 @@ export async function updateRecurring(formData: FormData) {
     startDate: formData.get("startDate"),
     endDate: formData.get("endDate") || null,
   });
-  if (!parsed.success) return { error: parsed.error.issues[0]?.message };
+  if (!parsed.success) return { error: t(parsed.error.issues[0]?.message ?? "valid.invalid") };
   const d = parsed.data;
 
   const owned = await prisma.account.count({
@@ -97,7 +100,7 @@ export async function updateRecurring(formData: FormData) {
       id: { in: [d.accountId, d.transferAccountId].filter(Boolean) as string[] },
     },
   });
-  if (owned < (d.type === "TRANSFER" ? 2 : 1)) return { error: "Invalid account" };
+  if (owned < (d.type === "TRANSFER" ? 2 : 1)) return { error: t("err.invalidAccount") };
 
   // If nothing has posted yet, the schedule cursor follows the (possibly new)
   // start date; once it's begun posting, keep the existing cursor.
@@ -135,7 +138,10 @@ export async function toggleRecurring(formData: FormData) {
     where: { id, householdId: ctx.householdId },
     select: { isActive: true },
   });
-  if (!rule) return { error: "Not found" };
+  if (!rule) {
+    const t = await getT();
+    return { error: t("err.notFound") };
+  }
   await prisma.recurringTransaction.updateMany({
     where: { id, householdId: ctx.householdId },
     data: { isActive: !rule.isActive },

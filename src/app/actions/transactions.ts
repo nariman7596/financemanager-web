@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import { checkHousehold } from "@/lib/household";
 import { transactionSchema } from "@/lib/validation";
+import { getT } from "@/lib/i18n/server";
 
 function parse(formData: FormData) {
   return transactionSchema.safeParse({
@@ -31,8 +32,9 @@ export async function createTransaction(formData: FormData) {
   const { ctx, error } = await checkHousehold("MEMBER");
   if (!ctx) return { error };
 
+  const t = await getT();
   const parsed = parse(formData);
-  if (!parsed.success) return { error: parsed.error.issues[0]?.message };
+  if (!parsed.success) return { error: t(parsed.error.issues[0]?.message ?? "valid.invalid") };
   const d = parsed.data;
 
   // Verify the account(s) belong to this household.
@@ -42,7 +44,7 @@ export async function createTransaction(formData: FormData) {
       id: { in: [d.accountId, d.transferAccountId].filter(Boolean) as string[] },
     },
   });
-  if (owned < (d.type === "TRANSFER" ? 2 : 1)) return { error: "Invalid account" };
+  if (owned < (d.type === "TRANSFER" ? 2 : 1)) return { error: t("err.invalidAccount") };
 
   await prisma.transaction.create({
     data: {
@@ -66,16 +68,17 @@ export async function createTransaction(formData: FormData) {
 export async function updateTransaction(formData: FormData) {
   const { ctx, error } = await checkHousehold("MEMBER");
   if (!ctx) return { error };
+  const t = await getT();
   const id = String(formData.get("id"));
 
   const existing = await prisma.transaction.findFirst({
     where: { id, householdId: ctx.householdId },
     select: { id: true },
   });
-  if (!existing) return { error: "Transaction not found" };
+  if (!existing) return { error: t("err.transactionNotFound") };
 
   const parsed = parse(formData);
-  if (!parsed.success) return { error: parsed.error.issues[0]?.message };
+  if (!parsed.success) return { error: t(parsed.error.issues[0]?.message ?? "valid.invalid") };
   const d = parsed.data;
 
   const owned = await prisma.account.count({
@@ -84,7 +87,7 @@ export async function updateTransaction(formData: FormData) {
       id: { in: [d.accountId, d.transferAccountId].filter(Boolean) as string[] },
     },
   });
-  if (owned < (d.type === "TRANSFER" ? 2 : 1)) return { error: "Invalid account" };
+  if (owned < (d.type === "TRANSFER" ? 2 : 1)) return { error: t("err.invalidAccount") };
 
   await prisma.transaction.update({
     where: { id },

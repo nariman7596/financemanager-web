@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 import { prisma } from "./prisma";
 import { getSession } from "./session";
 import { roleAtLeast, type Role } from "./roles";
+import { getT } from "./i18n/server";
 
 // ---------------------------------------------------------------------------
 // Household access control — the security core.
@@ -82,9 +83,10 @@ export async function checkHousehold(
   minRole: Role = "MEMBER",
 ): Promise<{ ctx: HouseholdContext; error?: undefined } | { ctx?: undefined; error: string }> {
   const ctx = await getActiveContext();
-  if (!ctx) return { error: "You're not signed in" };
+  const t = await getT();
+  if (!ctx) return { error: t("err.notSignedIn") };
   if (!roleAtLeast(ctx.role, minRole)) {
-    return { error: `You need ${minRole.toLowerCase()} access to do that` };
+    return { error: t("err.needAccess", { role: t(`enum.role.${minRole}`) }) };
   }
   return { ctx };
 }

@@ -4,24 +4,26 @@ import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import { checkHousehold } from "@/lib/household";
 import { categorySchema } from "@/lib/validation";
+import { getT } from "@/lib/i18n/server";
 
 export async function createCategory(formData: FormData) {
   const { ctx, error } = await checkHousehold("MEMBER");
   if (!ctx) return { error };
+  const t = await getT();
 
   const parsed = categorySchema.safeParse({
     name: formData.get("name"),
     type: formData.get("type"),
     color: formData.get("color") || "#328eff",
   });
-  if (!parsed.success) return { error: parsed.error.issues[0]?.message };
+  if (!parsed.success) return { error: t(parsed.error.issues[0]?.message ?? "valid.invalid") };
 
   try {
     await prisma.category.create({
       data: { ...parsed.data, householdId: ctx.householdId, createdById: ctx.userId },
     });
   } catch {
-    return { error: "This household already has a category with that name and type" };
+    return { error: t("err.categoryDuplicate") };
   }
   revalidatePath("/settings");
   revalidatePath("/budgets");

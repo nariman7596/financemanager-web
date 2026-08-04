@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import { checkHousehold } from "@/lib/household";
 import { investmentSchema } from "@/lib/validation";
+import { getT } from "@/lib/i18n/server";
 
 export async function createInvestment(formData: FormData) {
   const { ctx, error } = await checkHousehold("MEMBER");
@@ -19,7 +20,10 @@ export async function createInvestment(formData: FormData) {
     currency: formData.get("currency"),
     purchaseDate: formData.get("purchaseDate"),
   });
-  if (!parsed.success) return { error: parsed.error.issues[0]?.message };
+  if (!parsed.success) {
+    const t = await getT();
+    return { error: t(parsed.error.issues[0]?.message ?? "valid.invalid") };
+  }
 
   await prisma.investment.create({
     data: { ...parsed.data, householdId: ctx.householdId, createdById: ctx.userId },
@@ -34,7 +38,10 @@ export async function updatePrice(formData: FormData) {
   if (!ctx) return { error };
   const id = String(formData.get("id"));
   const price = Number(formData.get("currentPrice"));
-  if (!Number.isFinite(price) || price < 0) return { error: "Invalid price" };
+  if (!Number.isFinite(price) || price < 0) {
+    const t = await getT();
+    return { error: t("err.invalidPrice") };
+  }
 
   await prisma.investment.updateMany({
     where: { id, householdId: ctx.householdId },

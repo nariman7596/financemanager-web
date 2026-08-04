@@ -2,6 +2,8 @@ import { prisma } from "./prisma";
 
 // Core ownership operations. Pure (no server-only / no auth) so they can be
 // unit-tested; the Server Actions wrap these with checkHousehold("OWNER").
+// `error` is an i18n key (see dictionaries `err.*`); the wrapping action
+// translates it via `getT` before returning it to the client.
 
 type Result = { ok: true; error?: undefined } | { ok?: undefined; error: string };
 
@@ -17,14 +19,14 @@ export async function transferOwnershipTo(
   const target = await prisma.membership.findFirst({
     where: { id: targetMembershipId, householdId },
   });
-  if (!target) return { error: "Member not found" };
-  if (target.userId === actingUserId) return { error: "You're already the owner" };
-  if (target.role === "OWNER") return { error: "They're already an owner" };
+  if (!target) return { error: "err.memberNotFound" };
+  if (target.userId === actingUserId) return { error: "err.alreadyOwner" };
+  if (target.role === "OWNER") return { error: "err.alreadyAnOwner" };
 
   const mine = await prisma.membership.findUnique({
     where: { householdId_userId: { householdId, userId: actingUserId } },
   });
-  if (!mine) return { error: "You're not a member of this household" };
+  if (!mine) return { error: "err.notMemberOfThisHousehold" };
 
   await prisma.$transaction([
     prisma.membership.update({ where: { id: target.id }, data: { role: "OWNER" } }),
@@ -43,7 +45,7 @@ export async function deleteHouseholdFor(
 ): Promise<Result> {
   const count = await prisma.membership.count({ where: { userId: actingUserId } });
   if (count <= 1) {
-    return { error: "You can't delete your only household — create or join another first" };
+    return { error: "err.cantDeleteOnlyHousehold" };
   }
   await prisma.household.delete({ where: { id: householdId } });
   return { ok: true };

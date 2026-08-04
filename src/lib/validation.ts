@@ -9,38 +9,42 @@ import {
   TRANSACTION_TYPES,
 } from "./constants";
 
+// Validation messages are i18n keys (see dictionaries `valid.*`), translated at
+// the point they're surfaced to the user (the Server Action, via `getT`). Zod
+// evaluates these at module load, so they must stay static — hence keys, not
+// translated text.
 const currency = z.enum(CURRENCY_CODES as [string, ...string[]]);
-const positiveAmount = z.coerce.number().positive("Amount must be greater than 0");
+const positiveAmount = z.coerce.number().positive("valid.amountPositive");
 
 export const registerSchema = z.object({
-  name: z.string().trim().min(1, "Name is required").max(80),
-  email: z.string().trim().toLowerCase().email("Enter a valid email"),
-  password: z.string().min(8, "Password must be at least 8 characters").max(200),
+  name: z.string().trim().min(1, "valid.nameRequired").max(80),
+  email: z.string().trim().toLowerCase().email("valid.email"),
+  password: z.string().min(8, "valid.passwordMin").max(200),
   baseCurrency: currency.default("USD"),
 });
 
 export const loginSchema = z.object({
-  email: z.string().trim().toLowerCase().email("Enter a valid email"),
-  password: z.string().min(1, "Password is required"),
+  email: z.string().trim().toLowerCase().email("valid.email"),
+  password: z.string().min(1, "valid.passwordRequired"),
 });
 
 export const accountSchema = z.object({
-  name: z.string().trim().min(1, "Name is required").max(80),
+  name: z.string().trim().min(1, "valid.nameRequired").max(80),
   type: z.enum(ACCOUNT_TYPES),
   currency,
   openingBalance: z.coerce.number().default(0),
 });
 
 export const categorySchema = z.object({
-  name: z.string().trim().min(1, "Name is required").max(60),
+  name: z.string().trim().min(1, "valid.nameRequired").max(60),
   type: z.enum(CATEGORY_TYPES),
-  color: z.string().regex(/^#[0-9a-fA-F]{6}$/, "Pick a color").default("#328eff"),
+  color: z.string().regex(/^#[0-9a-fA-F]{6}$/, "valid.color").default("#328eff"),
 });
 
 export const transactionSchema = z
   .object({
     type: z.enum(TRANSACTION_TYPES),
-    accountId: z.string().min(1, "Choose an account"),
+    accountId: z.string().min(1, "valid.chooseAccount"),
     categoryId: z.string().optional().nullable(),
     transferAccountId: z.string().optional().nullable(),
     amount: positiveAmount,
@@ -53,26 +57,26 @@ export const transactionSchema = z
   })
   .refine(
     (d) => d.type !== "TRANSFER" || !!d.transferAccountId,
-    { message: "Transfers need a destination account", path: ["transferAccountId"] },
+    { message: "valid.transferDest", path: ["transferAccountId"] },
   )
   .refine(
     (d) => d.type === "TRANSFER" || d.accountId !== d.transferAccountId,
-    { message: "Source and destination must differ", path: ["transferAccountId"] },
+    { message: "valid.sourceDestDiffer", path: ["transferAccountId"] },
   );
 
 export const budgetSchema = z.object({
-  categoryId: z.string().min(1, "Choose a category"),
+  categoryId: z.string().min(1, "valid.chooseCategory"),
   amount: positiveAmount,
   currency,
   period: z.enum(BUDGET_PERIODS).default("MONTHLY"),
 });
 
 export const investmentSchema = z.object({
-  symbol: z.string().trim().min(1, "Symbol is required").max(20).toUpperCase(),
-  name: z.string().trim().min(1, "Name is required").max(100),
+  symbol: z.string().trim().min(1, "valid.symbolRequired").max(20).toUpperCase(),
+  name: z.string().trim().min(1, "valid.nameRequired").max(100),
   type: z.enum(INVESTMENT_TYPES),
   quantity: positiveAmount,
-  costBasis: z.coerce.number().nonnegative("Cost basis can't be negative"),
+  costBasis: z.coerce.number().nonnegative("valid.costBasisNonneg"),
   currentPrice: z.coerce.number().nonnegative().default(0),
   currency,
   purchaseDate: z.coerce.date(),
@@ -86,7 +90,7 @@ export const settingsSchema = z.object({
 export const recurringSchema = z
   .object({
     type: z.enum(TRANSACTION_TYPES),
-    accountId: z.string().min(1, "Choose an account"),
+    accountId: z.string().min(1, "valid.chooseAccount"),
     categoryId: z.string().optional().nullable(),
     transferAccountId: z.string().optional().nullable(),
     amount: positiveAmount,
@@ -98,14 +102,14 @@ export const recurringSchema = z
     endDate: z.coerce.date().optional().nullable(),
   })
   .refine((d) => d.type !== "TRANSFER" || !!d.transferAccountId, {
-    message: "Transfers need a destination account",
+    message: "valid.transferDest",
     path: ["transferAccountId"],
   })
   .refine((d) => d.type === "TRANSFER" || d.accountId !== d.transferAccountId, {
-    message: "Source and destination must differ",
+    message: "valid.sourceDestDiffer",
     path: ["transferAccountId"],
   })
   .refine((d) => !d.endDate || d.endDate >= d.startDate, {
-    message: "End date must be after the start date",
+    message: "valid.endAfterStart",
     path: ["endDate"],
   });

@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import { checkHousehold } from "@/lib/household";
+import { getT } from "@/lib/i18n/server";
 import {
   createLinkToken as plaidCreateLinkToken,
   exchangePublicToken as plaidExchangePublicToken,
@@ -44,10 +45,11 @@ export async function mapPlaidAccounts(
   const { ctx, error } = await checkHousehold("ADMIN");
   if (!ctx) return { error };
 
+  const t = await getT();
   const item = await prisma.plaidItem.findFirst({
     where: { id: plaidItemDbId, householdId: ctx.householdId },
   });
-  if (!item) return { error: "Bank connection not found" };
+  if (!item) return { error: t("err.bankConnNotFound") };
 
   const wanted = mappings.filter((m) => m.localAccountId);
   if (wanted.length > 0) {
@@ -62,7 +64,7 @@ export async function mapPlaidAccounts(
     const ownedIds = new Set(owned.map((a) => a.id));
     for (const m of wanted) {
       if (!ownedIds.has(m.localAccountId!)) {
-        return { error: "Choose one of your own unlinked accounts" };
+        return { error: t("err.chooseOwnUnlinked") };
       }
     }
     for (const m of wanted) {
@@ -92,7 +94,10 @@ export async function unlinkAccount(formData: FormData): Promise<{ ok?: true; er
   const account = await prisma.account.findFirst({
     where: { id, householdId: ctx.householdId },
   });
-  if (!account) return { error: "Account not found" };
+  if (!account) {
+    const t = await getT();
+    return { error: t("err.accountNotFound") };
+  }
   if (account.source !== "PLAID" || !account.plaidItemId) return { ok: true };
 
   const plaidItemId = account.plaidItemId;
