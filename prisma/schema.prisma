@@ -20,8 +20,11 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  // Pooled Postgres (Neon/Supabase/serverless) needs a direct connection for
+  // migrations. Set both in production; locally they can be the same value.
+  directUrl = env("DIRECT_URL")
 }
 
 model User {
