@@ -136,7 +136,7 @@ Wait a minute for it to propagate.
 ### 2.6 Deploy the app
 
 ```bash
-cd ~/financemanager
+cd ~/financemanager-web
 cp .env.docker.example .env
 nano .env                         # set DB_PASSWORD, AUTH_SECRET, CRON_SECRET
 #   generate secrets with:  openssl rand -base64 32
@@ -176,7 +176,7 @@ still `curl` the endpoints with the bearer token — but the container is simple
 
 ## Part 4 — Everyday commands
 
-Run these from `~/financemanager` on the VPS:
+Run these from `~/financemanager-web` on the VPS:
 
 ```bash
 docker compose logs -f app          # watch app logs
@@ -231,7 +231,7 @@ app, own database, own storage. They share **only** the front-door network.
 **Run one at a time** (to save resources): just stop one apartment and start the
 other — Postgres data stays safe in each project's volume.
 ```bash
-cd ~/financemanager && docker compose down
+cd ~/financemanager-web && docker compose down
 cd ~/appb           && docker compose up -d
 ```
 

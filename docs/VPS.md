@@ -73,6 +73,9 @@ Set:
 
 ```ini
 DATABASE_URL="postgresql://fm:CHANGE_ME_STRONG@localhost:5432/financemanager?schema=public"
+# Required: the Prisma datasource references it. Plain (non-pooled) Postgres,
+# so it is the same value as DATABASE_URL.
+DIRECT_URL="postgresql://fm:CHANGE_ME_STRONG@localhost:5432/financemanager?schema=public"
 AUTH_SECRET="PASTE_openssl_rand_base64_32"
 CRON_SECRET="PASTE_another_openssl_rand_base64_32"
 # optional: STOCK_API_KEY="your-finnhub-key"
@@ -87,11 +90,11 @@ openssl rand -base64 32   # CRON_SECRET
 
 ## 7. Create the schema + build
 
-For a single self-hosted environment, `db push` is the simplest (no migration
-files to manage):
+The repo ships versioned migrations, so apply those — they are safe to re-run
+and safe once you have real data (unlike `db push`):
 
 ```bash
-npm run db:push          # creates all tables in Postgres
+npm run db:migrate:deploy   # creates/updates all tables in Postgres
 npm run db:seed          # OPTIONAL: demo household + exchange rates
 npm run build            # production build
 ```
@@ -117,7 +120,7 @@ After=network.target postgresql.service
 [Service]
 Type=simple
 User=fm
-WorkingDirectory=/home/fm/financemanager
+WorkingDirectory=/home/fm/financemanager-web
 Environment=NODE_ENV=production
 Environment=PORT=3000
 ExecStart=/usr/bin/npm start
@@ -262,7 +265,7 @@ sudo -iu fm
 cd financemanager-web
 git pull
 npm ci
-npm run db:push        # only if the schema changed
+npm run db:migrate:deploy   # applies any new migrations
 npm run build
 exit
 sudo systemctl restart financemanager

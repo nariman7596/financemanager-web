@@ -2,6 +2,7 @@
 # Start it:   docker compose -f docker-compose.dev.yml up -d
 # Then set DATABASE_URL in .env and run the app with hot-reload via `npm run dev`:
 #   DATABASE_URL="postgresql://fm:devpassword@localhost:5432/financemanager?schema=public"
+#   DIRECT_URL="postgresql://fm:devpassword@localhost:5432/financemanager?schema=public"
 # Postgres is exposed on localhost:5432 so the app (running on the host) can reach it.
 name: financemanager-dev
 

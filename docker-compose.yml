@@ -29,6 +29,9 @@ services:
     restart: unless-stopped
     environment:
       DATABASE_URL: postgresql://fm:${DB_PASSWORD}@db:5432/financemanager?schema=public
+      # Self-hosted Postgres is not pooled, so the direct URL is the same one.
+      # The Prisma datasource requires it (used for migrations).
+      DIRECT_URL: postgresql://fm:${DB_PASSWORD}@db:5432/financemanager?schema=public
       AUTH_SECRET: ${AUTH_SECRET:?set AUTH_SECRET in .env}
       CRON_SECRET: ${CRON_SECRET:?set CRON_SECRET in .env}
       STOCK_API_KEY: ${STOCK_API_KEY:-}
