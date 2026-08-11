@@ -1,0 +1,31 @@
+# Variant of deploy/proxy/docker-compose.yml for a VPS where TCP/443 is already
+# taken (e.g. an Xray/V2Ray VPN). Caddy serves the app on 8443 and keeps port 80
+# only so Let's Encrypt can issue and renew certificates (ACME HTTP-01).
+#
+# Use with Caddyfile.alt-port:
+#   docker network create web        # once
+#   docker compose -f docker-compose.alt-port.yml up -d
+#
+# See docs/DEPLOY-BEHIND-XRAY.md.
+name: proxy
+
+services:
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    ports:
+      - "80:80"        # ACME challenge + renewals — must stay open
+      - "8443:8443"    # the app itself
+    volumes:
+      - ./Caddyfile.alt-port:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data
+      - caddy-config:/config
+    networks: [web]
+
+volumes:
+  caddy-data:
+  caddy-config:
+
+networks:
+  web:
+    external: true

@@ -1,0 +1,7 @@
+# For a VPS where TCP/443 is already used by something else (e.g. an Xray VPN).
+# Caddy still gets a real Let's Encrypt certificate — it just serves on 8443.
+# Replace finance.example.com with your domain.
+
+finance.example.com:8443 {
+	reverse_proxy financemanager:3000
+}
