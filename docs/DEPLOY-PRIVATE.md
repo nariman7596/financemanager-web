@@ -190,23 +190,32 @@ http://10.66.66.1:3000
 
 ## ۳. بکاپ (این را جدی بگیر)
 
-دادهٔ مالی‌ات فقط روی همین سرور است.
+دادهٔ مالی‌ات فقط روی همین سرور است. **راهنمای کامل: [`BACKUP.md`](./BACKUP.md)**
 
 ```bash
-mkdir -p ~/backups
+chmod +x deploy/backup.sh deploy/restore.sh
+./deploy/backup.sh          # یک‌بار دستی، برای اطمینان
 crontab -e
 ```
-اضافه کن:
 ```cron
-30 3 * * * docker exec financemanager-db-1 pg_dump -U fm financemanager | gzip > ~/backups/fm-$(date +\%F).sql.gz && find ~/backups -name '*.sql.gz' -mtime +14 -delete
+30 3 * * * /bin/bash /root/financemanager-web/deploy/backup.sh >/dev/null 2>&1
 ```
 
-بازگردانی:
+> ⚠️ **از الگوی رایجِ `pg_dump | gzip > out.gz && find … -delete` استفاده نکن.** اگر
+> `pg_dump` شکست بخورد، `gzip` همچنان یک آرشیوِ معتبرِ **خالی** می‌سازد، `&&` موفق
+> حساب می‌شود و مرحله‌ی حذف بکاپ‌های سالم را پاک می‌کند. `deploy/backup.sh` با
+> `pipefail`، بررسیِ محتوا و حذفِ فقط‌پس‌از‌تأیید این را می‌بندد.
+
+بازگردانی (اسنپ‌شات می‌گیرد و تأیید می‌خواهد):
 ```bash
-gunzip -c ~/backups/fm-2026-08-11.sql.gz | docker exec -i financemanager-db-1 psql -U fm financemanager
+./deploy/restore.sh ~/backups/fm-<تاریخ>.sql.gz
 ```
 
-> نامِ دقیقِ کانتینر را با `docker ps --format '{{.Names}}'` چک کن.
+**و یک نسخه بیرون از سرور نگه دار** — بکاپی که روی همان دیسکِ در‌معرضِ‌خرابی است،
+نصفِ بکاپ است. روی کامپیوترِ خودت (نه روی سرور):
+```bash
+scp root@<server-ip>:'/root/backups/fm-*.sql.gz' ~/fm-backups/
+```
 
 ---
 
@@ -214,13 +223,14 @@ gunzip -c ~/backups/fm-2026-08-11.sql.gz | docker exec -i financemanager-db-1 ps
 
 ```bash
 cd ~/financemanager-web
-C="docker compose -f docker-compose.private.yml"
+# اگر مسیرِ «۱-ب» را رفته‌ای، docker-compose.ghcr.yml را بگذار
+C="docker compose -f docker-compose.ghcr.yml"
 
 $C ps                    # وضعیت
 $C logs -f app           # لاگِ اپ
 $C logs app | grep -i migrat   # آیا مایگریشن‌ها اجرا شدند؟
 $C restart app           # ری‌استارت
-git pull && $C up -d --build   # بروزرسانی
+git pull && $C pull && $C up -d   # بروزرسانی (مسیرِ ایمیجِ آماده)
 ```
 
 ## عیب‌یابی
