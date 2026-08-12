@@ -49,8 +49,14 @@ services:
       # a VPN/LAN address. Not needed for an SSH tunnel to localhost.
       COOKIE_SECURE: ${COOKIE_SECURE:-true}
     ports:
-      # Loopback only — the port does not exist on any public interface.
-      - "127.0.0.1:3000:3000"
+      # Bound to a single address, never 0.0.0.0 — the port must not exist on
+      # the public interface. Default is loopback (SSH tunnel / local only).
+      #
+      # A VPN peer arriving on wg0 CANNOT reach a socket bound to 127.0.0.1, so
+      # for phone access over WireGuard set APP_BIND to the server's VPN address
+      # in .env (e.g. APP_BIND=10.66.66.1). Still private: wg0 only exists
+      # inside the tunnel.
+      - "${APP_BIND:-127.0.0.1}:3000:3000"
     depends_on:
       db:
         condition: service_healthy

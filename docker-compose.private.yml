@@ -47,10 +47,14 @@ services:
       # which is only acceptable because nothing here is internet-facing.
       COOKIE_SECURE: ${COOKIE_SECURE:-true}
     ports:
-      # 127.0.0.1 prefix is the whole point: the port exists on the server's
-      # loopback only. Without it, Docker would publish on 0.0.0.0 and punch
-      # straight through ufw.
-      - "127.0.0.1:3000:3000"
+      # The address prefix is the whole point: the port exists on exactly one
+      # interface. Without it, Docker would publish on 0.0.0.0 and punch
+      # straight through ufw (Docker writes its own iptables chain).
+      #
+      # Default 127.0.0.1 = loopback only. For phone access over WireGuard set
+      # APP_BIND=10.66.66.1 in .env — a peer on wg0 cannot reach a socket bound
+      # to loopback. Never set this to 0.0.0.0 or the public IP.
+      - "${APP_BIND:-127.0.0.1}:3000:3000"
     depends_on:
       db:
         condition: service_healthy
