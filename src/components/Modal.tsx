@@ -2,6 +2,7 @@
 
 import { createContext, useContext, useEffect, useState } from "react";
 import { X } from "lucide-react";
+import { useT } from "@/lib/i18n/client";
 
 // Context lets nested forms close the modal without the parent (often a Server
 // Component) having to pass a function child across the client boundary.
@@ -21,6 +22,7 @@ export function Modal({
   title: string;
   children: React.ReactNode;
 }) {
+  const t = useT();
   const [open, setOpen] = useState(false);
   const close = () => setOpen(false);
 
