@@ -6,6 +6,7 @@ import { createRecurring, updateRecurring } from "@/app/actions/recurring";
 import { useCloseModal } from "@/components/Modal";
 import { TRANSACTION_TYPES, RECURRENCES, CURRENCIES } from "@/lib/constants";
 import { useT } from "@/lib/i18n/client";
+import { DateField } from "@/components/DateField";
 
 type Account = { id: string; name: string; currency: string };
 type Category = { id: string; name: string; type: string };
@@ -148,11 +149,11 @@ export function RecurringForm({
       <div className="grid grid-cols-2 gap-3">
         <div>
           <label className="label">{t("recForm.startDate")}</label>
-          <input name="startDate" type="date" required defaultValue={rule?.startDate ?? today} className="input" />
+          <DateField name="startDate" required defaultValue={rule?.startDate ?? today} />
         </div>
         <div>
           <label className="label">{t("recForm.endDate")} <span className="text-slate-400">({t("common.optional")})</span></label>
-          <input name="endDate" type="date" className="input" defaultValue={rule?.endDate ?? ""} />
+          <DateField name="endDate" defaultValue={rule?.endDate ?? ""} />
         </div>
       </div>
 

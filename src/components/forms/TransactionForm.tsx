@@ -7,6 +7,7 @@ import { useCloseModal } from "@/components/Modal";
 import Link from "next/link";
 import { TRANSACTION_TYPES, CURRENCIES } from "@/lib/constants";
 import { useT } from "@/lib/i18n/client";
+import { DateField } from "@/components/DateField";
 
 type Account = { id: string; name: string; currency: string };
 type Category = { id: string; name: string; type: string };
@@ -129,7 +130,7 @@ export function TransactionForm({
       <div className="grid grid-cols-2 gap-3">
         <div>
           <label className="label">{t("txnForm.date")}</label>
-          <input name="date" type="date" required defaultValue={transaction?.date ?? today} className="input" />
+          <DateField name="date" required defaultValue={transaction?.date ?? today} />
         </div>
         <div>
           <label className="label">{t("txnForm.description")}</label>

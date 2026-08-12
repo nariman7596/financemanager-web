@@ -79,3 +79,49 @@ export function monthNameIn(date: Date, locale: Locale): string {
   const tag = locale === "fa" ? "fa-IR-u-ca-persian" : "en-US";
   return new Intl.DateTimeFormat(tag, { month: "long", timeZone: "UTC" }).format(date);
 }
+
+// ---------------------------------------------------------------------------
+// Jalali date-field helpers
+//
+// `<input type="date">` is the browser's own control and always shows the
+// Gregorian calendar, so a Persian user picking "today" sees 2026-08-12 rather
+// than ۲۱ مرداد ۱۴۰۵. These back a Jalali field that still submits a Gregorian
+// `yyyy-MM-dd`, so server actions and the database are untouched.
+// ---------------------------------------------------------------------------
+
+export const JALALI_MONTHS = [
+  "فروردین", "اردیبهشت", "خرداد", "تیر", "مرداد", "شهریور",
+  "مهر", "آبان", "آذر", "دی", "بهمن", "اسفند",
+] as const;
+
+export type JalaliParts = { year: number; month: number; day: number };
+
+/** Split a Gregorian `yyyy-MM-dd` into Jalali parts (month is 1-based). */
+export function toJalaliParts(gregorianYmd: string): JalaliParts | null {
+  const d = gregorian.parse(gregorianYmd, "yyyy-MM-dd", new Date());
+  if (!gregorian.isValid(d)) return null;
+  return {
+    year: Number(jalali.format(d, "yyyy")),
+    month: Number(jalali.format(d, "MM")),
+    day: Number(jalali.format(d, "dd")),
+  };
+}
+
+/** Build a Gregorian `yyyy-MM-dd` from Jalali parts. Empty string if invalid. */
+export function fromJalaliParts({ year, month, day }: JalaliParts): string {
+  const pad = (n: number) => String(n).padStart(2, "0");
+  const d = jalali.parse(`${year}-${pad(month)}-${pad(day)}`, "yyyy-MM-dd", new Date());
+  return gregorian.isValid(d) ? gregorian.format(d, "yyyy-MM-dd") : "";
+}
+
+/** Length of a Jalali month: 31 days in months 1-6, 30 in 7-11, 29/30 in Esfand. */
+export function daysInJalaliMonth(year: number, month: number): number {
+  const pad = (n: number) => String(n).padStart(2, "0");
+  const first = jalali.parse(`${year}-${pad(month)}-01`, "yyyy-MM-dd", new Date());
+  return jalali.isValid(first) ? jalali.getDaysInMonth(first) : 31;
+}
+
+/** Today as a Gregorian `yyyy-MM-dd`. */
+export function todayYmd(): string {
+  return gregorian.format(new Date(), "yyyy-MM-dd");
+}

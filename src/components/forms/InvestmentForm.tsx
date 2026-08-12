@@ -6,6 +6,7 @@ import { createInvestment } from "@/app/actions/investments";
 import { useCloseModal } from "@/components/Modal";
 import { INVESTMENT_TYPES, CURRENCIES } from "@/lib/constants";
 import { useT } from "@/lib/i18n/client";
+import { DateField } from "@/components/DateField";
 
 function Submit() {
   const { pending } = useFormStatus();
@@ -80,7 +81,7 @@ export function InvestmentForm({
       </div>
       <div>
         <label className="label">{t("invForm.purchaseDate")}</label>
-        <input name="purchaseDate" type="date" required defaultValue={today} className="input" />
+        <DateField name="purchaseDate" required defaultValue={today} />
       </div>
       {error && <p className="text-sm text-red-600 bg-red-50 rounded-lg px-3 py-2">{error}</p>}
       <Submit />
