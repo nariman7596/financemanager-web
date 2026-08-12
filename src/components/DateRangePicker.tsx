@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { RANGE_PRESETS, type RangePreset } from "@/lib/dateRange";
 import { cn } from "@/lib/utils";
 import { useT } from "@/lib/i18n/client";
+import { DateField } from "@/components/DateField";
 
 export function DateRangePicker({
   preset,
@@ -46,11 +47,11 @@ export function DateRangePicker({
       <div className="flex flex-wrap items-end gap-2">
         <div>
           <label className="label">{t("range.from")}</label>
-          <input type="date" value={from} max={to || undefined} onChange={(e) => setFrom(e.target.value)} className="input w-auto" />
+          <DateField value={from} onChange={setFrom} />
         </div>
         <div>
           <label className="label">{t("range.to")}</label>
-          <input type="date" value={to} min={from || undefined} onChange={(e) => setTo(e.target.value)} className="input w-auto" />
+          <DateField value={to} onChange={setTo} />
         </div>
         <button
           onClick={applyCustom}

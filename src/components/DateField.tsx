@@ -11,10 +11,14 @@ import {
 } from "@/lib/calendar";
 
 type Props = {
-  name: string;
+  /** Form-field name. Omit in controlled mode — nothing is submitted. */
+  name?: string;
   defaultValue?: string; // Gregorian yyyy-MM-dd
   required?: boolean;
   className?: string;
+  /** Controlled mode: pass both to drive the value from the parent. */
+  value?: string;
+  onChange?: (gregorianYmd: string) => void;
 };
 
 /**
@@ -28,20 +32,37 @@ type Props = {
  *
  * English keeps the native control — it is better than anything hand-rolled.
  */
-export function DateField({ name, defaultValue = "", required, className }: Props) {
+export function DateField({
+  name,
+  defaultValue = "",
+  required,
+  className,
+  value,
+  onChange,
+}: Props) {
   const t = useT();
   const locale = useLocale();
 
   if (locale !== "fa") {
-    return (
-      <input
-        name={name}
-        type="date"
-        required={required}
-        defaultValue={defaultValue}
-        className={className ?? "input"}
-      />
-    );
+    return onChange
+      ? (
+        <input
+          type="date"
+          required={required}
+          value={value ?? ""}
+          onChange={(e) => onChange(e.target.value)}
+          className={className ?? "input"}
+        />
+      )
+      : (
+        <input
+          name={name}
+          type="date"
+          required={required}
+          defaultValue={defaultValue}
+          className={className ?? "input"}
+        />
+      );
   }
 
   return (
@@ -50,6 +71,8 @@ export function DateField({ name, defaultValue = "", required, className }: Prop
       defaultValue={defaultValue}
       required={required}
       className={className}
+      value={value}
+      onChange={onChange}
       emptyLabel={t("dateField.empty")}
     />
   );
@@ -60,17 +83,24 @@ function JalaliDateField({
   defaultValue,
   required,
   className,
+  value,
+  onChange,
   emptyLabel,
 }: Props & { emptyLabel: string }) {
   const t = useT();
   // An optional field (e.g. a recurrence end date) starts genuinely empty;
   // a required one falls back to today so the form is valid from the start.
+  const controlled = typeof onChange === "function";
+
   const initial = useMemo(() => {
     const seed = defaultValue || (required ? todayYmd() : "");
     return seed ? toJalaliParts(seed) : null;
   }, [defaultValue, required]);
 
-  const [parts, setParts] = useState(initial);
+  const [internal, setInternal] = useState(initial);
+  // In controlled mode the parent owns the value, so derive from it every
+  // render rather than keeping a second copy that can drift.
+  const parts = controlled ? (value ? toJalaliParts(value) : null) : internal;
 
   const years = useMemo(() => {
     const current = toJalaliParts(todayYmd())?.year ?? 1400;
@@ -87,15 +117,17 @@ function JalaliDateField({
     // does not, and Esfand is 29 or 30 depending on the year.
     const max = daysInJalaliMonth(merged.year, merged.month);
     if (merged.day > max) merged.day = max;
-    setParts(merged);
+    if (controlled) onChange!(fromJalaliParts(merged));
+    else setInternal(merged);
   }
-
-  const value = parts ? fromJalaliParts(parts) : "";
 
   return (
     <div className={className ?? "flex gap-2"}>
-      {/* What actually gets submitted — Gregorian, exactly as before. */}
-      <input type="hidden" name={name} value={value} />
+      {/* Uncontrolled (form) mode: this is what gets submitted — Gregorian,
+          exactly as the native input produced. */}
+      {!controlled && name && (
+        <input type="hidden" name={name} value={parts ? fromJalaliParts(parts) : ""} />
+      )}
 
       <select
         aria-label={t("dateField.day")}
