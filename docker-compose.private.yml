@@ -1,0 +1,75 @@
+# Private-only stack: the app is NOT exposed to the internet at all.
+#
+# Use this when the server already runs something on 443 (e.g. an Xray/Reality
+# VPN) and you would rather not put a public domain on that IP — no DNS record,
+# no certificate in the public Certificate Transparency logs, no open port.
+#
+# The app binds to 127.0.0.1 only. You reach it through an SSH tunnel, or over a
+# private network you control (WireGuard/Tailscale). Postgres stays on a private
+# Docker network and is never published.
+#
+#   cp .env.docker.example .env   (fill it in)
+#   docker compose -f docker-compose.private.yml up -d --build
+#
+# See docs/DEPLOY-PRIVATE.md.
+name: financemanager
+
+services:
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: fm
+      POSTGRES_PASSWORD: ${DB_PASSWORD:?set DB_PASSWORD in .env}
+      POSTGRES_DB: financemanager
+    volumes:
+      - db-data:/var/lib/postgresql/data
+    networks: [internal]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U fm -d financemanager"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  app:
+    build: .
+    restart: unless-stopped
+    environment:
+      DATABASE_URL: postgresql://fm:${DB_PASSWORD}@db:5432/financemanager?schema=public
+      # Self-hosted Postgres is not pooled, so the direct URL is the same one.
+      DIRECT_URL: postgresql://fm:${DB_PASSWORD}@db:5432/financemanager?schema=public
+      AUTH_SECRET: ${AUTH_SECRET:?set AUTH_SECRET in .env}
+      CRON_SECRET: ${CRON_SECRET:?set CRON_SECRET in .env}
+      STOCK_API_KEY: ${STOCK_API_KEY:-}
+      # Session cookies are Secure by default, which browsers only send over
+      # HTTPS (http://localhost counts as secure, so SSH tunnels are fine).
+      # Reaching the app over plain HTTP at a VPN/LAN address needs this off,
+      # which is only acceptable because nothing here is internet-facing.
+      COOKIE_SECURE: ${COOKIE_SECURE:-true}
+    ports:
+      # 127.0.0.1 prefix is the whole point: the port exists on the server's
+      # loopback only. Without it, Docker would publish on 0.0.0.0 and punch
+      # straight through ufw.
+      - "127.0.0.1:3000:3000"
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      internal:
+        aliases: [financemanager]
+
+  cron:
+    build: ./deploy/cron
+    restart: unless-stopped
+    environment:
+      CRON_SECRET: ${CRON_SECRET:?set CRON_SECRET in .env}
+    depends_on:
+      app:
+        condition: service_started
+    networks: [internal]
+
+volumes:
+  db-data:
+
+networks:
+  internal:

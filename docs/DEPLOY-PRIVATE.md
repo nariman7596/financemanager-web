@@ -1,0 +1,166 @@
+# دیپلوی خصوصی — اپ روی اینترنت باز نمی‌شود
+
+برای وقتی که سرورت کارِ دیگری هم می‌کند (مثلاً VPN روی ۴۴۳) و **نمی‌خواهی دادهٔ مالی‌ات
+هیچ دری به اینترنت داشته باشد.**
+
+اپ فقط روی `127.0.0.1:3000` سرورگوش می‌دهد. نه دامنه، نه رکوردِ DNS، نه گواهی در
+لاگ‌های عمومیِ Certificate Transparency، نه پورتِ باز. Postgres هم مثل همیشه روی
+شبکه‌ی داخلیِ داکر می‌ماند و اصلاً منتشر نمی‌شود.
+
+---
+
+## ۱. بالا آوردن (روی سرور)
+
+```bash
+git clone https://github.com/nariman7596/financemanager-web.git
+cd financemanager-web
+cp .env.docker.example .env
+nano .env          # DB_PASSWORD / AUTH_SECRET / CRON_SECRET
+                   # هر کدام:  openssl rand -base64 32
+
+docker compose -f docker-compose.private.yml up -d --build
+```
+
+بررسی:
+```bash
+docker compose -f docker-compose.private.yml ps
+curl -I http://127.0.0.1:3000/login        # انتظار: HTTP 200
+sudo ss -tlnp | grep 3000                  # باید 127.0.0.1:3000 باشد، نه 0.0.0.0
+```
+
+> ⚠️ اگر خروجی `0.0.0.0:3000` بود یعنی فایلِ اشتباهی را اجرا کرده‌ای. داکر پورت‌های
+> منتشرشده را **از فایروال رد می‌کند** (روی زنجیره‌ی `DOCKER` در iptables می‌نشیند)،
+> پس `ufw deny 3000` جلویش را نمی‌گیرد. پیشوندِ `127.0.0.1:` تنها چیزی است که کار می‌کند.
+
+**هیچ پورتی در فایروال باز نکن.** فقط SSH.
+
+---
+
+## 🍪 نکته‌ی مهم: کوکیِ نشست و HTTPS
+
+اپ کوکیِ نشست را با فلگِ `Secure` می‌فرستد، و مرورگر کوکیِ Secure را روی `http://`
+معمولی **نمی‌فرستد** — یعنی لاگین می‌کنی ولی بلافاصله به صفحه‌ی ورود برمی‌گردی، بی‌آنکه
+خطایی ببینی.
+
+استثنا: مرورگرها **`localhost` را «امن» حساب می‌کنند.**
+
+| روشِ دسترسی | آدرس | کوکی کار می‌کند؟ |
+|---|---|---|
+| تونلِ SSH | `http://localhost:3000` | ✅ بله (بدونِ هیچ تنظیمی) |
+| WireGuard / تیل‌اسکیل | `http://10.8.0.1:3000` | ❌ نه — مگر `COOKIE_SECURE=false` |
+
+برای حالتِ دوم، در `.env` این را اضافه کن و کانتینر را ری‌استارت کن:
+```ini
+COOKIE_SECURE=false
+```
+```bash
+docker compose -f docker-compose.private.yml up -d
+```
+
+> 🔒 **این فقط برای همین سناریو بی‌خطر است**، چون اپ اصلاً روی اینترنت نیست و ترافیک
+> داخلِ تونلِ رمزنگاری‌شده‌ی خودت جابه‌جا می‌شود. **روی نسخه‌ی عمومی هرگز این را نگذار** —
+> توکنِ نشست به‌صورتِ متنِ ساده منتقل می‌شود.
+
+---
+
+## ۲. راه‌های دسترسی
+
+### الف) تونلِ SSH — ساده‌ترین و مطمئن‌ترین (لپ‌تاپ)
+
+هیچ تنظیمی روی سرور نمی‌خواهد. روی کامپیوترِ خودت:
+
+```bash
+ssh -N -L 3000:127.0.0.1:3000 root@216.126.229.4
+```
+
+بعد در مرورگر: **<http://localhost:3000>** — کوکی هم بدونِ دردسر کار می‌کند.
+
+میان‌بر: در `~/.ssh/config` بگذار
+```
+Host fm
+    HostName 216.126.229.4
+    User root
+    LocalForward 3000 127.0.0.1:3000
+```
+از این به بعد فقط `ssh -N fm`.
+
+### ب) WireGuard — برای گوشی (توصیه‌شده)
+
+Xray تو **TCP/443** است؛ WireGuard روی **UDP** کار می‌کند، پس **هیچ تداخلی با VPN فعلی‌ات
+ندارد** و می‌توانند کنار هم باشند.
+
+```bash
+# روی سرور
+curl -O https://raw.githubusercontent.com/angristan/wireguard-install/master/wireguard-install.sh
+chmod +x wireguard-install.sh && sudo ./wireguard-install.sh
+# پورتِ پیشنهادی: مثلاً 51820/udp — و در فایروال بازش کن:
+sudo ufw allow 51820/udp
+```
+
+اسکریپت برایت QR می‌سازد؛ با اپِ WireGuard روی گوشی اسکنش کن. بعد از اتصال، سرور
+معمولاً `10.66.66.1` می‌شود:
+
+```
+http://10.66.66.1:3000
+```
+
+و چون این `localhost` نیست، حتماً `COOKIE_SECURE=false` را ست کن (بالا).
+
+> ℹ️ WireGuard در ایران گاهی مسدود می‌شود. اگر وصل نشد، همان تونلِ SSH (الف) یا یک
+> کلاینتِ SSH موبایل مثلِ Termius با port-forwarding جواب می‌دهد.
+
+### ج) تیل‌اسکیل — بی‌دردسرترین، ولی وابسته به سرویسِ ثالث
+`curl -fsSL https://tailscale.com/install.sh | sh` روی سرور و گوشی، بعد
+`http://<tailscale-ip>:3000`. نیازی به بازکردنِ هیچ پورتی نیست.
+⚠️ نیازمندِ حسابِ تیل‌اسکیل است و ممکن است از ایران در دسترس نباشد.
+
+---
+
+## ۳. بکاپ (این را جدی بگیر)
+
+دادهٔ مالی‌ات فقط روی همین سرور است.
+
+```bash
+mkdir -p ~/backups
+crontab -e
+```
+اضافه کن:
+```cron
+30 3 * * * docker exec financemanager-db-1 pg_dump -U fm financemanager | gzip > ~/backups/fm-$(date +\%F).sql.gz && find ~/backups -name '*.sql.gz' -mtime +14 -delete
+```
+
+بازگردانی:
+```bash
+gunzip -c ~/backups/fm-2026-08-11.sql.gz | docker exec -i financemanager-db-1 psql -U fm financemanager
+```
+
+> نامِ دقیقِ کانتینر را با `docker ps --format '{{.Names}}'` چک کن.
+
+---
+
+## ۴. دستورهای روزمره
+
+```bash
+cd ~/financemanager-web
+C="docker compose -f docker-compose.private.yml"
+
+$C ps                    # وضعیت
+$C logs -f app           # لاگِ اپ
+$C logs app | grep -i migrat   # آیا مایگریشن‌ها اجرا شدند؟
+$C restart app           # ری‌استارت
+git pull && $C up -d --build   # بروزرسانی
+```
+
+## عیب‌یابی
+
+| علامت | علت |
+|---|---|
+| لاگین می‌کنم ولی برمی‌گردم به صفحه‌ی ورود | کوکیِ Secure. یا از `localhost` وارد شو یا `COOKIE_SECURE=false` بگذار |
+| `curl` روی ۳۰۰۰ جواب نمی‌دهد | `$C ps` — احتمالاً اپ بالا نیامده؛ لاگ را ببین |
+| `ss` می‌گوید `0.0.0.0:3000` | فایلِ اشتباه اجرا شده؛ باید `docker-compose.private.yml` باشد |
+| صفحات خطای دیتابیس می‌دهند | مایگریشن اجرا نشده: `$C logs app \| grep -i migrat` |
+| بعد از ری‌استارتِ سرور بالا نیامد | `restart: unless-stopped` هست؛ چک کن داکر خودش enable باشد: `sudo systemctl enable docker` |
+
+## اگر بعداً خواستی عمومی‌اش کنی
+`docs/DEPLOY-BEHIND-XRAY.md` (پورتِ ۸۴۴۳ کنارِ VPN) یا `docs/DOCKER.md` (دامنه‌ی
+اختصاصی با Caddy) — و یادت باشد `COOKIE_SECURE` را بردار.
