@@ -90,14 +90,14 @@ export default async function HouseholdPage() {
             <h2 className="font-semibold">{t("household.members", { count: household.members.length })}</h2>
           </div>
 
-          <div className="overflow-x-auto">
+          <div className="table-scroll">
             <table className="w-full text-sm">
-              <thead className="surface-subtle text-[var(--muted)] text-left">
+              <thead className="surface-subtle text-[var(--muted)] text-start">
                 <tr>
-                  <th className="px-3 py-2 font-medium rounded-l-lg">{t("household.colMember")}</th>
+                  <th className="px-3 py-2 font-medium rounded-s-lg">{t("household.colMember")}</th>
                   <th className="px-3 py-2 font-medium">{t("household.colJoined")}</th>
                   <th className="px-3 py-2 font-medium">{t("household.colRole")}</th>
-                  <th className="px-3 py-2 rounded-r-lg"></th>
+                  <th className="px-3 py-2 rounded-e-lg"></th>
                 </tr>
               </thead>
               <tbody>

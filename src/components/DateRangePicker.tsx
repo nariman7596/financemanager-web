@@ -45,11 +45,14 @@ export function DateRangePicker({
         ))}
       </div>
       <div className="flex flex-wrap items-end gap-2">
-        <div>
+        {/* basis-full drops each field onto its own row on a phone — the Jalali
+            picker is three selects wide, so two side by side do not fit — while
+            basis-auto puts them back inline from `sm` up. */}
+        <div className="basis-full sm:basis-auto min-w-0">
           <label className="label">{t("range.from")}</label>
           <DateField value={from} onChange={setFrom} />
         </div>
-        <div>
+        <div className="basis-full sm:basis-auto min-w-0">
           <label className="label">{t("range.to")}</label>
           <DateField value={to} onChange={setTo} />
         </div>

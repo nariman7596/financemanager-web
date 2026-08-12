@@ -75,7 +75,7 @@ export default async function TransactionsPage() {
             {accounts.length > 0 && (
               <Modal
                 title={t("txn.new")}
-                trigger={<button className="btn-primary"><Plus size={18} /> Add</button>}
+                trigger={<button className="btn-primary"><Plus size={18} /> {t("common.add")}</button>}
               >
                 <TransactionForm accounts={accounts} categories={categories} />
               </Modal>
@@ -92,90 +92,92 @@ export default async function TransactionsPage() {
         </div>
       ) : (
         <div className="card overflow-hidden">
-          <table className="w-full text-sm">
-            <thead className="surface-subtle text-[var(--muted)] text-left">
-              <tr>
-                <th className="px-4 py-3 font-medium">{t("txn.colDate")}</th>
-                <th className="px-4 py-3 font-medium">{t("txn.colDescription")}</th>
-                <th className="px-4 py-3 font-medium">{t("txn.colCategory")}</th>
-                <th className="px-4 py-3 font-medium">{t("txn.colAccount")}</th>
-                <th className="px-4 py-3 font-medium text-right">{t("txn.colAmount")}</th>
-                <th className="px-4 py-3"></th>
-              </tr>
-            </thead>
-            <tbody>
-              {transactions.map((txn) => {
-                const amt = toNumber(txn.amount);
-                const sign = txn.type === "INCOME" ? "+" : txn.type === "EXPENSE" ? "−" : "";
-                return (
-                  <tr key={txn.id} className="border-t border-[var(--border)] row-hover">
-                    <td className="px-4 py-3 whitespace-nowrap text-slate-500">{formatDate(txn.date, locale)}</td>
-                    <td className="px-4 py-3">
-                      {txn.description || <span className="text-slate-400">—</span>}
-                      {txn.type === "TRANSFER" && txn.transferAccount && (
-                        <span className="text-slate-400"> → {txn.transferAccount.name}</span>
-                      )}
-                      {shared && txn.createdById && memberName.has(txn.createdById) && (
-                        <span className="block text-xs text-slate-400">{t("txn.by", { name: memberName.get(txn.createdById)! })}</span>
-                      )}
-                    </td>
-                    <td className="px-4 py-3">
-                      {txn.category ? (
-                        <span className="badge" style={{ backgroundColor: `${txn.category.color}1a`, color: txn.category.color }}>
-                          {txn.category.name}
-                        </span>
-                      ) : (
-                        <span className="text-slate-400">{txn.type === "TRANSFER" ? t("txn.transfer") : "—"}</span>
-                      )}
-                    </td>
-                    <td className="px-4 py-3 text-slate-500">{txn.account.name}</td>
-                    <td
-                      className={cn(
-                        "px-4 py-3 text-right tabular-nums font-medium whitespace-nowrap",
-                        txn.type === "INCOME" && "text-green-600",
-                        txn.type === "EXPENSE" && "text-red-600",
-                      )}
-                    >
-                      {sign} {formatMoney(amt, txn.currency)}
-                    </td>
-                    <td className="px-2 py-3">
-                      <div className="flex items-center justify-end gap-0.5">
-                        <Modal
-                          title={t("txn.edit")}
-                          trigger={
-                            <button
-                              className="btn-ghost p-1.5 text-slate-400 hover:text-brand-600 hover:bg-brand-50"
-                              aria-label={t("txn.editAria")}
-                              title={t("common.edit")}
-                            >
-                              <Pencil size={16} />
-                            </button>
-                          }
-                        >
-                          <TransactionForm
-                            accounts={accounts}
-                            categories={categories}
-                            transaction={{
-                              id: txn.id,
-                              type: txn.type,
-                              accountId: txn.accountId,
-                              categoryId: txn.categoryId,
-                              transferAccountId: txn.transferAccountId,
-                              amount: toNumber(txn.amount),
-                              currency: txn.currency,
-                              date: txn.date.toISOString().slice(0, 10),
-                              description: txn.description,
-                            }}
-                          />
-                        </Modal>
-                        <DeleteButton action={deleteTransaction} id={txn.id} />
-                      </div>
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
+          <div className="table-scroll">
+            <table className="w-full text-sm">
+              <thead className="surface-subtle text-[var(--muted)] text-start">
+                <tr>
+                  <th className="px-4 py-3 font-medium">{t("txn.colDate")}</th>
+                  <th className="px-4 py-3 font-medium">{t("txn.colDescription")}</th>
+                  <th className="px-4 py-3 font-medium">{t("txn.colCategory")}</th>
+                  <th className="px-4 py-3 font-medium">{t("txn.colAccount")}</th>
+                  <th className="px-4 py-3 font-medium text-end">{t("txn.colAmount")}</th>
+                  <th className="px-4 py-3"></th>
+                </tr>
+              </thead>
+              <tbody>
+                {transactions.map((txn) => {
+                  const amt = toNumber(txn.amount);
+                  const sign = txn.type === "INCOME" ? "+" : txn.type === "EXPENSE" ? "−" : "";
+                  return (
+                    <tr key={txn.id} className="border-t border-[var(--border)] row-hover">
+                      <td className="px-4 py-3 whitespace-nowrap text-slate-500">{formatDate(txn.date, locale)}</td>
+                      <td className="px-4 py-3">
+                        {txn.description || <span className="text-slate-400">—</span>}
+                        {txn.type === "TRANSFER" && txn.transferAccount && (
+                          <span className="text-slate-400"> → {txn.transferAccount.name}</span>
+                        )}
+                        {shared && txn.createdById && memberName.has(txn.createdById) && (
+                          <span className="block text-xs text-slate-400">{t("txn.by", { name: memberName.get(txn.createdById)! })}</span>
+                        )}
+                      </td>
+                      <td className="px-4 py-3">
+                        {txn.category ? (
+                          <span className="badge" style={{ backgroundColor: `${txn.category.color}1a`, color: txn.category.color }}>
+                            {txn.category.name}
+                          </span>
+                        ) : (
+                          <span className="text-slate-400">{txn.type === "TRANSFER" ? t("txn.transfer") : "—"}</span>
+                        )}
+                      </td>
+                      <td className="px-4 py-3 text-slate-500">{txn.account.name}</td>
+                      <td
+                        className={cn(
+                          "px-4 py-3 text-end tabular-nums font-medium whitespace-nowrap",
+                          txn.type === "INCOME" && "text-green-600",
+                          txn.type === "EXPENSE" && "text-red-600",
+                        )}
+                      >
+                        {sign} {formatMoney(amt, txn.currency)}
+                      </td>
+                      <td className="px-2 py-3">
+                        <div className="flex items-center justify-end gap-0.5">
+                          <Modal
+                            title={t("txn.edit")}
+                            trigger={
+                              <button
+                                className="btn-ghost p-1.5 text-slate-400 hover:text-brand-600 hover:bg-brand-50"
+                                aria-label={t("txn.editAria")}
+                                title={t("common.edit")}
+                              >
+                                <Pencil size={16} />
+                              </button>
+                            }
+                          >
+                            <TransactionForm
+                              accounts={accounts}
+                              categories={categories}
+                              transaction={{
+                                id: txn.id,
+                                type: txn.type,
+                                accountId: txn.accountId,
+                                categoryId: txn.categoryId,
+                                transferAccountId: txn.transferAccountId,
+                                amount: toNumber(txn.amount),
+                                currency: txn.currency,
+                                date: txn.date.toISOString().slice(0, 10),
+                                description: txn.description,
+                              }}
+                            />
+                          </Modal>
+                          <DeleteButton action={deleteTransaction} id={txn.id} />
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
         </div>
       )}
     </>

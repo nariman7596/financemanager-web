@@ -122,7 +122,11 @@ function JalaliDateField({
   }
 
   return (
-    <div className={className ?? "flex gap-2"}>
+    // flex-wrap + shrinkable selects. Three selects do not fit in half of a
+    // modal row (~194px), let alone on a phone: without wrapping, the year
+    // select was pushed outside the container and clipped, leaving no way to
+    // change the year at all. They now wrap to a second line when narrow.
+    <div className={className ?? "flex flex-wrap gap-2"}>
       {/* Uncontrolled (form) mode: this is what gets submitted — Gregorian,
           exactly as the native input produced. */}
       {!controlled && name && (
@@ -131,7 +135,7 @@ function JalaliDateField({
 
       <select
         aria-label={t("dateField.day")}
-        className="input w-auto"
+        className="input w-auto min-w-0 flex-1 basis-16"
         value={parts?.day ?? ""}
         onChange={(e) => update({ day: Number(e.target.value) })}
       >
@@ -143,7 +147,7 @@ function JalaliDateField({
 
       <select
         aria-label={t("dateField.month")}
-        className="input w-auto"
+        className="input w-auto min-w-0 flex-1 basis-24"
         value={parts?.month ?? ""}
         onChange={(e) => update({ month: Number(e.target.value) })}
       >
@@ -155,7 +159,7 @@ function JalaliDateField({
 
       <select
         aria-label={t("dateField.year")}
-        className="input w-auto"
+        className="input w-auto min-w-0 flex-1 basis-20"
         value={parts?.year ?? ""}
         onChange={(e) => update({ year: Number(e.target.value) })}
       >

@@ -81,94 +81,96 @@ export default async function RecurringPage() {
         </div>
       ) : (
         <div className="card overflow-hidden">
-          <table className="w-full text-sm">
-            <thead className="surface-subtle text-[var(--muted)] text-left">
-              <tr>
-                <th className="px-4 py-3 font-medium">{t("recurring.colDescription")}</th>
-                <th className="px-4 py-3 font-medium">{t("recurring.colSchedule")}</th>
-                <th className="px-4 py-3 font-medium">{t("recurring.colNextRun")}</th>
-                <th className="px-4 py-3 font-medium text-right">{t("recurring.colAmount")}</th>
-                <th className="px-4 py-3 font-medium">{t("recurring.colStatus")}</th>
-                <th className="px-4 py-3"></th>
-              </tr>
-            </thead>
-            <tbody>
-              {rules.map((r) => (
-                <tr key={r.id} className="border-t border-[var(--border)] row-hover">
-                  <td className="px-4 py-3">
-                    <p className="font-medium">
-                      {r.description || <span className="text-slate-400">{t("recurring.untitled")}</span>}
-                    </p>
-                    <p className="text-xs text-slate-400">
-                      {r.type === "TRANSFER"
-                        ? t("recurring.transferDesc", { from: r.account.name, to: r.transferAccount?.name ?? "?" })
-                        : t("recurring.typeDesc", {
-                            type: t("enum.txnType." + r.type),
-                            category: r.category?.name ?? t("recurring.uncategorized"),
-                            account: r.account.name,
-                          })}
-                    </p>
-                  </td>
-                  <td className="px-4 py-3 text-slate-500">
-                    {cadence(t, r.interval, r.frequency)}
-                    {r.endDate && (
-                      <span className="block text-xs text-slate-400">{t("recurring.until", { date: formatDate(r.endDate, locale) })}</span>
-                    )}
-                  </td>
-                  <td className="px-4 py-3 text-slate-500">
-                    {r.isActive ? formatDate(r.nextRunDate, locale) : <span className="text-slate-400">—</span>}
-                  </td>
-                  <td className="px-4 py-3 text-right tabular-nums font-medium whitespace-nowrap">
-                    {formatMoney(toNumber(r.amount), r.currency)}
-                  </td>
-                  <td className="px-4 py-3">
-                    {r.isActive ? (
-                      <span className="badge bg-green-50 text-green-700">{t("recurring.active")}</span>
-                    ) : (
-                      <span className="badge surface-subtle text-[var(--muted)]">{t("recurring.paused")}</span>
-                    )}
-                  </td>
-                  <td className="px-2 py-3">
-                    <div className="flex items-center justify-end gap-0.5">
-                      <Modal
-                        title={t("recurring.edit")}
-                        trigger={
-                          <button
-                            className="btn-ghost p-1.5 text-slate-400 hover:text-brand-600 hover:bg-brand-50"
-                            aria-label={t("recurring.editAria")}
-                            title={t("common.edit")}
-                          >
-                            <Pencil size={16} />
-                          </button>
-                        }
-                      >
-                        <RecurringForm
-                          accounts={accounts}
-                          categories={categories}
-                          rule={{
-                            id: r.id,
-                            type: r.type,
-                            accountId: r.accountId,
-                            categoryId: r.categoryId,
-                            transferAccountId: r.transferAccountId,
-                            amount: toNumber(r.amount),
-                            currency: r.currency,
-                            description: r.description,
-                            frequency: r.frequency,
-                            interval: r.interval,
-                            startDate: r.startDate.toISOString().slice(0, 10),
-                            endDate: r.endDate ? r.endDate.toISOString().slice(0, 10) : null,
-                          }}
-                        />
-                      </Modal>
-                      <RecurringToggle id={r.id} active={r.isActive} />
-                      <DeleteButton action={deleteRecurring} id={r.id} label={t("recurring.deleteRule")} />
-                    </div>
-                  </td>
+          <div className="table-scroll">
+            <table className="w-full text-sm">
+              <thead className="surface-subtle text-[var(--muted)] text-start">
+                <tr>
+                  <th className="px-4 py-3 font-medium">{t("recurring.colDescription")}</th>
+                  <th className="px-4 py-3 font-medium">{t("recurring.colSchedule")}</th>
+                  <th className="px-4 py-3 font-medium">{t("recurring.colNextRun")}</th>
+                  <th className="px-4 py-3 font-medium text-end">{t("recurring.colAmount")}</th>
+                  <th className="px-4 py-3 font-medium">{t("recurring.colStatus")}</th>
+                  <th className="px-4 py-3"></th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {rules.map((r) => (
+                  <tr key={r.id} className="border-t border-[var(--border)] row-hover">
+                    <td className="px-4 py-3">
+                      <p className="font-medium">
+                        {r.description || <span className="text-slate-400">{t("recurring.untitled")}</span>}
+                      </p>
+                      <p className="text-xs text-slate-400">
+                        {r.type === "TRANSFER"
+                          ? t("recurring.transferDesc", { from: r.account.name, to: r.transferAccount?.name ?? "?" })
+                          : t("recurring.typeDesc", {
+                              type: t("enum.txnType." + r.type),
+                              category: r.category?.name ?? t("recurring.uncategorized"),
+                              account: r.account.name,
+                            })}
+                      </p>
+                    </td>
+                    <td className="px-4 py-3 text-slate-500">
+                      {cadence(t, r.interval, r.frequency)}
+                      {r.endDate && (
+                        <span className="block text-xs text-slate-400">{t("recurring.until", { date: formatDate(r.endDate, locale) })}</span>
+                      )}
+                    </td>
+                    <td className="px-4 py-3 text-slate-500">
+                      {r.isActive ? formatDate(r.nextRunDate, locale) : <span className="text-slate-400">—</span>}
+                    </td>
+                    <td className="px-4 py-3 text-end tabular-nums font-medium whitespace-nowrap">
+                      {formatMoney(toNumber(r.amount), r.currency)}
+                    </td>
+                    <td className="px-4 py-3">
+                      {r.isActive ? (
+                        <span className="badge bg-green-50 text-green-700">{t("recurring.active")}</span>
+                      ) : (
+                        <span className="badge surface-subtle text-[var(--muted)]">{t("recurring.paused")}</span>
+                      )}
+                    </td>
+                    <td className="px-2 py-3">
+                      <div className="flex items-center justify-end gap-0.5">
+                        <Modal
+                          title={t("recurring.edit")}
+                          trigger={
+                            <button
+                              className="btn-ghost p-1.5 text-slate-400 hover:text-brand-600 hover:bg-brand-50"
+                              aria-label={t("recurring.editAria")}
+                              title={t("common.edit")}
+                            >
+                              <Pencil size={16} />
+                            </button>
+                          }
+                        >
+                          <RecurringForm
+                            accounts={accounts}
+                            categories={categories}
+                            rule={{
+                              id: r.id,
+                              type: r.type,
+                              accountId: r.accountId,
+                              categoryId: r.categoryId,
+                              transferAccountId: r.transferAccountId,
+                              amount: toNumber(r.amount),
+                              currency: r.currency,
+                              description: r.description,
+                              frequency: r.frequency,
+                              interval: r.interval,
+                              startDate: r.startDate.toISOString().slice(0, 10),
+                              endDate: r.endDate ? r.endDate.toISOString().slice(0, 10) : null,
+                            }}
+                          />
+                        </Modal>
+                        <RecurringToggle id={r.id} active={r.isActive} />
+                        <DeleteButton action={deleteRecurring} id={r.id} label={t("recurring.deleteRule")} />
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </div>
       )}
     </>

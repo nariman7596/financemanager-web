@@ -41,7 +41,7 @@ export default async function InvestmentsPage() {
             <RefreshButton asOf={fxAsOf ? formatDate(fxAsOf, locale) : null} />
             <Modal
               title={t("inv.new")}
-              trigger={<button className="btn-primary"><Plus size={18} /> Add</button>}
+              trigger={<button className="btn-primary"><Plus size={18} /> {t("common.add")}</button>}
             >
               <InvestmentForm defaultCurrency={base} />
             </Modal>
@@ -65,45 +65,47 @@ export default async function InvestmentsPage() {
         </div>
       ) : (
         <div className="card overflow-hidden">
-          <table className="w-full text-sm">
-            <thead className="surface-subtle text-[var(--muted)] text-left">
-              <tr>
-                <th className="px-4 py-3 font-medium">{t("inv.colSymbol")}</th>
-                <th className="px-4 py-3 font-medium">{t("inv.colQty")}</th>
-                <th className="px-4 py-3 font-medium">{t("inv.colPrice")}</th>
-                <th className="px-4 py-3 font-medium text-right">{t("inv.colValue")}</th>
-                <th className="px-4 py-3 font-medium text-right">{t("inv.colGain")}</th>
-                <th className="px-4 py-3"></th>
-              </tr>
-            </thead>
-            <tbody>
-              {holdings.map((h) => (
-                <tr key={h.id} className="border-t border-[var(--border)] row-hover">
-                  <td className="px-4 py-3">
-                    <p className="font-medium">{h.symbol}</p>
-                    <p className="text-xs text-slate-400">{h.name} · {t("enum.invType." + h.type)}</p>
-                  </td>
-                  <td className="px-4 py-3 tabular-nums text-[var(--muted)]">{h.quantity}</td>
-                  <td className="px-4 py-3">
-                    <PriceForm id={h.id} currentPrice={h.currentPrice} currency={h.currency} />
-                  </td>
-                  <td className="px-4 py-3 text-right tabular-nums font-medium">
-                    {formatMoney(h.value, h.currency)}
-                  </td>
-                  <td className={cn(
-                    "px-4 py-3 text-right tabular-nums font-medium",
-                    h.gain >= 0 ? "text-green-600" : "text-red-600",
-                  )}>
-                    {formatMoney(h.gain, h.currency)}
-                    <span className="block text-xs font-normal">{h.gainPct.toFixed(1)}%</span>
-                  </td>
-                  <td className="px-2 py-3 text-right">
-                    <DeleteButton action={deleteInvestment} id={h.id} label={t("inv.deleteHolding")} />
-                  </td>
+          <div className="table-scroll">
+            <table className="w-full text-sm">
+              <thead className="surface-subtle text-[var(--muted)] text-start">
+                <tr>
+                  <th className="px-4 py-3 font-medium">{t("inv.colSymbol")}</th>
+                  <th className="px-4 py-3 font-medium">{t("inv.colQty")}</th>
+                  <th className="px-4 py-3 font-medium">{t("inv.colPrice")}</th>
+                  <th className="px-4 py-3 font-medium text-end">{t("inv.colValue")}</th>
+                  <th className="px-4 py-3 font-medium text-end">{t("inv.colGain")}</th>
+                  <th className="px-4 py-3"></th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {holdings.map((h) => (
+                  <tr key={h.id} className="border-t border-[var(--border)] row-hover">
+                    <td className="px-4 py-3">
+                      <p className="font-medium">{h.symbol}</p>
+                      <p className="text-xs text-slate-400">{h.name} · {t("enum.invType." + h.type)}</p>
+                    </td>
+                    <td className="px-4 py-3 tabular-nums text-[var(--muted)]">{h.quantity}</td>
+                    <td className="px-4 py-3">
+                      <PriceForm id={h.id} currentPrice={h.currentPrice} currency={h.currency} />
+                    </td>
+                    <td className="px-4 py-3 text-end tabular-nums font-medium">
+                      {formatMoney(h.value, h.currency)}
+                    </td>
+                    <td className={cn(
+                      "px-4 py-3 text-end tabular-nums font-medium",
+                      h.gain >= 0 ? "text-green-600" : "text-red-600",
+                    )}>
+                      {formatMoney(h.gain, h.currency)}
+                      <span className="block text-xs font-normal">{h.gainPct.toFixed(1)}%</span>
+                    </td>
+                    <td className="px-2 py-3 text-end">
+                      <DeleteButton action={deleteInvestment} id={h.id} label={t("inv.deleteHolding")} />
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </div>
       )}
     </>

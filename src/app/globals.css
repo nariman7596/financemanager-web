@@ -90,6 +90,23 @@ body {
   .badge {
     @apply inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium;
   }
+  /*
+   * Wide tables on narrow screens.
+   *
+   * The card wrapping a table sets `overflow-hidden` for its rounded corners,
+   * which CLIPS any column that does not fit — on a phone the last columns
+   * simply vanished with no way to reach them. This scrolls the table inside
+   * the card instead. The min-width stops the browser from crushing seven
+   * columns into 360px of unreadable wrapped text.
+   */
+  .table-scroll {
+    @apply overflow-x-auto;
+    -webkit-overflow-scrolling: touch;
+  }
+  .table-scroll > table {
+    min-width: 44rem;
+  }
+
   /* Faint surfaces + hovers driven by theme tokens */
   .surface-subtle {
     background: var(--subtle);

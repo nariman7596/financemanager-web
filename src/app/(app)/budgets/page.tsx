@@ -39,7 +39,7 @@ export default async function BudgetsPage() {
           expenseCategories.length > 0 ? (
             <Modal
               title={t("budgets.set")}
-              trigger={<button className="btn-primary"><Plus size={18} /> Add</button>}
+              trigger={<button className="btn-primary"><Plus size={18} /> {t("common.add")}</button>}
             >
               <BudgetForm categories={expenseCategories} defaultCurrency={base} />
             </Modal>

@@ -127,7 +127,7 @@ export function TransactionForm({
         </div>
       )}
 
-      <div className="grid grid-cols-2 gap-3">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
         <div>
           <label className="label">{t("txnForm.date")}</label>
           <DateField name="date" required defaultValue={transaction?.date ?? today} />

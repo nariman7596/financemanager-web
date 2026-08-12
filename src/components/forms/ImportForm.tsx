@@ -46,7 +46,7 @@ export function ImportForm() {
           name="file"
           accept=".csv,text/csv"
           required
-          className="block w-full text-sm text-[var(--muted)] file:mr-3 file:rounded-lg file:border-0 file:bg-brand-50 file:px-3 file:py-2 file:text-brand-700 file:font-medium hover:file:bg-brand-100"
+          className="block w-full text-sm text-[var(--muted)] file:me-3 file:rounded-lg file:border-0 file:bg-brand-50 file:px-3 file:py-2 file:text-brand-700 file:font-medium hover:file:bg-brand-100"
         />
         <Submit />
       </form>

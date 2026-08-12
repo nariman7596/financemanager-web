@@ -315,6 +315,7 @@ export const fa: Record<string, string> = {
   "range.custom": "بازه‌ی دلخواه",
   "a11y.language": "زبان",
   "a11y.close": "بستن",
+  "a11y.openMenu": "باز کردن منو",
   "dateField.day": "روز",
   "dateField.month": "ماه",
   "dateField.year": "سال",

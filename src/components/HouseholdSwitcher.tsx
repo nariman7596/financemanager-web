@@ -43,7 +43,7 @@ export function HouseholdSwitcher({
           value={activeId}
           onChange={onChange}
           disabled={pending}
-          className="input appearance-none pr-8 text-sm font-medium"
+          className="input appearance-none pe-8 text-sm font-medium"
         >
           {households.map((h) => (
             <option key={h.householdId} value={h.householdId}>

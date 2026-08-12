@@ -138,10 +138,10 @@ function CategoryTable({
                 {c.name}
               </span>
             </td>
-            <td className="py-2 text-right tabular-nums text-[var(--muted)]">
+            <td className="py-2 text-end tabular-nums text-[var(--muted)]">
               {total > 0 ? Math.round((c.value / total) * 100) : 0}%
             </td>
-            <td className="py-2 text-right tabular-nums font-medium whitespace-nowrap pl-4">
+            <td className="py-2 text-end tabular-nums font-medium whitespace-nowrap ps-4">
               {formatMoney(c.value, base)}
             </td>
           </tr>
@@ -149,7 +149,7 @@ function CategoryTable({
         <tr className="border-t border-[var(--border)]">
           <td className="py-2 font-medium">{t("reports.total")}</td>
           <td></td>
-          <td className="py-2 text-right tabular-nums font-semibold whitespace-nowrap pl-4">
+          <td className="py-2 text-end tabular-nums font-semibold whitespace-nowrap ps-4">
             {formatMoney(total, base)}
           </td>
         </tr>

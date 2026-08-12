@@ -316,6 +316,7 @@ export const en: Record<string, string> = {
   "range.custom": "Custom range",
   "a11y.language": "Language",
   "a11y.close": "Close",
+  "a11y.openMenu": "Open menu",
   "dateField.day": "Day",
   "dateField.month": "Month",
   "dateField.year": "Year",
