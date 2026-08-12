@@ -314,6 +314,8 @@ export const en: Record<string, string> = {
   "range.thisYear": "This year",
   "range.last12Months": "Last 12 months",
   "range.custom": "Custom range",
+  "range.errorOrder": "The start date must be on or before the end date.",
+  "range.errorIncomplete": "Pick both a start and an end date.",
   "a11y.language": "Language",
   "a11y.close": "Close",
   "a11y.openMenu": "Open menu",

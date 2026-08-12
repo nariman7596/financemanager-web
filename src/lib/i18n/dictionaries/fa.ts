@@ -313,6 +313,8 @@ export const fa: Record<string, string> = {
   "range.thisYear": "امسال",
   "range.last12Months": "۱۲ ماه اخیر",
   "range.custom": "بازه‌ی دلخواه",
+  "range.errorOrder": "تاریخ شروع باید قبل از تاریخ پایان (یا برابر با آن) باشد.",
+  "range.errorIncomplete": "هم تاریخ شروع و هم تاریخ پایان را انتخاب کنید.",
   "a11y.language": "زبان",
   "a11y.close": "بستن",
   "a11y.openMenu": "باز کردن منو",

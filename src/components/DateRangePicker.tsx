@@ -20,10 +20,23 @@ export function DateRangePicker({
   const router = useRouter();
   const [from, setFrom] = useState(fromStr);
   const [to, setTo] = useState(toStr);
+  const [error, setError] = useState<string | null>(null);
 
   function applyCustom() {
-    if (!from || !to || from > to) return;
+    // Previously this just returned, so pressing Apply with the dates the wrong
+    // way round did nothing at all and the page silently kept the old range —
+    // easy to read as "these are the figures for the range I picked".
+    if (!from || !to) return setError(t("range.errorIncomplete"));
+    if (from > to) return setError(t("range.errorOrder"));
+    setError(null);
     router.push(`/reports?preset=custom&from=${from}&to=${to}`);
+  }
+
+  function pick(setter: (v: string) => void) {
+    return (v: string) => {
+      setError(null);
+      setter(v);
+    };
   }
 
   return (
@@ -50,11 +63,11 @@ export function DateRangePicker({
             basis-auto puts them back inline from `sm` up. */}
         <div className="basis-full sm:basis-auto min-w-0">
           <label className="label">{t("range.from")}</label>
-          <DateField value={from} onChange={setFrom} />
+          <DateField value={from} onChange={pick(setFrom)} />
         </div>
         <div className="basis-full sm:basis-auto min-w-0">
           <label className="label">{t("range.to")}</label>
-          <DateField value={to} onChange={setTo} />
+          <DateField value={to} onChange={pick(setTo)} />
         </div>
         <button
           onClick={applyCustom}
@@ -66,6 +79,9 @@ export function DateRangePicker({
           {t("range.applyCustom")}
         </button>
       </div>
+      {error && (
+        <p role="alert" className="text-sm text-red-600">{error}</p>
+      )}
     </div>
   );
 }

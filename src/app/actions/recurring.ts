@@ -5,6 +5,8 @@ import { prisma } from "@/lib/prisma";
 import { checkHousehold } from "@/lib/household";
 import { recurringSchema } from "@/lib/validation";
 import { postDueRecurring } from "@/lib/recurring";
+import { getLocale } from "@/lib/i18n/server";
+import { calendarForLocale } from "@/lib/calendar";
 
 function revalidateMoney() {
   revalidatePath("/recurring");
@@ -57,6 +59,10 @@ export async function createRecurring(formData: FormData) {
       startDate: d.startDate,
       nextRunDate: d.startDate,
       endDate: d.endDate ?? null,
+      // Frozen at creation: a Persian owner means "the 15th of every Jalali
+      // month". Storing it here keeps a later language switch from moving
+      // money that is already scheduled.
+      calendar: calendarForLocale(await getLocale()),
     },
   });
 

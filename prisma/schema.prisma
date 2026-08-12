@@ -202,6 +202,12 @@ model RecurringTransaction {
 
   frequency   String // DAILY | WEEKLY | MONTHLY | YEARLY
   interval    Int       @default(1) // every N frequency units
+  // Calendar the MONTHLY/YEARLY step is measured in. "Monthly" means the same
+  // day of the next month in the calendar the owner actually uses: a rule set
+  // for 15 Mordad must post on 15 Shahrivar, not 3 days off it. Frozen on the
+  // rule so changing the UI language never shifts money that is already
+  // scheduled. Ignored for DAILY/WEEKLY, which are calendar-independent.
+  calendar    String    @default("GREGORIAN") // GREGORIAN | JALALI
   startDate   DateTime // first occurrence
   nextRunDate DateTime // next date to post
   endDate     DateTime? // optional stop date (inclusive)

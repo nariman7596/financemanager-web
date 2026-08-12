@@ -42,6 +42,34 @@ export function startOfYearIn(date: Date, locale: Locale): Date {
   return fns(locale).startOfYear(date);
 }
 
+// ---------------------------------------------------------------------------
+// Calendar as stored data
+//
+// A recurring rule records the calendar its monthly/yearly step is measured in
+// rather than deriving it from whoever happens to be reading. It schedules real
+// money, so switching the UI language must not move it.
+// ---------------------------------------------------------------------------
+
+export type CalendarSystem = "GREGORIAN" | "JALALI";
+
+export function calendarForLocale(locale: Locale): CalendarSystem {
+  return locale === "fa" ? "JALALI" : "GREGORIAN";
+}
+
+function fnsForCalendar(calendar: string) {
+  return calendar === "JALALI" ? jalali : gregorian;
+}
+
+/** Add months in the given calendar (clamping to the month's length). */
+export function addMonthsInCalendar(date: Date, amount: number, calendar: string): Date {
+  return fnsForCalendar(calendar).addMonths(date, amount);
+}
+
+/** Add years in the given calendar. */
+export function addYearsInCalendar(date: Date, amount: number, calendar: string): Date {
+  return fnsForCalendar(calendar).addYears(date, amount);
+}
+
 /**
  * Stable key identifying the month a date falls in, e.g. "1405-05".
  *

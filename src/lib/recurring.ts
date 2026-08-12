@@ -1,5 +1,6 @@
 import "server-only";
-import { addDays, addWeeks, addMonths, addYears } from "date-fns";
+import { addDays, addWeeks } from "date-fns";
+import { addMonthsInCalendar, addYearsInCalendar } from "./calendar";
 import { prisma } from "./prisma";
 
 // ---------------------------------------------------------------------------
@@ -15,8 +16,21 @@ const MAX_CATCHUP_PER_RULE = 366; // safety cap (≥ a year of daily posts)
 
 type Frequency = "DAILY" | "WEEKLY" | "MONTHLY" | "YEARLY";
 
-/** Advance a date by `interval` units of `frequency`. */
-export function advance(date: Date, frequency: string, interval: number): Date {
+/**
+ * Advance a date by `interval` units of `frequency`, in the rule's calendar.
+ *
+ * Days and weeks are fixed spans, so the calendar is irrelevant to them. Months
+ * and years are not: a Jalali month is 31, 30 or 29 days depending on where it
+ * falls, so stepping a Persian owner's rule with Gregorian months lands on the
+ * wrong day 67% of the time, by up to 3 days — 15 Mordad becomes 14 Shahrivar,
+ * then 13 Mehr. `calendar` comes from the rule row, not from the reader.
+ */
+export function advance(
+  date: Date,
+  frequency: string,
+  interval: number,
+  calendar: string = "GREGORIAN",
+): Date {
   const n = Math.max(1, interval);
   switch (frequency as Frequency) {
     case "DAILY":
@@ -24,11 +38,11 @@ export function advance(date: Date, frequency: string, interval: number): Date {
     case "WEEKLY":
       return addWeeks(date, n);
     case "MONTHLY":
-      return addMonths(date, n);
+      return addMonthsInCalendar(date, n, calendar);
     case "YEARLY":
-      return addYears(date, n);
+      return addYearsInCalendar(date, n, calendar);
     default:
-      return addMonths(date, n);
+      return addMonthsInCalendar(date, n, calendar);
   }
 }
 
@@ -65,7 +79,7 @@ export async function postDueRecurring(
       count < MAX_CATCHUP_PER_RULE
     ) {
       created.push({ date: next });
-      next = advance(next, rule.frequency, rule.interval);
+      next = advance(next, rule.frequency, rule.interval, rule.calendar);
       count++;
     }
 
