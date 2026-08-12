@@ -14,12 +14,13 @@ import { PlaidLinkButton } from "@/components/PlaidLinkButton";
 import { BankSyncButton } from "@/components/BankSyncButton";
 import { deleteAccount } from "@/app/actions/accounts";
 import { sumInCurrency } from "@/lib/currency";
-import { getT } from "@/lib/i18n/server";
+import { getT, getLocale } from "@/lib/i18n/server";
 
 export const dynamic = "force-dynamic";
 
 export default async function AccountsPage() {
   const t = await getT();
+  const locale = await getLocale();
   const ctx = await requireHousehold();
   const base = await getBaseCurrency(ctx.householdId);
   const accounts = await getAccountBalances(ctx.householdId);
@@ -104,7 +105,7 @@ export default async function AccountsPage() {
                       <span className="badge surface-subtle text-[var(--muted)] text-[11px]">
                         {t("accounts.viaPlaid", { bank: linked.institutionName ?? t("accounts.bank") })}
                         {linked.status === "ERROR" && t("accounts.syncError")}
-                        {linked.lastSyncedAt && t("accounts.syncedOn", { date: formatDate(linked.lastSyncedAt) })}
+                        {linked.lastSyncedAt && t("accounts.syncedOn", { date: formatDate(linked.lastSyncedAt, locale) })}
                       </span>
                       <UnlinkAccountButton id={a.id} />
                     </>

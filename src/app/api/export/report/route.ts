@@ -8,6 +8,7 @@ import {
 } from "@/lib/queries";
 import { resolveRange } from "@/lib/dateRange";
 import { buildReportCsv } from "@/lib/reportCsv";
+import { getT } from "@/lib/i18n/server";
 
 // GET /api/export/report?preset=|from=&to= -> a summary report CSV (totals +
 // category + per-member breakdowns) for the active household over the range.
@@ -25,6 +26,7 @@ export async function GET(req: NextRequest) {
     to: params.get("to") ?? undefined,
   });
 
+  const t = await getT();
   const base = await getBaseCurrency(ctx.householdId);
   const [flow, categories, member] = await Promise.all([
     getFlowInRange(ctx.householdId, base, range.start, range.end),
@@ -33,7 +35,7 @@ export async function GET(req: NextRequest) {
   ]);
 
   const csv = buildReportCsv({
-    label: range.label,
+    label: t(range.labelKey),
     fromStr: range.fromStr,
     toStr: range.toStr,
     base,

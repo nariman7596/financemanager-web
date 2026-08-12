@@ -8,13 +8,13 @@ import {
   getMemberBreakdown,
 } from "@/lib/queries";
 import { resolveRange } from "@/lib/dateRange";
-import { formatMoney } from "@/lib/utils";
+import { formatDate, formatMoney } from "@/lib/utils";
 import { Topbar } from "@/components/Topbar";
 import { StatCard } from "@/components/StatCard";
 import { CashFlowChart, SpendingPieChart } from "@/components/Charts";
 import { MemberSpending } from "@/components/MemberSpending";
 import { DateRangePicker } from "@/components/DateRangePicker";
-import { getT } from "@/lib/i18n/server";
+import { getT, getLocale } from "@/lib/i18n/server";
 import type { TFunc } from "@/lib/i18n/translate";
 
 export const dynamic = "force-dynamic";
@@ -25,6 +25,7 @@ export default async function ReportsPage({
   searchParams: Promise<{ preset?: string; from?: string; to?: string }>;
 }) {
   const t = await getT();
+  const locale = await getLocale();
   const ctx = await requireHousehold();
   const base = await getBaseCurrency(ctx.householdId);
   const sp = await searchParams;
@@ -44,7 +45,11 @@ export default async function ReportsPage({
     <>
       <Topbar
         title={t("reports.title")}
-        subtitle={range.label}
+        subtitle={
+          range.preset === "custom"
+            ? `${formatDate(range.start, locale)} – ${formatDate(range.end, locale)}`
+            : t(range.labelKey)
+        }
         action={
           <div className="flex items-center gap-2">
             <a

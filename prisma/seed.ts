@@ -65,7 +65,13 @@ async function main() {
   const hid = household.id;
 
   await prisma.category.createMany({
-    data: DEFAULT_CATEGORIES.map((c) => ({ ...c, householdId: hid, createdById: demo.id })),
+    data: DEFAULT_CATEGORIES.map((c) => ({
+      name: c.names.en,
+      type: c.type,
+      color: c.color,
+      householdId: hid,
+      createdById: demo.id,
+    })),
   });
   const cats = await prisma.category.findMany({ where: { householdId: hid } });
   const cat = (name: string) => cats.find((c) => c.name === name)!.id;

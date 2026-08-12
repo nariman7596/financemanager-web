@@ -39,7 +39,7 @@ export function DateRangePicker({
                 : "border-[var(--border)] text-[var(--muted)] hover:bg-[var(--hover)]",
             )}
           >
-            {p.label}
+            {t(p.labelKey)}
           </button>
         ))}
       </div>

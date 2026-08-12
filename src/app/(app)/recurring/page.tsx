@@ -9,7 +9,7 @@ import { RunRecurringButton } from "@/components/RunRecurringButton";
 import { RecurringToggle } from "@/components/RecurringToggle";
 import { DeleteButton } from "@/components/DeleteButton";
 import { deleteRecurring } from "@/app/actions/recurring";
-import { getT } from "@/lib/i18n/server";
+import { getT, getLocale } from "@/lib/i18n/server";
 import type { TFunc } from "@/lib/i18n/translate";
 
 export const dynamic = "force-dynamic";
@@ -30,6 +30,7 @@ function cadence(t: TFunc, interval: number, frequency: string) {
 export default async function RecurringPage() {
   const ctx = await requireHousehold();
   const t = await getT();
+  const locale = await getLocale();
 
   const [accounts, categories, rules] = await Promise.all([
     prisma.account.findMany({
@@ -111,11 +112,11 @@ export default async function RecurringPage() {
                   <td className="px-4 py-3 text-slate-500">
                     {cadence(t, r.interval, r.frequency)}
                     {r.endDate && (
-                      <span className="block text-xs text-slate-400">{t("recurring.until", { date: formatDate(r.endDate) })}</span>
+                      <span className="block text-xs text-slate-400">{t("recurring.until", { date: formatDate(r.endDate, locale) })}</span>
                     )}
                   </td>
                   <td className="px-4 py-3 text-slate-500">
-                    {r.isActive ? formatDate(r.nextRunDate) : <span className="text-slate-400">—</span>}
+                    {r.isActive ? formatDate(r.nextRunDate, locale) : <span className="text-slate-400">—</span>}
                   </td>
                   <td className="px-4 py-3 text-right tabular-nums font-medium whitespace-nowrap">
                     {formatMoney(toNumber(r.amount), r.currency)}

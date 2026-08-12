@@ -49,7 +49,7 @@ export function Modal({
           >
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-lg font-semibold">{title}</h2>
-              <button onClick={close} className="btn-ghost p-1.5" aria-label="Close">
+              <button onClick={close} className="btn-ghost p-1.5" aria-label={t("a11y.close")}>
                 <X size={18} />
               </button>
             </div>

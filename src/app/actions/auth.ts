@@ -60,7 +60,7 @@ export async function registerAction(
   });
 
   // Give the new user their own household (OWNER) with starter data.
-  await createHousehold(user.id, t("auth.householdName", { name }), baseCurrency);
+  await createHousehold(user.id, t("auth.householdName", { name }), baseCurrency, locale);
   // Auto-join any households they were invited to before signing up.
   await acceptInvitesForUser(user.id, email);
 

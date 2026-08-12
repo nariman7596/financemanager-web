@@ -1,7 +1,7 @@
 import { requireHousehold, roleAtLeast } from "@/lib/household";
 import { prisma } from "@/lib/prisma";
 import { formatDate } from "@/lib/utils";
-import { getT } from "@/lib/i18n/server";
+import { getT, getLocale } from "@/lib/i18n/server";
 import { Topbar } from "@/components/Topbar";
 import {
   InviteForm,
@@ -27,6 +27,7 @@ const ROLE_BADGE: Record<string, string> = {
 
 export default async function HouseholdPage() {
   const t = await getT();
+  const locale = await getLocale();
   const ctx = await requireHousehold();
   const isAdmin = roleAtLeast(ctx.role, "ADMIN");
   const isOwner = ctx.role === "OWNER";
@@ -112,7 +113,7 @@ export default async function HouseholdPage() {
                         </p>
                         <p className="text-xs text-slate-400">{m.user.email}</p>
                       </td>
-                      <td className="px-3 py-2 text-slate-400">{formatDate(m.createdAt)}</td>
+                      <td className="px-3 py-2 text-slate-400">{formatDate(m.createdAt, locale)}</td>
                       <td className="px-3 py-2">
                         {editable ? (
                           <RoleSelect membershipId={m.id} role={m.role} />

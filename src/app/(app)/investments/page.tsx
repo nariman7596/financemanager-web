@@ -12,12 +12,13 @@ import { InvestmentForm } from "@/components/forms/InvestmentForm";
 import { DeleteButton } from "@/components/DeleteButton";
 import { PriceForm } from "@/components/forms/PriceForm";
 import { deleteInvestment } from "@/app/actions/investments";
-import { getT } from "@/lib/i18n/server";
+import { getT, getLocale } from "@/lib/i18n/server";
 
 export const dynamic = "force-dynamic";
 
 export default async function InvestmentsPage() {
   const t = await getT();
+  const locale = await getLocale();
   const ctx = await requireHousehold();
   const base = await getBaseCurrency(ctx.householdId);
   const holdings = await getInvestments(ctx.householdId);
@@ -37,7 +38,7 @@ export default async function InvestmentsPage() {
         subtitle={t("inv.subtitle")}
         action={
           <div className="flex items-center gap-3">
-            <RefreshButton asOf={fxAsOf ? formatDate(fxAsOf) : null} />
+            <RefreshButton asOf={fxAsOf ? formatDate(fxAsOf, locale) : null} />
             <Modal
               title={t("inv.new")}
               trigger={<button className="btn-primary"><Plus size={18} /> Add</button>}

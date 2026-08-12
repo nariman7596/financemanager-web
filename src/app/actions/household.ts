@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
+import { getLocale } from "@/lib/i18n/server";
 import { getSession } from "@/lib/session";
 import {
   checkHousehold,
@@ -35,7 +36,7 @@ export async function createHouseholdAction(formData: FormData) {
   if (!name) return { error: "Name is required" };
   if (!CURRENCY_CODES.includes(baseCurrency)) return { error: "Invalid currency" };
 
-  const id = await createHousehold(session.userId, name, baseCurrency);
+  const id = await createHousehold(session.userId, name, baseCurrency, await getLocale());
   await setActiveHousehold(id);
   revalidateHousehold();
   return { ok: true };

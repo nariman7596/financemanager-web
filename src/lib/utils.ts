@@ -1,6 +1,7 @@
 import { clsx, type ClassValue } from "clsx";
 import { twMerge } from "tailwind-merge";
 import { currencySymbol } from "./constants";
+import type { Locale } from "./i18n/config";
 
 /** Tailwind-aware className combiner. */
 export function cn(...inputs: ClassValue[]) {
@@ -58,11 +59,47 @@ export function toNumber(value: unknown): number {
   return Number.isNaN(n) ? 0 : n;
 }
 
-export function formatDate(date: Date | string, fmt: "short" | "long" = "short") {
+/**
+ * Format a calendar date for display, in the reader's calendar.
+ *
+ * Persian users read Jalali dates, so `fa` renders through the Persian
+ * calendar — Intl supports it natively, no library needed:
+ *
+ *   2026-08-12  ->  en: Aug 12, 2026
+ *                   fa: ۲۱ مرداد ۱۴۰۵
+ *
+ * Only the *display* changes. Everything stored, queried, exported or used
+ * for scheduling stays Gregorian, which is what the database, the CSV export
+ * and `<input type="date">` all speak.
+ *
+ * Formatted in UTC on purpose. Dates here come from `<input type="date">` and
+ * land at midnight UTC; rendering them in a +03:30 zone would push anything
+ * stored late in the day onto the following date. UTC shows back exactly the
+ * day that was entered.
+ */
+export function formatDate(
+  date: Date | string,
+  locale: Locale,
+  fmt: "short" | "long" = "short",
+) {
   const d = typeof date === "string" ? new Date(date) : date;
-  return new Intl.DateTimeFormat("en-US", {
+  const tag = locale === "fa" ? "fa-IR-u-ca-persian" : "en-US";
+  return new Intl.DateTimeFormat(tag, {
     year: "numeric",
     month: fmt === "long" ? "long" : "short",
     day: "numeric",
+    timeZone: "UTC",
   }).format(d);
+}
+
+/**
+ * The name of the month a date falls in, in the reader's calendar.
+ *
+ * ⚠️ Only use this to label a period that really is a month in that calendar.
+ * A Gregorian month is not a Jalali month — August 2026 runs from 10 Mordad to
+ * 9 Shahrivar — so labelling a Gregorian aggregate "مرداد" would misreport it.
+ */
+export function formatMonthName(date: Date, locale: Locale) {
+  const tag = locale === "fa" ? "fa-IR-u-ca-persian" : "en-US";
+  return new Intl.DateTimeFormat(tag, { month: "long", timeZone: "UTC" }).format(date);
 }

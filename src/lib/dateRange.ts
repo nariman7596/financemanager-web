@@ -14,13 +14,16 @@ import {
 // server-only) so it's testable and usable on client + server. Pass `now` for
 // deterministic behavior.
 
+// Presets carry a translation key rather than a display string: this module is
+// shared by client and server and has no locale of its own, so the caller
+// translates with its own `t`.
 export const RANGE_PRESETS = [
-  { key: "this-month", label: "This month" },
-  { key: "last-month", label: "Last month" },
-  { key: "last-3-months", label: "Last 3 months" },
-  { key: "last-6-months", label: "Last 6 months" },
-  { key: "this-year", label: "This year" },
-  { key: "last-12-months", label: "Last 12 months" },
+  { key: "this-month", labelKey: "range.thisMonth" },
+  { key: "last-month", labelKey: "range.lastMonth" },
+  { key: "last-3-months", labelKey: "range.last3Months" },
+  { key: "last-6-months", labelKey: "range.last6Months" },
+  { key: "this-year", labelKey: "range.thisYear" },
+  { key: "last-12-months", labelKey: "range.last12Months" },
 ] as const;
 
 export type RangePreset = (typeof RANGE_PRESETS)[number]["key"] | "custom";
@@ -55,7 +58,7 @@ export interface ResolvedRange {
   preset: RangePreset;
   fromStr: string; // yyyy-MM-dd
   toStr: string;
-  label: string;
+  labelKey: string;
 }
 
 /** Resolve {from,to,preset} search params into a concrete range. */
@@ -78,7 +81,7 @@ export function resolveRange(
         preset: "custom",
         fromStr: format(start, "yyyy-MM-dd"),
         toStr: format(to, "yyyy-MM-dd"),
-        label: `${format(start, "MMM d, yyyy")} – ${format(to, "MMM d, yyyy")}`,
+        labelKey: "range.custom",
       };
     }
   }
@@ -91,6 +94,7 @@ export function resolveRange(
     preset: presetKey,
     fromStr: format(start, "yyyy-MM-dd"),
     toStr: format(end, "yyyy-MM-dd"),
-    label: RANGE_PRESETS.find((p) => p.key === presetKey)?.label ?? "Custom",
+    labelKey:
+      RANGE_PRESETS.find((p) => p.key === presetKey)?.labelKey ?? "range.custom",
   };
 }

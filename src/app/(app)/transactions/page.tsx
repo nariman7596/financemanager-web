@@ -9,7 +9,7 @@ import { ImportForm } from "@/components/forms/ImportForm";
 import { DeleteButton } from "@/components/DeleteButton";
 import { deleteTransaction } from "@/app/actions/transactions";
 import { cn } from "@/lib/utils";
-import { getT } from "@/lib/i18n/server";
+import { getT, getLocale } from "@/lib/i18n/server";
 import type { TFunc } from "@/lib/i18n/translate";
 
 export const dynamic = "force-dynamic";
@@ -17,6 +17,7 @@ export const dynamic = "force-dynamic";
 export default async function TransactionsPage() {
   const ctx = await requireHousehold();
   const t = await getT();
+  const locale = await getLocale();
 
   const [accounts, categories, transactions] = await Promise.all([
     prisma.account.findMany({
@@ -108,7 +109,7 @@ export default async function TransactionsPage() {
                 const sign = txn.type === "INCOME" ? "+" : txn.type === "EXPENSE" ? "−" : "";
                 return (
                   <tr key={txn.id} className="border-t border-[var(--border)] row-hover">
-                    <td className="px-4 py-3 whitespace-nowrap text-slate-500">{formatDate(txn.date)}</td>
+                    <td className="px-4 py-3 whitespace-nowrap text-slate-500">{formatDate(txn.date, locale)}</td>
                     <td className="px-4 py-3">
                       {txn.description || <span className="text-slate-400">—</span>}
                       {txn.type === "TRANSFER" && txn.transferAccount && (
