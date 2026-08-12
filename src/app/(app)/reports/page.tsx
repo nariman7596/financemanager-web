@@ -29,11 +29,11 @@ export default async function ReportsPage({
   const ctx = await requireHousehold();
   const base = await getBaseCurrency(ctx.householdId);
   const sp = await searchParams;
-  const range = resolveRange(sp);
+  const range = resolveRange(sp, new Date(), locale);
 
   const [flow, series, categories, byMember] = await Promise.all([
     getFlowInRange(ctx.householdId, base, range.start, range.end),
-    getSeriesInRange(ctx.householdId, base, range.start, range.end),
+    getSeriesInRange(ctx.householdId, base, range.start, range.end, locale),
     getCategoryBreakdown(ctx.householdId, base, range.start, range.end),
     getMemberBreakdown(ctx.householdId, base, range.start, range.end),
   ]);

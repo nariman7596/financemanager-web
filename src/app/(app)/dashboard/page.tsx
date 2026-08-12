@@ -14,7 +14,8 @@ import { StatCard } from "@/components/StatCard";
 import { CashFlowChart, SpendingPieChart } from "@/components/Charts";
 import { BudgetBar } from "@/components/BudgetBar";
 import { MemberSpending } from "@/components/MemberSpending";
-import { getT } from "@/lib/i18n/server";
+import { getT, getLocale } from "@/lib/i18n/server";
+import { monthNameIn } from "@/lib/calendar";
 import type { TFunc } from "@/lib/i18n/translate";
 import Link from "next/link";
 
@@ -23,18 +24,19 @@ export const dynamic = "force-dynamic";
 export default async function DashboardPage() {
   const ctx = await requireHousehold();
   const t = await getT();
+  const locale = await getLocale();
   const base = await getBaseCurrency(ctx.householdId);
 
   const [netWorth, flow, series, spending, budgets, byMember] = await Promise.all([
     getNetWorth(ctx.householdId, base),
-    getMonthlyFlow(ctx.householdId, base),
-    getCashFlowSeries(ctx.householdId, base, 6),
-    getSpendingByCategory(ctx.householdId, base),
-    getBudgetProgress(ctx.householdId),
-    getSpendingByMember(ctx.householdId, base),
+    getMonthlyFlow(ctx.householdId, base, new Date(), locale),
+    getCashFlowSeries(ctx.householdId, base, 6, locale),
+    getSpendingByCategory(ctx.householdId, base, new Date(), locale),
+    getBudgetProgress(ctx.householdId, new Date(), locale),
+    getSpendingByMember(ctx.householdId, base, new Date(), locale),
   ]);
 
-  const monthName = new Date().toLocaleString("en-US", { month: "long" });
+  const monthName = monthNameIn(new Date(), locale);
 
   return (
     <>

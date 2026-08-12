@@ -8,7 +8,7 @@ import {
 } from "@/lib/queries";
 import { resolveRange } from "@/lib/dateRange";
 import { buildReportCsv } from "@/lib/reportCsv";
-import { getT } from "@/lib/i18n/server";
+import { getT, getLocale } from "@/lib/i18n/server";
 
 // GET /api/export/report?preset=|from=&to= -> a summary report CSV (totals +
 // category + per-member breakdowns) for the active household over the range.
@@ -20,11 +20,16 @@ export async function GET(req: NextRequest) {
   if (!ctx) return new Response("Unauthorized", { status: 401 });
 
   const params = req.nextUrl.searchParams;
-  const range = resolveRange({
-    preset: params.get("preset") ?? undefined,
-    from: params.get("from") ?? undefined,
-    to: params.get("to") ?? undefined,
-  });
+  const locale = await getLocale();
+  const range = resolveRange(
+    {
+      preset: params.get("preset") ?? undefined,
+      from: params.get("from") ?? undefined,
+      to: params.get("to") ?? undefined,
+    },
+    new Date(),
+    locale,
+  );
 
   const t = await getT();
   const base = await getBaseCurrency(ctx.householdId);

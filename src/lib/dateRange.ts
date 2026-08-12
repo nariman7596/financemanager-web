@@ -1,14 +1,17 @@
 import {
-  startOfMonth,
-  endOfMonth,
-  subMonths,
-  startOfYear,
   startOfDay,
   endOfDay,
   parseISO,
   isValid,
   format,
 } from "date-fns";
+import {
+  startOfMonthIn,
+  endOfMonthIn,
+  subMonthsIn,
+  startOfYearIn,
+} from "./calendar";
+import { DEFAULT_LOCALE, type Locale } from "./i18n/config";
 
 // Date-range presets + URL-param resolution for the Reports page. Pure (no
 // server-only) so it's testable and usable on client + server. Pass `now` for
@@ -30,25 +33,29 @@ export type RangePreset = (typeof RANGE_PRESETS)[number]["key"] | "custom";
 
 export const DEFAULT_PRESET: RangePreset = "last-6-months";
 
-export function computePreset(key: string, now: Date): { start: Date; end: Date } {
-  const endThisMonth = endOfMonth(now);
+export function computePreset(
+  key: string,
+  now: Date,
+  locale: Locale = DEFAULT_LOCALE,
+): { start: Date; end: Date } {
+  const endThisMonth = endOfMonthIn(now, locale);
   switch (key) {
     case "this-month":
-      return { start: startOfMonth(now), end: endThisMonth };
+      return { start: startOfMonthIn(now, locale), end: endThisMonth };
     case "last-month": {
-      const prev = subMonths(now, 1);
-      return { start: startOfMonth(prev), end: endOfMonth(prev) };
+      const prev = subMonthsIn(now, 1, locale);
+      return { start: startOfMonthIn(prev, locale), end: endOfMonthIn(prev, locale) };
     }
     case "last-3-months":
-      return { start: startOfMonth(subMonths(now, 2)), end: endThisMonth };
+      return { start: startOfMonthIn(subMonthsIn(now, 2, locale), locale), end: endThisMonth };
     case "last-6-months":
-      return { start: startOfMonth(subMonths(now, 5)), end: endThisMonth };
+      return { start: startOfMonthIn(subMonthsIn(now, 5, locale), locale), end: endThisMonth };
     case "this-year":
-      return { start: startOfYear(now), end: endThisMonth };
+      return { start: startOfYearIn(now, locale), end: endThisMonth };
     case "last-12-months":
-      return { start: startOfMonth(subMonths(now, 11)), end: endThisMonth };
+      return { start: startOfMonthIn(subMonthsIn(now, 11, locale), locale), end: endThisMonth };
     default:
-      return { start: startOfMonth(subMonths(now, 5)), end: endThisMonth };
+      return { start: startOfMonthIn(subMonthsIn(now, 5, locale), locale), end: endThisMonth };
   }
 }
 
@@ -65,6 +72,7 @@ export interface ResolvedRange {
 export function resolveRange(
   params: { from?: string; to?: string; preset?: string },
   now: Date = new Date(),
+  locale: Locale = DEFAULT_LOCALE,
 ): ResolvedRange {
   const known = RANGE_PRESETS.find((p) => p.key === params.preset);
 
@@ -87,7 +95,7 @@ export function resolveRange(
   }
 
   const presetKey = known?.key ?? DEFAULT_PRESET;
-  const { start, end } = computePreset(presetKey, now);
+  const { start, end } = computePreset(presetKey, now, locale);
   return {
     start,
     end,

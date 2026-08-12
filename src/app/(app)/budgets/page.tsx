@@ -8,12 +8,14 @@ import { BudgetForm } from "@/components/forms/BudgetForm";
 import { BudgetBar } from "@/components/BudgetBar";
 import { DeleteButton } from "@/components/DeleteButton";
 import { deleteBudget } from "@/app/actions/budgets";
-import { getT } from "@/lib/i18n/server";
+import { getT, getLocale } from "@/lib/i18n/server";
+import { monthNameIn } from "@/lib/calendar";
 
 export const dynamic = "force-dynamic";
 
 export default async function BudgetsPage() {
   const t = await getT();
+  const locale = await getLocale();
   const ctx = await requireHousehold();
   const base = await getBaseCurrency(ctx.householdId);
 
@@ -23,10 +25,10 @@ export default async function BudgetsPage() {
       select: { id: true, name: true },
       orderBy: { name: "asc" },
     }),
-    getBudgetProgress(ctx.householdId),
+    getBudgetProgress(ctx.householdId, new Date(), locale),
   ]);
 
-  const monthName = new Date().toLocaleString("en-US", { month: "long" });
+  const monthName = monthNameIn(new Date(), locale);
 
   return (
     <>

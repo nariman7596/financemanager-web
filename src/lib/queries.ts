@@ -1,5 +1,15 @@
 import "server-only";
 import { startOfMonth, endOfMonth, subMonths, addMonths, format } from "date-fns";
+import {
+  startOfMonthIn,
+  endOfMonthIn,
+  subMonthsIn,
+  addMonthsIn,
+  monthKeyIn,
+  monthKeyToDate,
+  monthLabelIn,
+} from "./calendar";
+import { DEFAULT_LOCALE, type Locale } from "./i18n/config";
 import { prisma } from "./prisma";
 import { toNumber } from "./utils";
 import { convert, loadRates } from "./currency";
@@ -91,14 +101,29 @@ export async function getFlowInRange(householdId: string, base: string, start: D
 }
 
 /** Income / expense totals for the given month (dashboard helper). */
-export async function getMonthlyFlow(householdId: string, base: string, month = new Date()) {
-  return getFlowInRange(householdId, base, startOfMonth(month), endOfMonth(month));
+export async function getMonthlyFlow(
+  householdId: string,
+  base: string,
+  month = new Date(),
+  locale: Locale = DEFAULT_LOCALE,
+) {
+  return getFlowInRange(
+    householdId,
+    base,
+    startOfMonthIn(month, locale),
+    endOfMonthIn(month, locale),
+  );
 }
 
 /** Income vs expense per month for the last N months (for the trend chart). */
-export async function getCashFlowSeries(householdId: string, base: string, months = 6) {
+export async function getCashFlowSeries(
+  householdId: string,
+  base: string,
+  months = 6,
+  locale: Locale = DEFAULT_LOCALE,
+) {
   const rates = await loadRates();
-  const since = startOfMonth(subMonths(new Date(), months - 1));
+  const since = startOfMonthIn(subMonthsIn(new Date(), months - 1, locale), locale);
   const txns = await prisma.transaction.findMany({
     where: { householdId, date: { gte: since }, type: { in: ["INCOME", "EXPENSE"] } },
     select: { type: true, amount: true, currency: true, date: true },
@@ -106,12 +131,12 @@ export async function getCashFlowSeries(householdId: string, base: string, month
 
   const buckets = new Map<string, { income: number; expense: number }>();
   for (let i = 0; i < months; i++) {
-    const key = format(subMonths(new Date(), months - 1 - i), "yyyy-MM");
+    const key = monthKeyIn(subMonthsIn(new Date(), months - 1 - i, locale), locale);
     buckets.set(key, { income: 0, expense: 0 });
   }
 
   for (const t of txns) {
-    const key = format(t.date, "yyyy-MM");
+    const key = monthKeyIn(t.date, locale);
     const b = buckets.get(key);
     if (!b) continue;
     const v = convert(toNumber(t.amount), t.currency, base, rates);
@@ -120,7 +145,7 @@ export async function getCashFlowSeries(householdId: string, base: string, month
   }
 
   return Array.from(buckets.entries()).map(([key, v]) => ({
-    month: format(new Date(`${key}-01`), "MMM"),
+    month: monthLabelIn(monthKeyToDate(key, locale), locale),
     income: Math.round(v.income),
     expense: Math.round(v.expense),
     net: Math.round(v.income - v.expense),
@@ -155,14 +180,30 @@ export async function getCategoryBreakdown(householdId: string, base: string, st
 }
 
 /** Expense breakdown by category for the given month (dashboard helper). */
-export async function getSpendingByCategory(householdId: string, base: string, month = new Date()) {
-  return getCategoryBreakdown(householdId, base, startOfMonth(month), endOfMonth(month));
+export async function getSpendingByCategory(
+  householdId: string,
+  base: string,
+  month = new Date(),
+  locale: Locale = DEFAULT_LOCALE,
+) {
+  return getCategoryBreakdown(
+    householdId,
+    base,
+    startOfMonthIn(month, locale),
+    endOfMonthIn(month, locale),
+  );
 }
 
 /** Income vs expense per month across an arbitrary date range (for the trend chart). */
-export async function getSeriesInRange(householdId: string, base: string, start: Date, end: Date) {
+export async function getSeriesInRange(
+  householdId: string,
+  base: string,
+  start: Date,
+  end: Date,
+  locale: Locale = DEFAULT_LOCALE,
+) {
   const rates = await loadRates();
-  const from = startOfMonth(start);
+  const from = startOfMonthIn(start, locale);
   const txns = await prisma.transaction.findMany({
     where: { householdId, date: { gte: from, lte: end }, type: { in: ["INCOME", "EXPENSE"] } },
     select: { type: true, amount: true, currency: true, date: true },
@@ -171,14 +212,14 @@ export async function getSeriesInRange(householdId: string, base: string, start:
   // Build an ordered set of month buckets between start and end.
   const buckets = new Map<string, { income: number; expense: number }>();
   let cursor = from;
-  const endMonth = startOfMonth(end);
+  const endMonth = startOfMonthIn(end, locale);
   while (cursor <= endMonth) {
-    buckets.set(format(cursor, "yyyy-MM"), { income: 0, expense: 0 });
-    cursor = addMonths(cursor, 1);
+    buckets.set(monthKeyIn(cursor, locale), { income: 0, expense: 0 });
+    cursor = addMonthsIn(cursor, 1, locale);
   }
 
   for (const t of txns) {
-    const b = buckets.get(format(t.date, "yyyy-MM"));
+    const b = buckets.get(monthKeyIn(t.date, locale));
     if (!b) continue;
     const v = convert(toNumber(t.amount), t.currency, base, rates);
     if (t.type === "INCOME") b.income += v;
@@ -187,7 +228,7 @@ export async function getSeriesInRange(householdId: string, base: string, start:
 
   const multiYear = start.getFullYear() !== end.getFullYear();
   return Array.from(buckets.entries()).map(([key, v]) => ({
-    month: format(new Date(`${key}-01`), multiYear ? "MMM ''yy" : "MMM"),
+    month: monthLabelIn(monthKeyToDate(key, locale), locale, multiYear),
     income: Math.round(v.income),
     expense: Math.round(v.expense),
     net: Math.round(v.income - v.expense),
@@ -195,7 +236,11 @@ export async function getSeriesInRange(householdId: string, base: string, start:
 }
 
 /** Budgets with actual spend this month (in each budget's currency). */
-export async function getBudgetProgress(householdId: string, month = new Date()) {
+export async function getBudgetProgress(
+  householdId: string,
+  month = new Date(),
+  locale: Locale = DEFAULT_LOCALE,
+) {
   const rates = await loadRates();
   const budgets = await prisma.budget.findMany({
     where: { householdId },
@@ -206,7 +251,7 @@ export async function getBudgetProgress(householdId: string, month = new Date())
     where: {
       householdId,
       type: "EXPENSE",
-      date: { gte: startOfMonth(month), lte: endOfMonth(month) },
+      date: { gte: startOfMonthIn(month, locale), lte: endOfMonthIn(month, locale) },
     },
     select: { amount: true, currency: true, categoryId: true },
   });
@@ -291,8 +336,18 @@ export async function getMemberBreakdown(householdId: string, base: string, star
 }
 
 /** Per-member spending for the given month (dashboard helper). */
-export async function getSpendingByMember(householdId: string, base: string, month = new Date()) {
-  return getMemberBreakdown(householdId, base, startOfMonth(month), endOfMonth(month));
+export async function getSpendingByMember(
+  householdId: string,
+  base: string,
+  month = new Date(),
+  locale: Locale = DEFAULT_LOCALE,
+) {
+  return getMemberBreakdown(
+    householdId,
+    base,
+    startOfMonthIn(month, locale),
+    endOfMonthIn(month, locale),
+  );
 }
 
 export async function getInvestments(householdId: string) {
