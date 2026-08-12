@@ -43,15 +43,33 @@ export async function fetchFxRates(): Promise<Record<string, number>> {
   return rates as Record<string, number>;
 }
 
+/** Rial per toman. A definition, not an estimate: 1 toman = 10 rial. */
+const RIAL_PER_TOMAN = 10;
+
+/**
+ * Fill in rates the upstream feed cannot provide.
+ *
+ * Toman has no ISO 4217 code, so no FX API quotes it — but it is exactly one
+ * tenth of a rial by definition, so USD->IRT is USD->IRR divided by ten. This
+ * is arithmetic on an official rate, not a guess; if IRR itself is missing we
+ * leave IRT missing too rather than inventing one.
+ */
+function withDerivedRates(rates: Record<string, number>): Record<string, number> {
+  const irr = rates.IRR;
+  if (typeof irr !== "number" || !Number.isFinite(irr) || irr <= 0) return rates;
+  return { ...rates, IRT: irr / RIAL_PER_TOMAN };
+}
+
 /**
  * Store USD-based rates as ExchangeRate rows (base=USD, quote=X) for every
  * currency the app supports. Storing USD->X for all X is enough: currency.ts
  * triangulates any pair through USD. Returns how many rows were written.
  */
 export async function storeFxRates(
-  rates: Record<string, number>,
+  input: Record<string, number>,
   now: Date,
 ): Promise<number> {
+  const rates = withDerivedRates(input);
   let updated = 0;
   for (const quote of CURRENCY_CODES) {
     if (quote === FX_BASE) continue;

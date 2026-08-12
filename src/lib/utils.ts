@@ -7,6 +7,18 @@ export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
 
+/**
+ * Currencies Intl cannot render usefully.
+ *
+ * Intl accepts any well-formed 3-letter code, so "IRT" does not throw — it
+ * just prints the literal "IRT 1,234.00" instead of a symbol, and adds
+ * decimals that toman has no sub-unit for. Format those ourselves, with the
+ * unit after the amount as Persian writes it.
+ */
+const CUSTOM_CURRENCY_FORMAT: Record<string, { symbol: string; decimals: number }> = {
+  IRT: { symbol: "تومان", decimals: 0 },
+};
+
 /** Format a number as currency for display. */
 export function formatMoney(
   value: number | string,
@@ -15,6 +27,16 @@ export function formatMoney(
 ): string {
   const num = typeof value === "string" ? parseFloat(value) : value;
   if (Number.isNaN(num)) return `${currencySymbol(currency)}0`;
+
+  const custom = CUSTOM_CURRENCY_FORMAT[currency];
+  if (custom) {
+    const amount = new Intl.NumberFormat("en-US", {
+      notation: opts.compact ? "compact" : "standard",
+      maximumFractionDigits: opts.compact ? 1 : custom.decimals,
+    }).format(num);
+    return `${amount} ${custom.symbol}`;
+  }
+
   try {
     return new Intl.NumberFormat("en-US", {
       style: "currency",

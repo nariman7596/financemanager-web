@@ -49,6 +49,10 @@ export const CURRENCIES = [
   { code: "CNY", symbol: "¥", name: "Chinese Yuan" },
   { code: "AED", symbol: "د.إ", name: "UAE Dirham" },
   { code: "IRR", symbol: "﷼", name: "Iranian Rial" },
+  // Toman is what Iranians actually quote prices in: 1 toman = 10 rial.
+  // It has no ISO 4217 code, so "IRT" is the conventional stand-in and the
+  // rate is derived from IRR rather than fetched (see marketdata.ts).
+  { code: "IRT", symbol: "تومان", name: "Iranian Toman" },
   { code: "TRY", symbol: "₺", name: "Turkish Lira" },
   { code: "INR", symbol: "₹", name: "Indian Rupee" },
 ] as const;
