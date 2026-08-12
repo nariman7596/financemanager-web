@@ -9,17 +9,89 @@
 
 ---
 
-## ۱. بالا آوردن (روی سرور)
+## ۰. اول این را بخوان: سرورت چقدر رم دارد؟
+
+```bash
+free -h && nproc
+```
+
+| رم | مسیرِ درست |
+|---|---|
+| **< ۲ گیگ** یا **۱ هسته** | ⚠️ **روی سرور build نکن** — برو بخشِ «۱-ب» |
+| ۴ گیگ به بالا | می‌توانی روی خودِ سرور build کنی — بخشِ «۱-الف» |
+
+**چرا:** بیلدِ پروداکشنِ Next.js چند گیگ رم می‌خواهد. روی یک VPS با ۱ گیگ رم و
+یک هسته، بیلد تمام نمی‌شود؛ سیستم شروع می‌کند به swap-زدن و در نهایت OOM killer
+حتی SSH را هم می‌کُشد. **اجرا کردنِ اپ اما ارزان است** (~۲۵۰ مگ) — فقط ساختنش سنگین است.
+
+### ⚙️ در هر دو حالت: swap اضافه کن
+سرورهای کوچک معمولاً swap ندارند. این کار یک شبکه‌ی ایمنی می‌سازد که جلوی
+کشته‌شدنِ ناگهانیِ سرویس‌ها را بگیرد:
+
+```bash
+sudo fallocate -l 2G /swapfile && sudo chmod 600 /swapfile
+sudo mkswap /swapfile && sudo swapon /swapfile
+echo '/swapfile none swap sw 0 0' | sudo tee -a /etc/fstab
+free -h
+```
+
+---
+
+## ۱-الف. بالا آوردن با build روی سرور (فقط سرورِ ≥۴ گیگ)
 
 ```bash
 git clone https://github.com/nariman7596/financemanager-web.git
 cd financemanager-web
 cp .env.docker.example .env
 nano .env          # DB_PASSWORD / AUTH_SECRET / CRON_SECRET
-                   # هر کدام:  openssl rand -base64 32
 
 docker compose -f docker-compose.private.yml up -d --build
 ```
+
+> 💡 بیلد را داخلِ `tmux` اجرا کن تا اگر SSH قطع شد کار نیمه‌کاره نماند:
+> `tmux new -s build` … خروج با `Ctrl+B` سپس `D` … بازگشت با `tmux attach -t build`
+
+---
+
+## ۱-ب. بالا آوردن با ایمیجِ آماده — **توصیه‌شده برای سرورِ کوچک**
+
+بیلد روی رانرهای گیت‌هاب انجام می‌شود (۴ هسته، ۱۶ گیگ رم) و سرور فقط ایمیجِ
+آماده را `pull` می‌کند: چند ثانیه، بدونِ فشار روی رم.
+
+**یک‌بار روی گیت‌هاب:**
+1. فایلِ `.github/workflows/build-image.yml` از قبل در ریپو هست. با اولین push
+   به `main` خودش اجرا می‌شود — یا از تبِ **Actions** دستی اجرایش کن
+   (**Build and publish image** → *Run workflow*).
+2. صبر کن تا سبز شود (~۵–۱۰ دقیقه). ایمیج می‌رود به
+   `ghcr.io/nariman7596/financemanager-web:latest`.
+3. **دسترسیِ ایمیج:** اگر بسته (package) خصوصی باشد، سرور برای pull باید لاگین کند.
+   ساده‌ترین راه: در صفحه‌ی **Packages** ریپو، بسته را روی **Public** بگذار.
+   یا اگر می‌خواهی خصوصی بماند، روی سرور:
+   ```bash
+   echo "GHCR_PAT" | docker login ghcr.io -u nariman7596 --password-stdin
+   ```
+   (توکن با دسترسیِ `read:packages` از github.com/settings/tokens)
+
+**روی سرور:**
+```bash
+git clone https://github.com/nariman7596/financemanager-web.git
+cd financemanager-web
+cp .env.docker.example .env
+nano .env          # DB_PASSWORD / AUTH_SECRET / CRON_SECRET
+
+docker compose -f docker-compose.ghcr.yml pull
+docker compose -f docker-compose.ghcr.yml up -d
+```
+
+**بروزرسانی از این به بعد** (به‌جای یک ساعت بیلد):
+```bash
+git pull
+docker compose -f docker-compose.ghcr.yml pull
+docker compose -f docker-compose.ghcr.yml up -d
+```
+
+> در ادامه‌ی این سند هر جا `docker-compose.private.yml` دیدی، اگر مسیرِ «۱-ب» را
+> رفته‌ای همان دستور را با `docker-compose.ghcr.yml` بزن.
 
 بررسی:
 ```bash

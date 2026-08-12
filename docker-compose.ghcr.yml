@@ -1,0 +1,76 @@
+# Private-only stack that PULLS a prebuilt image instead of building on the box.
+#
+# Same isolation as docker-compose.private.yml — the app binds to 127.0.0.1 and
+# Postgres is never published — but the image comes from GHCR, built by
+# .github/workflows/build-image.yml on GitHub's runners.
+#
+# Use this on a small VPS. A Next.js production build needs several GB of RAM;
+# a 1 vCPU / 1 GB server cannot finish one, while pulling a finished image takes
+# seconds. Running the app is cheap (~250 MB) — only building is expensive.
+#
+#   docker compose -f docker-compose.ghcr.yml pull
+#   docker compose -f docker-compose.ghcr.yml up -d
+#
+# Update later: re-run those two commands. No rebuild, no downtime to speak of.
+# See docs/DEPLOY-PRIVATE.md.
+name: financemanager
+
+services:
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: fm
+      POSTGRES_PASSWORD: ${DB_PASSWORD:?set DB_PASSWORD in .env}
+      POSTGRES_DB: financemanager
+    volumes:
+      - db-data:/var/lib/postgresql/data
+    networks: [internal]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U fm -d financemanager"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  app:
+    # Built and published by GitHub Actions. Override the tag with IMAGE_TAG in
+    # .env to pin a specific build (the workflow also tags each commit sha).
+    image: ghcr.io/nariman7596/financemanager-web:${IMAGE_TAG:-latest}
+    pull_policy: always
+    restart: unless-stopped
+    environment:
+      DATABASE_URL: postgresql://fm:${DB_PASSWORD}@db:5432/financemanager?schema=public
+      # Self-hosted Postgres is not pooled, so the direct URL is the same one.
+      DIRECT_URL: postgresql://fm:${DB_PASSWORD}@db:5432/financemanager?schema=public
+      AUTH_SECRET: ${AUTH_SECRET:?set AUTH_SECRET in .env}
+      CRON_SECRET: ${CRON_SECRET:?set CRON_SECRET in .env}
+      STOCK_API_KEY: ${STOCK_API_KEY:-}
+      # Set COOKIE_SECURE=false in .env when reaching the app over plain HTTP at
+      # a VPN/LAN address. Not needed for an SSH tunnel to localhost.
+      COOKIE_SECURE: ${COOKIE_SECURE:-true}
+    ports:
+      # Loopback only — the port does not exist on any public interface.
+      - "127.0.0.1:3000:3000"
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      internal:
+        aliases: [financemanager]
+
+  cron:
+    # Tiny alpine+curl image; cheap enough to build anywhere, including here.
+    build: ./deploy/cron
+    restart: unless-stopped
+    environment:
+      CRON_SECRET: ${CRON_SECRET:?set CRON_SECRET in .env}
+    depends_on:
+      app:
+        condition: service_started
+    networks: [internal]
+
+volumes:
+  db-data:
+
+networks:
+  internal:
