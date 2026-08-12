@@ -24,6 +24,75 @@ Demo logins (same household, different roles):
 - **demo@financemanager.app / demo1234** — OWNER
 - **partner@financemanager.app / demo1234** — MEMBER
 
+## Deployment — live and self-hosted (READ THIS FIRST)
+
+Running privately on the owner's own VPS. Nothing about it is exposed to the
+internet, and there are two constraints worth knowing before changing anything.
+
+**The server cannot build this app.** 1 vCPU / 961 MB RAM. A Next.js production
+build needs several GB — it thrashed for an hour and the OOM killer took down
+sshd. So `.github/workflows/build-image.yml` builds on GitHub's runners and
+publishes to `ghcr.io/nariman7596/financemanager-web:latest`, and the server
+only pulls. Deploy is `docker compose -f docker-compose.ghcr.yml pull && … up -d`,
+about 30 seconds. **Never suggest building on that server.** (2 GB swap was
+added as a runtime safety net; running the app costs ~250 MB.)
+
+**443 is taken by an Xray/Reality VPN, and the app is deliberately private.**
+`docker-compose.private.yml` / `docker-compose.ghcr.yml` bind the app to
+`127.0.0.1:3000` only — no domain, no DNS record, no certificate in the public
+Certificate Transparency logs, no open port. Access is over an SSH tunnel.
+Note that Docker publishes ports *past* ufw (it writes its own iptables chain),
+so the `127.0.0.1:` prefix is the only thing that actually keeps it closed.
+
+Session cookies are `Secure`, which browsers withhold over plain `http://` —
+this silently bounced logins back to the login page. `http://localhost` counts
+as a secure context so SSH tunnels work; reaching the app at a VPN/LAN address
+needs `COOKIE_SECURE=false`, which is only acceptable because nothing is
+internet-facing. See `docs/DEPLOY-PRIVATE.md`.
+
+Backups: `deploy/backup.sh` nightly via cron, `deploy/restore.sh` to restore
+(restore has been tested end to end). Do **not** replace it with the usual
+`pg_dump | gzip && find -delete` one-liner — a failed dump still writes a valid
+empty archive, so the prune step deletes the good backups. See `docs/BACKUP.md`.
+
+## Persian localisation — the parts that are not UI strings
+
+The dictionaries were already complete, so what still read as English came from
+three places that bypass `t()` entirely. Each is fixed differently, and the
+reasoning matters if you touch them:
+
+- **Dates** — `formatDate(date, locale)` renders through the Persian calendar
+  for `fa` (native `Intl`, no library). Display only: storage, queries,
+  scheduling and CSV export stay Gregorian. Formatted in **UTC** deliberately —
+  these values come from date inputs at midnight UTC, and a +03:30 zone would
+  shift late-day dates onto the next day.
+
+- **Month periods** — `src/lib/calendar.ts` switches between `date-fns` and
+  `date-fns-jalali` (pinned to the matching release) so "this month" means the
+  month the user actually lives in. This is a real bucketing change, not a
+  relabel: Mordad 1405 runs 23 July – 22 August, so labelling a Gregorian
+  August total مرداد would have misreported it. Boundaries, bucket keys and
+  labels must all come from the same calendar or rows land in the wrong bucket.
+
+- **Category and account names** — these are **rows the household owns**, not UI
+  strings. They are seeded in the user's language, and switching language
+  re-labels rows that still carry a seeded name (`relabelDefaults`). Anything
+  the user renamed or created is left alone, and ids are preserved so
+  transactions keep their category. Translating these at render would have left
+  the charts and CSV export in English.
+
+- **Date inputs** — `<input type="date">` is the browser's own control and is
+  always Gregorian. `src/components/DateField.tsx` renders Jalali day/month/year
+  selects for `fa` and submits a Gregorian `yyyy-MM-dd` through a hidden input,
+  so server actions and validation are unchanged. It has both an uncontrolled
+  (form) and a controlled (Reports range picker) mode. Month lengths are handled
+  properly, including Esfand being 29 or 30 days by leap year.
+
+Currency: **toman (IRT)** was added. It has no ISO code, so `Intl` renders it as
+the literal "IRT" — `formatMoney` formats it directly instead — and no FX feed
+quotes it, so its rate is derived from IRR (exactly 10 rial to the toman) rather
+than being left silently absent.
+
 ## Deploy
 Postgres everywhere via Docker. Three guides:
 - **`docs/DOCKER.md`** — primary, ELI5: Docker on a VPS with per-project
@@ -230,6 +299,16 @@ refresh**, **recurring auto-posting**, **CSV import/export**, **dark mode**,
    "last month" as time passes; consider seeding into the current month.
 
 ## Recently done
+- **Persian localisation completed + private self-hosted deploy** (this session):
+  Jalali dates end to end (display, month bucketing, entry forms, reports range
+  filter), toman currency, Persian seeded categories, translated date-range
+  presets. Deployed privately behind an SSH tunnel with CI-built images and
+  verified backups. Eight real deployment blockers were found and fixed along
+  the way — a missing initial Prisma migration (the deploy "succeeded" onto an
+  empty database), a missing `directUrl`, two wrong clone paths in the docs, the
+  `Secure` cookie bouncing logins, a build the server could not run, a backup
+  one-liner that could delete its own backups, and a stale lockfile that broke
+  CI. See the sections above for the reasoning behind each choice.
 - **Persian translation + language switcher (i18n)** (this commit): cookie + per-user
   `User.locale`; `src/lib/i18n/` (config, en/fa dictionaries, `createT`, server `getT`,
   client `I18nProvider`/`useT`); `LanguageSwitcher` on login/register + sidebar + settings;
@@ -308,8 +387,16 @@ Lives in its own repo **`nariman7596/financemanager-web`**, default branch
 a Mac in VS Code + Docker (see `docs/WORKFLOW.md`).
 
 ## On return
-- Working tree is clean; everything committed and pushed to `main`
-  (`3710dbf`). `npm audit` is 0 vulnerabilities.
+- Working tree is clean; everything committed and pushed to `main`.
+- **Verify before pushing.** CI builds the image the server runs, so a red build
+  means the server silently keeps the old one — that happened twice this
+  session. Run `npx tsc --noEmit` *and* `npm run build` locally first.
+- Open: 3 dependabot advisories (2 high) on the default branch. Recurring-rule
+  scheduling still advances by Gregorian month — it runs from a background job
+  with no user to take a locale from, so making it calendar-aware needs a
+  decision about where that calendar is stored (probably on the rule itself).
+  A Jalali `from > to` in the Reports filter falls back to the preset silently,
+  since selects cannot express the native input's min/max.
 - Bank sync (Plaid) just landed but is sandbox-only and unverified live — get
   free sandbox keys at dashboard.plaid.com, set `PLAID_CLIENT_ID`/
   `PLAID_SECRET`/`PLAID_ENV=sandbox`/`TOKEN_ENCRYPTION_KEY` in `.env`, then
