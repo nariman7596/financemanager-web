@@ -1,9 +1,11 @@
-import { PrismaClient } from "@prisma/client";
 import bcrypt from "bcryptjs";
 import { seedDefaultCategories } from "../src/defaults";
 
 
-const prisma = new PrismaClient();
+// The SHARED client, not a fresh PrismaClient: a client built here would
+// bypass the field-encryption extension and write descriptions to disk in
+// plain text. That is exactly what it did until someone looked at the table.
+import { prisma } from "../src/client";
 
 // Starter FX rates (quote per 1 base). Approximate — a real deployment refreshes
 // these from an FX API. Enough to make multi-currency work offline.

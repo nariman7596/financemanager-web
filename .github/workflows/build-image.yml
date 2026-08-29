@@ -56,6 +56,9 @@ jobs:
       DATABASE_URL: postgresql://fm:fm@127.0.0.1:5432/financemanager_test?schema=public
       DIRECT_URL: postgresql://fm:fm@127.0.0.1:5432/financemanager_test?schema=public
       AUTH_SECRET: ci-only-secret-not-used-for-any-deployment-0000
+      # 32 bytes of base64, CI-only. Real deployments generate their own with
+      # `openssl rand -base64 32` and keep it out of the repository.
+      TOKEN_ENCRYPTION_KEY: AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=
 
     steps:
       - name: Check out the repository

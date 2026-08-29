@@ -5,5 +5,5 @@
     // talks to Postgres. Node globals are legitimate here.
     "types": ["node"]
   },
-  "include": ["src/**/*.ts", "prisma/**/*.ts"]
+  "include": ["src/**/*.ts", "prisma/**/*.ts", "scripts/**/*.ts"]
 }

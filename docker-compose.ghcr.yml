@@ -44,6 +44,9 @@ services:
       DIRECT_URL: postgresql://fm:${DB_PASSWORD}@db:5432/financemanager?schema=public
       AUTH_SECRET: ${AUTH_SECRET:?set AUTH_SECRET in .env}
       CRON_SECRET: ${CRON_SECRET:?set CRON_SECRET in .env}
+      # Encrypts transaction descriptions/notes, raw SMS and Plaid tokens.
+      # NOT stored in the database — back it up separately (docs/ENCRYPTION.md).
+      TOKEN_ENCRYPTION_KEY: ${TOKEN_ENCRYPTION_KEY:?set TOKEN_ENCRYPTION_KEY in .env}
       STOCK_API_KEY: ${STOCK_API_KEY:-}
       # Set COOKIE_SECURE=false in .env when reaching the app over plain HTTP at
       # a VPN/LAN address. Not needed for an SSH tunnel to localhost.
@@ -78,6 +81,7 @@ services:
       DATABASE_URL: postgresql://fm:${DB_PASSWORD}@db:5432/financemanager?schema=public
       DIRECT_URL: postgresql://fm:${DB_PASSWORD}@db:5432/financemanager?schema=public
       AUTH_SECRET: ${AUTH_SECRET:?set AUTH_SECRET in .env}
+      TOKEN_ENCRYPTION_KEY: ${TOKEN_ENCRYPTION_KEY:?set TOKEN_ENCRYPTION_KEY in .env}
       API_PORT: 3001
     ports:
       - "${APP_BIND:-127.0.0.1}:3001:3001"

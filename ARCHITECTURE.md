@@ -853,9 +853,9 @@ Stated explicitly so they do not creep in:
 
 | # | Decision | Rationale | Status |
 | --- | --- | --- | --- |
-| D1 | Extract domain to `packages/core`; NestJS as a second transport, not a rewrite | Keeps the deployed app working; one implementation of the security core | **Awaiting approval** |
-| D2 | npm → pnpm | React Native breaks on duplicated `react-native` copies | **Awaiting approval** |
-| D3 | Encrypt narrative fields; leave amounts/dates queryable | Encrypting amounts forfeits all SQL aggregation | **Awaiting approval** |
+| D1 | Extract domain to `packages/core`; NestJS as a second transport, not a rewrite | Keeps the deployed app working; one implementation of the security core | **Approved, done in Phases 2–4.** Both transports resolve households through `packages/db/src/access.ts`. |
+| D2 | npm → pnpm | React Native breaks on duplicated `react-native` copies | **Approved, done in Phase 1.** |
+| D3 | Encrypt narrative fields; leave amounts/dates queryable | Encrypting amounts forfeits all SQL aggregation | **Approved, implemented in Phase 5.** Lives in `packages/db`, not `packages/core` as drafted: it needs `node:crypto`, which the boundary lint bans from core, and it is a server-at-rest concern. Mobile encrypts its local store with SQLCipher instead. |
 | D4 | Smart Paste primary; `READ_SMS` only if distributing outside Play | Google Play restricts `READ_SMS` and removed finance-SMS as an approved use case | **Awaiting decision on distribution** |
 | D5 | Watch the 961 MB memory budget; plan a possible bump before mobile launch | Adding the API costs ~120 MB on a box that cannot swap comfortably | Noted |
 | — | UUIDv7 for new rows, coexisting with existing `cuid()` | Offline creation needs client-minted ids; no migration required | Proposed |

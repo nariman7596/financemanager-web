@@ -86,6 +86,30 @@ browser stay at 0 and a sync pull (`revision > cursor`) would never see them.
 Nothing syncs yet, so no data is at risk, but Phase 6 must wire revision
 allocation into the web writes before the protocol goes live.
 
+## Encryption at rest (docs/ENCRYPTION.md)
+
+Envelope encryption: a per-household DEK encrypts the rows, the DEK is stored
+wrapped by `TOKEN_ENCRYPTION_KEY`. Applied by a Prisma client **extension**
+(`packages/db/src/encryption.extension.ts`), so every consumer gets it for free.
+
+Covered: `Transaction.description/notes/rawSms`, `PlaidItem.accessToken`.
+NOT covered, deliberately: amounts, dates, category/account ids — every report
+depends on aggregating those in SQL (ARCHITECTURE.md D3).
+
+- Ciphertext is `fm1:<householdId>:<iv>:<tag>:<data>`. The household id is in
+  the header so a value decrypts from itself — that is what makes nested
+  `include`s work.
+- Non-ciphertext passes through unchanged, so encryption can be deployed first
+  and `pnpm encrypt:backfill` run afterwards. The backfill is idempotent.
+- `pnpm key:rotate` re-wraps the DEKs; row data is never rewritten.
+- ⚠️ **Never construct a `PrismaClient` anywhere but `packages/db/src/client.ts`.**
+  Doing so bypasses the extension and writes plain text to disk — the demo seed
+  did exactly that until it was caught. A test now fails if a second
+  construction appears.
+- ⚠️ `TOKEN_ENCRYPTION_KEY` is NOT in the database, so a dump does not contain
+  it. Losing it loses every encrypted field permanently. It belongs in the
+  backup runbook.
+
 ## Stack
 - Next.js 15 (App Router) + TypeScript
 - Prisma ORM — **PostgreSQL everywhere** (dev + prod), run via Docker

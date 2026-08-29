@@ -1,3 +1,10 @@
+> **Before anything else: back up `TOKEN_ENCRYPTION_KEY` separately.**
+> It lives in `.env`, NOT in the database, so a database dump does not contain
+> it — and without it every encrypted field (descriptions, notes, bank
+> messages, Plaid tokens) is unrecoverable. A restore onto a server with the
+> wrong key fails loudly rather than silently blanking the fields. See
+> [ENCRYPTION.md](ENCRYPTION.md).
+
 # بکاپ و بازگردانی
 
 دادهٔ مالی‌ات فقط روی یک سرور است. بدونِ بکاپ، یک دیسکِ خراب یا یک `docker compose

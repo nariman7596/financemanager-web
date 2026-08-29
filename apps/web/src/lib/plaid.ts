@@ -8,7 +8,6 @@ import {
   type Transaction as PlaidTransaction,
 } from "plaid";
 import { prisma } from "@financemanager/db";
-import { encrypt, decrypt } from "./crypto";
 import { TRANSACTION_TYPES } from "@financemanager/core/constants";
 
 // ---------------------------------------------------------------------------
@@ -98,7 +97,7 @@ export async function exchangePublicToken(
         householdId,
         createdById,
         itemId,
-        accessToken: encrypt(accessToken),
+        accessToken,
         institutionName,
       },
     });
@@ -138,7 +137,7 @@ export async function removePlaidItem(plaidItemDbId: string): Promise<void> {
   if (!item) return;
   if (plaidConfigured()) {
     try {
-      await client().itemRemove({ access_token: decrypt(item.accessToken) });
+      await client().itemRemove({ access_token: item.accessToken });
     } catch {
       // Best-effort revoke; still remove our record either way.
     }
@@ -189,7 +188,8 @@ export async function syncTransactionsForItem(item: {
 }): Promise<ItemSyncResult> {
   const result: ItemSyncResult = { added: 0, modified: 0, removed: 0 };
   try {
-    const accessToken = decrypt(item.accessToken);
+    // Decrypted transparently by the field-encryption extension.
+    const accessToken = item.accessToken;
 
     const linkedAccounts = await prisma.account.findMany({
       where: { plaidItemId: item.id },
