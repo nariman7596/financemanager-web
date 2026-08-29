@@ -249,10 +249,10 @@ financemanager/
 │   ├── ui/                      # design tokens; RN + web primitives (added Phase 8)
 │   └── config/                  # shared tsconfig / eslint / tailwind / jest presets
 │
-├── infra/
-│   ├── docker/                  # compose files (dev, private, ghcr), entrypoints
-│   ├── proxy/                   # Caddy
-│   └── backup/                  # backup.sh / restore.sh
+├── deploy/                      # Caddy, cron container, backup.sh / restore.sh
+├── docker-compose.{dev,private,ghcr}.yml
+├── Dockerfile                   # builds apps/web
+├── docker-entrypoint.sh
 │
 ├── docs/                        # existing deployment + workflow guides
 ├── ARCHITECTURE.md
@@ -260,6 +260,14 @@ financemanager/
 ├── turbo.json
 └── pnpm-workspace.yaml
 ```
+
+**Why the deployment files stay at the repository root.** An earlier draft of
+this document put them under `infra/`. They are not: the VPS holds a git clone
+and deploys with `docker compose -f docker-compose.ghcr.yml pull` from the
+repository root, and `docs/DEPLOY-PRIVATE.md` (in Persian) documents that path
+throughout. Moving them would break the deploy command on the next `git pull`
+for a purely cosmetic gain. File paths that an operator types are a production
+interface, so they are treated like one.
 
 **Dependency rule (enforced by lint):** `packages/core` imports nothing from
 `apps/*`. `apps/*` may import from `packages/*`. `packages/core` must stay
@@ -758,7 +766,7 @@ Already solved; the work is extraction, not design.
 ## 8. Development environment (Mac Mini + Linux laptop)
 
 ```
-docker compose -f infra/docker/compose.dev.yml up -d   # Postgres :5432
+docker compose -f docker-compose.dev.yml up -d          # Postgres :5432
 pnpm install
 pnpm db:push && pnpm db:seed
 pnpm dev                                               # turbo runs web + api + expo

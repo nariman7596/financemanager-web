@@ -1,17 +1,21 @@
 # dependencies
-/node_modules
-/.pnp
+node_modules
+.pnp
 .pnp.js
 
 # testing
-/coverage
+coverage
 
 # next.js
-/.next/
-/out/
+.next/
+out/
+
+# turborepo
+.turbo
 
 # production
-/build
+build
+dist
 
 # misc
 .DS_Store
@@ -21,15 +25,15 @@
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
+pnpm-debug.log*
 
 # local env files
 .env
 .env*.local
 
-# database (SQLite dev files)
-/prisma/*.db
-/prisma/*.db-journal
-/prisma/dev.db*
+# database (stray local SQLite files from before the Postgres-everywhere move)
+*.db
+*.db-journal
 
 # typescript
 *.tsbuildinfo

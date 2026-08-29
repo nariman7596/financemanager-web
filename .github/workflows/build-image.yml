@@ -23,7 +23,38 @@ env:
   IMAGE_NAME: ${{ github.repository }}
 
 jobs:
+  # Typecheck and lint before spending time on an image build.
+  #
+  # This gate exists because a failed build is SILENT in production: the VPS
+  # only ever pulls `:latest`, so when CI goes red the server keeps serving the
+  # previous image and nothing announces that the deploy did not happen. That
+  # has bitten this project twice. Catching it here costs about a minute.
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out the repository
+        uses: actions/checkout@v4
+
+      - name: Set up pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Typecheck
+        run: pnpm typecheck
+
+      - name: Lint
+        run: pnpm lint
+
   build:
+    needs: verify
     runs-on: ubuntu-latest
     permissions:
       contents: read

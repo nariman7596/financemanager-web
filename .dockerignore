@@ -1,14 +1,18 @@
 # Keep the build context small and secret-free.
 node_modules
+**/node_modules
 .next
+**/.next
+.turbo
+**/.turbo
 .git
 .gitignore
 .env
 .env*.local
-prisma/*.db
-prisma/*.db-journal
-prisma/dev.db*
+**/*.db
+**/*.db-journal
 npm-debug.log*
+pnpm-debug.log*
 .vscode
 .DS_Store
 docs

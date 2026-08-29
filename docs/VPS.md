@@ -54,12 +54,12 @@ postgresql://fm:CHANGE_ME_STRONG@localhost:5432/financemanager?schema=public
 sudo -iu fm            # become the app user
 git clone https://github.com/nariman7596/financemanager-web.git
 cd financemanager-web
-npm ci
+pnpm install --frozen-lockfile
 ```
 
 ## 5. Prisma is already on PostgreSQL
 
-`prisma/schema.prisma` ships with `provider = "postgresql"` — nothing to change.
+`apps/web/prisma/schema.prisma` ships with `provider = "postgresql"` — nothing to change.
 `DATABASE_URL` (next step) points it at your local Postgres.
 
 ## 6. Environment file
@@ -94,15 +94,15 @@ The repo ships versioned migrations, so apply those — they are safe to re-run
 and safe once you have real data (unlike `db push`):
 
 ```bash
-npm run db:migrate:deploy   # creates/updates all tables in Postgres
-npm run db:seed          # OPTIONAL: demo household + exchange rates
-npm run build            # production build
+pnpm db:migrate:deploy   # creates/updates all tables in Postgres
+pnpm db:seed          # OPTIONAL: demo household + exchange rates
+pnpm build            # production build
 ```
 
 Quick smoke test before wiring up services:
 
 ```bash
-npm start &              # starts on http://localhost:3000
+pnpm start &              # starts on http://localhost:3000
 curl -I http://localhost:3000/login    # expect HTTP 200
 kill %1
 ```
@@ -120,10 +120,14 @@ After=network.target postgresql.service
 [Service]
 Type=simple
 User=fm
-WorkingDirectory=/home/fm/financemanager-web
+WorkingDirectory=/home/fm/financemanager-web/apps/web
 Environment=NODE_ENV=production
 Environment=PORT=3000
-ExecStart=/usr/bin/npm start
+# systemd needs a real absolute path, and pnpm installed through corepack is
+# NOT at /usr/bin/pnpm — its location varies per machine. Calling the app's own
+# Next binary avoids the package manager entirely (the Docker image does the
+# same thing, for the same reason).
+ExecStart=/home/fm/financemanager-web/apps/web/node_modules/.bin/next start
 Restart=on-failure
 RestartSec=5
 
@@ -264,9 +268,9 @@ per project — no shared Node, no shared Postgres, nothing to collide.
 sudo -iu fm
 cd financemanager-web
 git pull
-npm ci
-npm run db:migrate:deploy   # applies any new migrations
-npm run build
+pnpm install --frozen-lockfile
+pnpm db:migrate:deploy   # applies any new migrations
+pnpm build
 exit
 sudo systemctl restart financemanager
 ```

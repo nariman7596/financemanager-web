@@ -71,11 +71,11 @@ each window/terminal is scoped to its own repo.
    ```bash
    docker compose -f docker-compose.dev.yml up -d
    ```
-3. First time only: `npm install`, `cp .env.example .env`, `npm run db:push`,
-   `npm run db:seed` (optional).
+3. First time only: `pnpm install`, `cp .env.example .env`, `pnpm db:push`,
+   `pnpm db:seed` (optional).
 4. Run the app with hot-reload:
    ```bash
-   npm run dev            # http://localhost:3000
+   pnpm dev            # http://localhost:3000
    ```
 5. Edit — by hand in the editor, or by asking **Claude Code** in the terminal /
    panel. Changes hot-reload in the browser.
@@ -88,7 +88,7 @@ each window/terminal is scoped to its own repo.
 
 ## Tips
 
-- **Two terminals** help: one running `npm run dev` (leave it going), one for
+- **Two terminals** help: one running `pnpm dev` (leave it going), one for
   Claude Code / git. Click the `+` in VS Code's terminal panel for a second one.
 - **Stop the local DB** when done for the day: `docker compose -f docker-compose.dev.yml down`
   (your data stays in the volume).

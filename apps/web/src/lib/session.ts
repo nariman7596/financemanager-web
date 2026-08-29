@@ -28,7 +28,7 @@ export type { SessionPayload } from "./jwt";
  * from the internet, set `COOKIE_SECURE=false`. Do not set it on a
  * publicly-reachable instance: the session token would travel in clear text.
  */
-function useSecureCookie(): boolean {
+function shouldUseSecureCookie(): boolean {
   if (process.env.COOKIE_SECURE === "false") return false;
   return process.env.NODE_ENV === "production";
 }
@@ -39,7 +39,7 @@ export async function setSessionCookie(payload: SessionPayload) {
   const store = await cookies();
   store.set(SESSION_COOKIE_NAME, token, {
     httpOnly: true,
-    secure: useSecureCookie(),
+    secure: shouldUseSecureCookie(),
     sameSite: "lax",
     path: "/",
     maxAge: MAX_AGE_SECONDS,

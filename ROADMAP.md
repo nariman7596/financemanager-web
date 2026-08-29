@@ -40,7 +40,9 @@ single line of application behavior**.
 2. Move the app: `src/`, `prisma/`, configs → `apps/web/`.
 3. Add `turbo.json` with the `dev` / `build` / `typecheck` / `test` pipelines.
 4. Create `packages/config` (shared tsconfig, eslint, tailwind, vitest presets).
-5. Move Docker/Caddy/backup files to `infra/`, fixing every path reference.
+5. Leave the deployment entry points (`Dockerfile`, `docker-compose*.yml`,
+   `docker-entrypoint.sh`, `deploy/`) at the repository root — the VPS deploys
+   from a clone by those exact paths, so an `infra/` move would break it.
 6. Update `Dockerfile` and `.github/workflows/build-image.yml` for the new
    layout and pnpm.
 

@@ -1,0 +1,5 @@
+# Turborepo workspace. See ARCHITECTURE.md §2 for the intended layout and the
+# dependency rule (packages/* must never import from apps/*).
+packages:
+  - "apps/*"
+  - "packages/*"

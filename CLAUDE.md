@@ -3,21 +3,40 @@
 Multi-user, multi-currency personal finance web app. Track income, expenses,
 budgets, and investments with full control over money flows.
 
+## Repo layout — pnpm + Turborepo workspace
+The app used to be a single package at the repo root; it now lives in
+`apps/web/`. Shared tsconfig/tailwind/eslint live in `packages/config`. See
+`ARCHITECTURE.md` for the target layout and `ROADMAP.md` for the phase plan.
+
+Deployment entry points (`docker-compose*.yml`, `Dockerfile`,
+`docker-entrypoint.sh`, `deploy/`) stay at the **repo root** on purpose: the
+VPS runs `docker compose -f docker-compose.ghcr.yml pull` from a clone, so
+moving them would break the deploy command on the next `git pull`.
+
+Package manager is **pnpm**, pinned by `packageManager` in the root
+package.json (`corepack enable` gives you the right version). npm's hoisting
+duplicates `react`/`react-native`, which React Native does not survive.
+
+Nothing calls pnpm at runtime: the Docker entrypoint and the systemd unit both
+invoke `node_modules/.bin/next` directly, because `corepack enable` only
+installs shims and would fetch the real binary from the registry on first use —
+turning every container start into a network dependency.
+
 ## Stack
 - Next.js 15 (App Router) + TypeScript
 - Prisma ORM — **PostgreSQL everywhere** (dev + prod), run via Docker
 - Tailwind CSS · Recharts · lucide-react · zod
 - Auth: custom signed httpOnly JWT sessions (`jose` + `bcryptjs`), no third-party
-  auth service. Route protection in `src/middleware.ts`.
+  auth service. Route protection in `apps/web/src/middleware.ts`.
 
 ## Run it (local dev)
 ```bash
 docker compose -f docker-compose.dev.yml up -d   # local Postgres on :5432
-npm install
+pnpm install
 cp .env.example .env      # DATABASE_URL already points at the dev DB
-npm run db:push           # create schema  (set AUTH_SECRET too: openssl rand -base64 32)
-npm run db:seed           # optional demo data
-npm run dev               # http://localhost:3000
+pnpm db:push           # create schema  (set AUTH_SECRET too: openssl rand -base64 32)
+pnpm db:seed           # optional demo data
+pnpm dev               # http://localhost:3000
 ```
 Full container/VPS guide: `docs/DOCKER.md`.
 Demo logins (same household, different roles):
@@ -67,7 +86,7 @@ reasoning matters if you touch them:
   these values come from date inputs at midnight UTC, and a +03:30 zone would
   shift late-day dates onto the next day.
 
-- **Month periods** — `src/lib/calendar.ts` switches between `date-fns` and
+- **Month periods** — `apps/web/src/lib/calendar.ts` switches between `date-fns` and
   `date-fns-jalali` (pinned to the matching release) so "this month" means the
   month the user actually lives in. This is a real bucketing change, not a
   relabel: Mordad 1405 runs 23 July – 22 August, so labelling a Gregorian
@@ -82,7 +101,7 @@ reasoning matters if you touch them:
   the charts and CSV export in English.
 
 - **Date inputs** — `<input type="date">` is the browser's own control and is
-  always Gregorian. `src/components/DateField.tsx` renders Jalali day/month/year
+  always Gregorian. `apps/web/src/components/DateField.tsx` renders Jalali day/month/year
   selects for `fa` and submits a Gregorian `yyyy-MM-dd` through a hidden input,
   so server actions and validation are unchanged. It has both an uncontrolled
   (form) and a controlled (Reports range picker) mode. Month lengths are handled
@@ -110,25 +129,25 @@ Cron: hit the `CRON_SECRET`-guarded `/api/cron/recurring` + `/refresh` +
 
 ## Conventions
 - "enum-like" fields are `String` (kept portable rather than DB enums), with
-  allowed values in `src/lib/constants.ts` and enforced by zod in
-  `src/lib/validation.ts`.
+  allowed values in `apps/web/src/lib/constants.ts` and enforced by zod in
+  `apps/web/src/lib/validation.ts`.
 - **Ownership = Household, not User.** Every owned model has `householdId`
   (scoping) + `createdById` (informational). Server Actions call
   `checkHousehold(minRole)` and pages call `requireHousehold()` — both from
-  `src/lib/household.ts` — then scope ALL queries by the returned `householdId`.
+  `apps/web/src/lib/household.ts` — then scope ALL queries by the returned `householdId`.
   Never query owned data by a householdId that didn't come from that layer.
-  Role ranks (src/lib/roles.ts): VIEWER < MEMBER < ADMIN < OWNER. Writes need
+  Role ranks (apps/web/src/lib/roles.ts): VIEWER < MEMBER < ADMIN < OWNER. Writes need
   MEMBER; member management needs ADMIN.
 - Money handled as Prisma `Decimal`; convert to number with `toNumber()`.
-- Multi-currency conversion via `src/lib/currency.ts` using the `ExchangeRate`
+- Multi-currency conversion via `apps/web/src/lib/currency.ts` using the `ExchangeRate`
   table; dashboards convert everything into the user's `baseCurrency`.
 - **Reports / date ranges:** range-based query cores in `queries.ts`
   (`getFlowInRange`, `getSeriesInRange`, `getCategoryBreakdown`,
   `getMemberBreakdown`); the month-based dashboard helpers (`getMonthlyFlow`,
   `getSpendingByCategory`, `getSpendingByMember`) are thin wrappers over them.
-  `src/lib/dateRange.ts` (pure) resolves `?preset=/from=/to=` params into a
+  `apps/web/src/lib/dateRange.ts` (pure) resolves `?preset=/from=/to=` params into a
   concrete range. `/reports` page + `DateRangePicker`. Transaction export takes
-  optional `?from&to`. **Report export:** `src/lib/reportCsv.ts` (pure) builds a
+  optional `?from&to`. **Report export:** `apps/web/src/lib/reportCsv.ts` (pure) builds a
   multi-section summary CSV (totals + category + per-member breakdowns); served
   by `/api/export/report?preset=|from&to`. Reports page has Summary + Transactions
   export buttons.
@@ -138,21 +157,21 @@ Cron: hit the `CRON_SECRET`-guarded `/api/cron/recurring` + `/refresh` +
   value must wrap it in a void closure (see `DeleteButton`, `PriceForm`).
 - `cookies()` is async in Next 15 — always `await` it.
 
-## Data model (prisma/schema.prisma)
+## Data model (apps/web/prisma/schema.prisma)
 User · Household · Membership (role) · Invitation · Account · Category ·
 Transaction (INCOME/EXPENSE/TRANSFER) · Budget · Investment · ExchangeRate ·
 PlaidItem. Owned models belong to a Household (`householdId`). New users get
 their own household (OWNER) with default categories + a Cash account via
-`createHousehold` in `src/lib/defaults.ts`.
+`createHousehold` in `apps/web/src/lib/defaults.ts`.
 
-## Households & roles (`src/lib/household.ts`)
+## Households & roles (`apps/web/src/lib/household.ts`)
 - `getActiveContext()` resolves the caller's active household from the
   `fm_household` cookie **verified against a real Membership** (falls back to
   their first membership if the cookie is missing/forged — a forged cookie to a
   household you don't belong to grants nothing).
 - `requireHousehold(minRole)` (pages, redirects/throws) and
   `checkHousehold(minRole)` (actions, returns `{ctx}|{error}`) are the gates.
-- Household mgmt actions in `src/app/actions/household.ts`: invite (existing
+- Household mgmt actions in `apps/web/src/app/actions/household.ts`: invite (existing
   user → instant membership; new email → pending Invitation accepted on
   signup), change role, remove, cancel invite, switch active household, create,
   leave, accept/decline, **transfer ownership**, **delete household**. Guards:
@@ -187,7 +206,7 @@ refresh**, **recurring auto-posting**, **CSV import/export**, **dark mode**,
 - Prefer theme tokens over hardcoded `bg-white`/`bg-slate-*`/`text-slate-600`
   for new surfaces so they work in both themes. (slate-400/500 muted text is
   left as-is; it reads fine on dark.)
-- **Charts** (Recharts) can't use CSS vars for SVG colors, so `src/lib/useIsDark.ts`
+- **Charts** (Recharts) can't use CSS vars for SVG colors, so `apps/web/src/lib/useIsDark.ts`
   (MutationObserver on `<html>.dark`) + `chartTheme(dark)` drive grid/axis/
   tooltip/legend colors; charts re-theme live on toggle.
 
@@ -196,7 +215,7 @@ refresh**, **recurring auto-posting**, **CSV import/export**, **dark mode**,
   persisted per user via `User.locale` (default `en`). `getActiveContext`/auth are
   unaffected; the cookie is the source of truth for rendering, and login copies the
   user's saved `locale` onto the cookie.
-- `src/lib/i18n/`: `config.ts` (locales, `LOCALE_COOKIE`, `dirFor`, `isLocale`,
+- `apps/web/src/lib/i18n/`: `config.ts` (locales, `LOCALE_COOKIE`, `dirFor`, `isLocale`,
   `LOCALE_NAMES`), `dictionaries/en.ts` + `fa.ts` (flat, namespaced keys — MUST stay
   key-symmetric), `translate.ts` (`createT(locale)` → `t(key, vars?)` with `{var}`
   interpolation + English fallback), `server.ts` (`getLocale`/`getT`, reads the cookie),
@@ -216,15 +235,15 @@ refresh**, **recurring auto-posting**, **CSV import/export**, **dark mode**,
 - Export: `GET /api/export/transactions` (session-authed) streams all the user's
   transactions as CSV. Columns: date,type,amount,currency,account,category,
   transferAccount,description.
-- Import: `src/lib/importer.ts` `importTransactionsForUser(userId, csvText)` is
+- Import: `apps/web/src/lib/importer.ts` `importTransactionsForUser(userId, csvText)` is
   the pure, testable core (parse → resolve/auto-create accounts+categories →
   createMany); the `importTransactions` Server Action wraps it with requireUser
   + file read + revalidation. Unknown accounts/categories are auto-created;
   invalid rows are skipped with per-row errors. Round-trips with the exporter.
-- `src/lib/csv.ts` = dependency-free RFC-4180-ish parse/serialize.
+- `apps/web/src/lib/csv.ts` = dependency-free RFC-4180-ish parse/serialize.
 - UI: Export link + Import modal (`ImportForm`) on the Transactions page.
 
-## Recurring auto-posting (`src/lib/recurring.ts`)
+## Recurring auto-posting (`apps/web/src/lib/recurring.ts`)
 - `RecurringTransaction` model = a rule/template (type, account(s), category,
   amount, currency, frequency, interval, startDate, nextRunDate, endDate?,
   isActive). Generated `Transaction`s link back via `Transaction.recurringId`.
@@ -241,7 +260,7 @@ refresh**, **recurring auto-posting**, **CSV import/export**, **dark mode**,
   nothing); recurrence is now this dedicated feature. `Transaction.isRecurring/
   recurrence` columns remain but are unused/legacy.
 
-## Live market data (`src/lib/marketdata.ts`)
+## Live market data (`apps/web/src/lib/marketdata.ts`)
 - Keyless defaults: FX via open.er-api.com (USD-based), crypto via CoinGecko.
   Stocks optional via `STOCK_API_KEY` (Finnhub). All URLs overridable by env.
 - `refreshAll(userId?)` → `refreshFxRates` (stores USD->X for all supported
@@ -255,7 +274,7 @@ refresh**, **recurring auto-posting**, **CSV import/export**, **dark mode**,
   so the live fetch can't run here; verified end-to-end against a localhost mock
   (fetch→parse→store→update all correct) + graceful-failure + cron auth gating.
 
-## Bank sync (`src/lib/plaid.ts`)
+## Bank sync (`apps/web/src/lib/plaid.ts`)
 - `PlaidItem` = one linked bank connection (encrypted `accessToken`, cursor,
   status). An `Account` opts in via `source="PLAID"` + `plaidItemId`/
   `plaidAccountId` — sync merges into that **existing** Account rather than
@@ -271,7 +290,7 @@ refresh**, **recurring auto-posting**, **CSV import/export**, **dark mode**,
 - `refreshBankSync(householdId?)` fans that out over every `PlaidItem` in
   scope. Triggers: **Sync now** button (`BankSyncButton`) and scheduled
   `GET/POST /api/cron/bank-sync` (guarded by `CRON_SECRET`, all households).
-- `src/lib/crypto.ts`: AES-256-GCM `encrypt`/`decrypt`, keyed by
+- `apps/web/src/lib/crypto.ts`: AES-256-GCM `encrypt`/`decrypt`, keyed by
   `TOKEN_ENCRYPTION_KEY` — the only encrypted-at-rest field in this schema,
   since a Plaid access token is a live bank credential.
 - Whole feature no-ops gracefully (UI hidden, cron returns an empty summary)
@@ -310,7 +329,7 @@ refresh**, **recurring auto-posting**, **CSV import/export**, **dark mode**,
   one-liner that could delete its own backups, and a stale lockfile that broke
   CI. See the sections above for the reasoning behind each choice.
 - **Persian translation + language switcher (i18n)** (this commit): cookie + per-user
-  `User.locale`; `src/lib/i18n/` (config, en/fa dictionaries, `createT`, server `getT`,
+  `User.locale`; `apps/web/src/lib/i18n/` (config, en/fa dictionaries, `createT`, server `getT`,
   client `I18nProvider`/`useT`); `LanguageSwitcher` on login/register + sidebar + settings;
   root layout drives `lang`/`dir` (Persian = RTL). Every page/form/component wired to `t()`;
   enum labels translated by value. Verified: prod build clean, full `tsc` clean, en/fa
@@ -319,9 +338,9 @@ refresh**, **recurring auto-posting**, **CSV import/export**, **dark mode**,
   `locale` column (default `en`, so no backfill).
 - **Bank sync (Plaid, sandbox)** (commit `1534122`): `PlaidItem` model +
   `Account.source/plaidItemId/plaidAccountId` +
-  `Transaction.plaidTransactionId/pending`; `src/lib/plaid.ts` (Link token, exchange,
+  `Transaction.plaidTransactionId/pending`; `apps/web/src/lib/plaid.ts` (Link token, exchange,
   cursor-based `/transactions/sync` upserting by `plaidTransactionId`) +
-  `src/lib/crypto.ts` (AES-256-GCM token encryption); `/api/cron/bank-sync`;
+  `apps/web/src/lib/crypto.ts` (AES-256-GCM token encryption); `/api/cron/bank-sync`;
   `banksync.ts` actions (ADMIN-gated linking, MEMBER-gated sync); `/accounts`
   page gained Connect-a-bank / Link-to-bank / Unlink / Sync-now, all hidden
   when unconfigured. Verified: build clean, 7-assertion mapping-logic suite
@@ -353,7 +372,7 @@ refresh**, **recurring auto-posting**, **CSV import/export**, **dark mode**,
 - **Ownership transfer + delete household**: OWNER can hand off
   ownership (target→OWNER, self→ADMIN) via `transferOwnershipTo`, and delete a
   household (cascade) via `deleteHouseholdFor` — both pure cores in
-  `src/lib/ownership.ts`, wrapped by OWNER-gated actions. Delete is blocked on
+  `apps/web/src/lib/ownership.ts`, wrapped by OWNER-gated actions. Delete is blocked on
   your only household. UI: "Make owner" per member + "Delete household" danger
   action, OWNER-only. Verified: 13-assertion suite (transfer effects + guards,
   cascade, last-household block) + owner-only control visibility by role.
@@ -390,7 +409,7 @@ a Mac in VS Code + Docker (see `docs/WORKFLOW.md`).
 - Working tree is clean; everything committed and pushed to `main`.
 - **Verify before pushing.** CI builds the image the server runs, so a red build
   means the server silently keeps the old one — that happened twice this
-  session. Run `npx tsc --noEmit` *and* `npm run build` locally first.
+  session. Run `pnpm typecheck` *and* `pnpm build` locally first.
 - Open: 3 dependabot advisories (2 high) on the default branch. Recurring-rule
   scheduling still advances by Gregorian month — it runs from a background job
   with no user to take a locale from, so making it calendar-aware needs a

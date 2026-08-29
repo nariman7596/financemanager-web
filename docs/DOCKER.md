@@ -65,10 +65,10 @@ and `deploy/proxy/` (the receptionist).
 4. **Configure + run the app** with hot-reload:
    ```bash
    cp .env.example .env        # DATABASE_URL already points at the local DB
-   npm install
-   npm run db:push             # create the tables
-   npm run db:seed             # optional demo household + rates
-   npm run dev                 # http://localhost:3000
+   pnpm install
+   pnpm db:push             # create the tables
+   pnpm db:seed             # optional demo household + rates
+   pnpm dev                 # http://localhost:3000
    ```
    Edit code in VS Code — the browser refreshes automatically.
 
@@ -250,5 +250,5 @@ cd ~/appb           && docker compose up -d
 
 > Note: this repo's Docker files were written and reviewed but not build-tested
 > in the authoring sandbox (no Docker there). The image simply wraps the
-> already-verified `npm run build`; if anything trips on first build, the logs
+> already-verified `pnpm build`; if anything trips on first build, the logs
 > (`docker compose logs -f`) will point right at it.

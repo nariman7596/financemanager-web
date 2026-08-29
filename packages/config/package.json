@@ -1,0 +1,16 @@
+{
+  "name": "@financemanager/config",
+  "version": "0.1.0",
+  "private": true,
+  "license": "UNLICENSED",
+  "files": ["tsconfig", "tailwind", "eslint"],
+  "exports": {
+    "./tsconfig/*": "./tsconfig/*",
+    "./tailwind/preset": "./tailwind/preset.ts",
+    "./eslint/next": "./eslint/next.js",
+    "./eslint/package": "./eslint/package.js"
+  },
+  "devDependencies": {
+    "tailwindcss": "^3.4.15"
+  }
+}

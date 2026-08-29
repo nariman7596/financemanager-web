@@ -61,7 +61,7 @@
 3. اولین کاربر، خانوارِ (household) خودش را می‌سازد و مالکِ آن است
 
 > 🌱 **دادهٔ نمونه لازم نداری** — اپ صفحه‌ی ثبت‌نام دارد. اگر بخواهی می‌توانی محلی
-> `npm run db:seed` بزنی، ولی برای استفاده‌ی واقعی لازم نیست.
+> `pnpm db:seed` بزنی، ولی برای استفاده‌ی واقعی لازم نیست.
 
 ### نصب روی گوشی
 آدرس را در مرورگرِ گوشی باز کن → منو → **Add to Home Screen**. حالا مثلِ یک اپِ واقعی است.
@@ -102,7 +102,7 @@
 
 1. **پوشه‌ی `migrations` وجود نداشت** — ولی `vercel.json` دستورِ `prisma migrate deploy`
    را اجرا می‌کرد. نتیجه: دیپلوی «موفق» می‌شد ولی **دیتابیس خالی می‌ماند** و اپ سرِ
-   اولین کوئری می‌ترکید. حالا `prisma/migrations/0_init/` با کلِ اسکیما (۱۲ جدول،
+   اولین کوئری می‌ترکید. حالا `apps/web/prisma/migrations/0_init/` با کلِ اسکیما (۱۲ جدول،
    ۲۰ کلیدِ خارجی، ۲۳ ایندکس) ساخته شده.
 2. **`directUrl` در اسکیما نبود** — که برای Postgresِ pooled (Neon) لازم است. اضافه شد،
    و `.env.example` هم به‌روز شد که `DIRECT_URL` **الزامی** است.
@@ -111,8 +111,8 @@
 
 ```bash
 docker compose -f docker-compose.dev.yml up -d
-npm install
+pnpm install
 cp .env.example .env        # DIRECT_URL را هم پر کن (همان DATABASE_URL کافی است)
-npm run db:migrate:deploy   # جدول‌ها را می‌سازد
-npm run dev
+pnpm db:migrate:deploy   # جدول‌ها را می‌سازد
+pnpm dev
 ```

@@ -29,23 +29,23 @@ Uses **PostgreSQL** (run locally via Docker). Full container/VPS walkthrough:
 docker compose -f docker-compose.dev.yml up -d
 
 # 2. Install dependencies
-npm install
+pnpm install
 
 # 3. Env file (DATABASE_URL already points at the local DB above)
 cp .env.example .env
 #   set AUTH_SECRET to a long random string:  openssl rand -base64 32
 
 # 4. Create the schema
-npm run db:push
+pnpm db:push
 
 # 5. (Optional) seed a demo household + sample data + FX rates
-npm run db:seed
+pnpm db:seed
 #   Demo logins (same household):
 #     demo@financemanager.app     / demo1234   (owner)
 #     partner@financemanager.app  / demo1234   (member)
 
 # 6. Run the dev server
-npm run dev
+pnpm dev
 ```
 
 Open http://localhost:3000 and register a new account (or use the demo login).
@@ -56,55 +56,79 @@ Open http://localhost:3000 and register a new account (or use the demo login).
 
 | Script | What it does |
 | --- | --- |
-| `npm run dev` | Start the dev server |
-| `npm run build` | Generate Prisma client + production build |
-| `npm run start` | Run the production build |
-| `npm run db:push` | Push the Prisma schema to the database |
-| `npm run db:migrate` | Create + apply a migration (recommended for prod) |
-| `npm run db:seed` | Seed demo data + exchange rates |
-| `npm run db:studio` | Open Prisma Studio (visual DB browser) |
+| `pnpm dev` | Start the dev server |
+| `pnpm build` | Generate Prisma client + production build |
+| `pnpm start` | Run the production build |
+| `pnpm db:push` | Push the Prisma schema to the database |
+| `pnpm db:migrate` | Create + apply a migration (recommended for prod) |
+| `pnpm db:seed` | Seed demo data + exchange rates |
+| `pnpm db:studio` | Open Prisma Studio (visual DB browser) |
+| `pnpm typecheck` | `tsc --noEmit` across every workspace |
+| `pnpm lint` | ESLint across every workspace |
+
+Run `pnpm typecheck && pnpm lint && pnpm build` before pushing. CI builds
+the image the server runs, so a red build means the server silently keeps
+serving the previous one.
 
 ---
 
 ## Project structure
 
+A pnpm + Turborepo workspace. The web app is one workspace among several —
+see [ARCHITECTURE.md](ARCHITECTURE.md) for the full target layout and
+[ROADMAP.md](ROADMAP.md) for what lands when.
+
 ```
-prisma/
-  schema.prisma        # data model: User, Household, Membership, Invitation,
-                       # Account, Category, Transaction, Budget, Investment, ExchangeRate
-  seed.ts              # demo household + members + sample data + FX rates
-src/
-  middleware.ts        # route protection (redirects to /login)
-  lib/
-    prisma.ts          # Prisma client singleton
-    jwt.ts             # edge-safe JWT sign/verify (sessions)
-    session.ts         # cookie-bound session helpers
-    auth.ts            # password hashing
-    roles.ts           # role ranks + comparison (pure)
-    household.ts       # access control: active household + role gates
-    invites.ts         # accept pending invitations by email
-    validation.ts      # zod schemas for every form
-    constants.ts       # enum-like values + supported currencies
-    currency.ts        # multi-currency conversion
-    queries.ts         # dashboard/report aggregations (household-scoped)
-    defaults.ts        # createHousehold + starter categories
-  app/
-    actions/           # server actions (auth, transactions, household, …)
-    login/ register/   # auth pages
-    (app)/             # authenticated area (shared sidebar layout)
-      dashboard/ transactions/ recurring/ budgets/ investments/
-      accounts/ household/ settings/
-  components/           # UI: Sidebar, HouseholdSwitcher, Charts, Modal, forms, …
+apps/
+  web/                    # the Next.js app (everything below used to be the repo root)
+    prisma/
+      schema.prisma       # data model: User, Household, Membership, Invitation,
+                          # Account, Category, Transaction, Budget, Investment, ExchangeRate
+      seed.ts             # demo household + members + sample data + FX rates
+    src/
+      middleware.ts       # route protection (redirects to /login)
+      lib/
+        prisma.ts         # Prisma client singleton
+        jwt.ts            # edge-safe JWT sign/verify (sessions)
+        session.ts        # cookie-bound session helpers
+        auth.ts           # password hashing
+        roles.ts          # role ranks + comparison (pure)
+        household.ts      # access control: active household + role gates
+        invites.ts        # accept pending invitations by email
+        validation.ts     # zod schemas for every form
+        constants.ts      # enum-like values + supported currencies
+        currency.ts       # multi-currency conversion
+        queries.ts        # dashboard/report aggregations (household-scoped)
+        defaults.ts       # createHousehold + starter categories
+      app/
+        actions/          # server actions (auth, transactions, household, …)
+        login/ register/  # auth pages
+        (app)/            # authenticated area (shared sidebar layout)
+          dashboard/ transactions/ recurring/ budgets/ investments/
+          accounts/ household/ settings/
+      components/         # UI: Sidebar, HouseholdSwitcher, Charts, Modal, forms, …
+
+packages/
+  config/                 # shared tsconfig / tailwind preset / eslint configs
+
+deploy/                   # Caddy, cron container, backup + restore scripts
+docs/                     # deployment and workflow guides
+Dockerfile                # builds apps/web; the compose files stay at the root
 ```
+
+Deployment entry points (`docker-compose*.yml`, `Dockerfile`,
+`docker-entrypoint.sh`, `deploy/`) deliberately stay at the repository root:
+the server runs `docker compose -f docker-compose.ghcr.yml pull` from a clone,
+so moving them would break the deploy command on the next `git pull`.
 
 ## How auth & access control work
 
 Sessions are a signed **JWT stored in an httpOnly, sameSite=lax cookie** (via
 [`jose`](https://github.com/panva/jose)) — no third-party auth service, so you
-can read every line of it in `src/lib/jwt.ts` and `src/lib/session.ts`.
-Passwords are hashed with `bcryptjs`. `src/middleware.ts` guards the app routes.
+can read every line of it in `apps/web/src/lib/jwt.ts` and `apps/web/src/lib/session.ts`.
+Passwords are hashed with `bcryptjs`. `apps/web/src/middleware.ts` guards the app routes.
 
-Financial data is owned by a **household**. `src/lib/household.ts` resolves the
+Financial data is owned by a **household**. `apps/web/src/lib/household.ts` resolves the
 caller's active household from a cookie **verified against a real membership**
 (a forged cookie grants nothing) and gates every action by role. All queries
 scope by the resulting `householdId`, so members of one household can never see
@@ -124,10 +148,10 @@ Three step-by-step guides:
 
 The short version:
 
-1. In `prisma/schema.prisma` set `datasource.provider = "postgresql"` (add a
+1. In `apps/web/prisma/schema.prisma` set `datasource.provider = "postgresql"` (add a
    `directUrl` if your Postgres is pooled).
 2. Point `DATABASE_URL` at your Postgres instance; create the first migration
-   with `npx prisma migrate dev --name init`.
+   with `pnpm exec prisma migrate dev --name init`.
 3. Set strong `AUTH_SECRET` and `CRON_SECRET`.
 4. Deploy (e.g. Vercel + Neon/Supabase) with build command
    `prisma generate && prisma migrate deploy && next build`.

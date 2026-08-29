@@ -25,7 +25,7 @@ codebase it touches.
 | Bank sync | not built | Plaid (see §7) |
 
 The code already uses PostgreSQL (`provider = "postgresql"` in
-`prisma/schema.prisma`): money is `Decimal`, "enum-like" fields are validated
+`apps/web/prisma/schema.prisma`): money is `Decimal`, "enum-like" fields are validated
 strings, and no SQLite-specific features are used. For a **pooled** Postgres
 (common on serverless), add `directUrl = env("DIRECT_URL")` to the datasource;
 for a plain single database you can ignore `DIRECT_URL`.
@@ -48,7 +48,7 @@ pairs well with Vercel:
 Prisma supports both via `directUrl`:
 
 ```prisma
-// prisma/schema.prisma
+// apps/web/prisma/schema.prisma
 datasource db {
   provider  = "postgresql"
   url       = env("DATABASE_URL")       // pooled (runtime)
@@ -68,14 +68,14 @@ migration once, against a Postgres database:
 
 ```bash
 # point DATABASE_URL/DIRECT_URL at Postgres in .env first, then:
-npx prisma migrate dev --name init      # creates prisma/migrations/…/init
-git add prisma/migrations && git commit -m "Add initial Postgres migration"
+pnpm exec prisma migrate dev --name init      # creates apps/web/prisma/migrations/…/init
+git add apps/web/prisma/migrations && git commit -m "Add initial Postgres migration"
 ```
 
 In production you then run (CI/host does this — see §4):
 
 ```bash
-npx prisma migrate deploy
+pnpm exec prisma migrate deploy
 ```
 
 Seed data is **optional** in prod (it creates the demo household). Skip
@@ -85,7 +85,7 @@ exchange rates pre-populated:
 ```bash
 # rates only — the demo user block is skipped if a demo user already exists;
 # for a clean prod DB, consider trimming seed.ts to the RATES upsert only.
-npm run db:seed
+pnpm db:seed
 ```
 
 ---
@@ -124,8 +124,8 @@ openssl rand -base64 32   # CRON_SECRET
    household (OWNER) automatically.
 
 Other hosts (Fly.io, Railway, a container) work the same: set env, then run
-`npm run build:prod` (= generate + `migrate deploy` + build) on release and
-`npm start`.
+`pnpm build:prod` (= generate + `migrate deploy` + build) on release and
+`pnpm start`.
 
 ---
 
@@ -180,7 +180,7 @@ this dev sandbox specifically blocks them, which is why refresh can't run here).
 Refreshes fail gracefully — a provider outage leaves existing data untouched.
 
 To extend crypto coverage, add symbols to `CRYPTO_IDS` in
-`src/lib/marketdata.ts` (symbol → CoinGecko id).
+`apps/web/src/lib/marketdata.ts` (symbol → CoinGecko id).
 
 ---
 
@@ -217,7 +217,7 @@ This is the one remaining external integration. When you're ready, the shape is:
 4. **Sync:** a `/api/cron/plaid-sync` (guard with `CRON_SECRET`, same pattern as
    the existing cron routes) that pulls transactions via Plaid's
    `/transactions/sync` and inserts them as `Transaction`s — reuse the importer's
-   dedupe/auto-create logic in `src/lib/importer.ts`.
+   dedupe/auto-create logic in `apps/web/src/lib/importer.ts`.
 
 It slots cleanly into the existing household + cron architecture; it just needs
 real Plaid credentials and outbound access, so it's best built in your own
