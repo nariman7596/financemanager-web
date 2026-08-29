@@ -1,6 +1,6 @@
 import { PrismaClient } from "@prisma/client";
 import bcrypt from "bcryptjs";
-import { DEFAULT_CATEGORIES } from "../src/lib/defaults";
+import { seedDefaultCategories } from "../src/lib/defaults";
 
 const prisma = new PrismaClient();
 
@@ -64,15 +64,9 @@ async function main() {
   });
   const hid = household.id;
 
-  await prisma.category.createMany({
-    data: DEFAULT_CATEGORIES.map((c) => ({
-      name: c.names.en,
-      type: c.type,
-      color: c.color,
-      householdId: hid,
-      createdById: demo.id,
-    })),
-  });
+  // Same tree the app creates for a real household — including sub-categories
+  // and seedKey — rather than a second, flat copy that drifts.
+  await seedDefaultCategories(hid, "en", demo.id);
   const cats = await prisma.category.findMany({ where: { householdId: hid } });
   const cat = (name: string) => cats.find((c) => c.name === name)!.id;
 

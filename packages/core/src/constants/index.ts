@@ -11,7 +11,11 @@ export const ACCOUNT_TYPES = [
 ] as const;
 export type AccountType = (typeof ACCOUNT_TYPES)[number];
 
-export const CATEGORY_TYPES = ["INCOME", "EXPENSE"] as const;
+// INVESTMENT categorises cash FLOWS into and out of investing (contributions,
+// dividends, fees) — not holdings, which are the Investment model. A flow is
+// still an INCOME or EXPENSE transaction; the category type only says what the
+// money was for.
+export const CATEGORY_TYPES = ["INCOME", "EXPENSE", "INVESTMENT"] as const;
 export type CategoryType = (typeof CATEGORY_TYPES)[number];
 
 export const TRANSACTION_TYPES = ["INCOME", "EXPENSE", "TRANSFER"] as const;

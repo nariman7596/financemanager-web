@@ -51,8 +51,13 @@ export function TransactionForm({
   const [error, setError] = useState<string | null>(null);
 
   const today = new Date().toISOString().slice(0, 10);
+  // INVESTMENT categories are offered for both directions: a contribution or a
+  // fee is money out, a dividend or a withdrawal is money in. Filtering them to
+  // one side would leave half of them unreachable.
   const relevantCategories = categories.filter((c) =>
-    type === "INCOME" ? c.type === "INCOME" : c.type === "EXPENSE",
+    type === "INCOME"
+      ? c.type === "INCOME" || c.type === "INVESTMENT"
+      : c.type === "EXPENSE" || c.type === "INVESTMENT",
   );
 
   async function action(formData: FormData) {

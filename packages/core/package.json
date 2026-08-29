@@ -6,6 +6,7 @@
     ".": "./src/index.ts",
     "./access": "./src/access/index.ts",
     "./calendar": "./src/calendar/index.ts",
+    "./categories": "./src/categories/index.ts",
     "./constants": "./src/constants/index.ts",
     "./csv": "./src/csv/index.ts",
     "./currency": "./src/currency/index.ts",

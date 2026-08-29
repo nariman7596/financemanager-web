@@ -377,12 +377,28 @@ model Category {
 Design notes:
 
 - **Exactly one level of nesting.** Arbitrary depth makes every report a
-  recursive CTE and every budget ambiguous. A parent with children is a
-  grouping; only leaves take transactions (enforced in `packages/core`).
-- **`isSeeded` replaces name-matching.** `relabelDefaults` currently decides
-  "did the user rename this?" by comparing against a list of seeded names.
-  A boolean makes that explicit and survives the user renaming a category to
-  something that happens to collide with another locale's seed name.
+  recursive CTE and every budget ambiguous. A parent groups its children —
+  **and may still hold transactions directly**, with reports rolling children
+  up into it. An earlier draft of this document said only leaves may take
+  transactions; that would have orphaned every transaction already filed
+  against a top-level category the moment it gained children.
+- **`seedKey` replaces name-matching** (the plan said `isSeeded`; a key is
+  strictly better). `relabelDefaults` decided "did the user rename this?" by
+  comparing against a list of seeded names, which mislabels a category the user
+  renamed to text that collides with another locale's seed. Storing *which*
+  default the row came from cannot collide, and the migration backfills it.
+- **Uniqueness needs two partial indexes, not one `@@unique`.** The obvious
+  `@@unique([householdId, parentId, name, type])` silently fails: Postgres
+  treats NULLs as distinct in a unique index, so two top-level categories with
+  the same name both insert and quietly split the household's reports in two.
+  Verified against a real Postgres. The migration creates one partial unique
+  index for siblings (`parentId IS NOT NULL`) and one for roots
+  (`parentId IS NULL`). Postgres 15+ could say `NULLS NOT DISTINCT`, but Prisma
+  cannot emit it and partial indexes work everywhere.
+
+  The same NULL-distinctness is *desirable* one table over: `@@unique
+  ([householdId, smsHash])` lets any number of manually-entered rows carry a
+  NULL hash while still rejecting the same message twice.
 - **`INVESTMENT` category type** is for *cash flows* into/out of investments
   (contributions, dividends, fees). It is distinct from the `Investment`
   model, which is a *holding*. Keeping them separate is what lets "money I put

@@ -182,7 +182,29 @@ Cron: hit the `CRON_SECRET`-guarded `/api/cron/recurring` + `/refresh` +
 ## Data model (apps/web/prisma/schema.prisma)
 User · Household · Membership (role) · Invitation · Account · Category ·
 Transaction (INCOME/EXPENSE/TRANSFER) · Budget · Investment · ExchangeRate ·
-PlaidItem. Owned models belong to a Household (`householdId`). New users get
+PlaidItem · Device · SyncCursor · SyncOperation · SyncConflict · RefreshToken ·
+HouseholdKey.
+
+**Sync foundations (Phase 3, not yet read by anything).** Every syncable model
+carries `revision`/`deletedAt`/`lastWriterDeviceId`, and `Household.syncRevision`
+is the per-tenant monotonic counter the server stamps rows from. Phase 4 (API)
+and Phase 6 (sync protocol) are what start using them.
+
+**Category sub-categories.** `Category.parentId`, one level only. A parent may
+still hold transactions; reports roll children up. `Category.seedKey` records
+which built-in default a row came from, so a language switch relabels seeded
+rows by key rather than by matching the localised name.
+
+WARNING: **Category uniqueness is two PARTIAL indexes, not `@@unique`** — see
+the sync_foundations migration. A plain unique index over
+`(householdId, parentId, name, type)` does NOT stop duplicate top-level
+categories, because Postgres treats NULLs as distinct. One partial index covers
+siblings (`parentId IS NOT NULL`), another covers roots (`parentId IS NULL`).
+The same NULL-distinctness is deliberately relied on for
+`@@unique([householdId, smsHash])`, where many NULL hashes must coexist.
+
+`Transaction` also gained provenance: `origin` (MANUAL/IMPORT/PLAID/SMS/
+RECURRING), `rawSms`/`smsHash`/`smsConfidence`, and `needsReview`. Owned models belong to a Household (`householdId`). New users get
 their own household (OWNER) with default categories + a Cash account via
 `createHousehold` in `apps/web/src/lib/defaults.ts`.
 
@@ -340,6 +362,16 @@ refresh**, **recurring auto-posting**, **CSV import/export**, **dark mode**,
    "last month" as time passes; consider seeding into the current month.
 
 ## Recently done
+- **Phase 3 — schema foundations for sync + sub-categories**: one migration adds
+  the sync envelope, the six sync/device/key tables, `Category.parentId`/
+  `seedKey`, the INVESTMENT category type and `Transaction` provenance. Every
+  column is nullable or defaulted, so the deployed app runs against it
+  unchanged. Verified by restoring a dump taken from the pre-migration schema,
+  migrating it, and driving the real app against the result: all 9 pages and
+  both export routes 200, revisions backfilled 1..N per household, seedKey
+  backfilled for seeded rows only. NOTE: the Docker entrypoint runs
+  `prisma migrate deploy` on start, so deploying this applies the migration —
+  take a backup first.
 - **Persian localisation completed + private self-hosted deploy** (this session):
   Jalali dates end to end (display, month bucketing, entry forms, reports range
   filter), toman currency, Persian seeded categories, translated date-range

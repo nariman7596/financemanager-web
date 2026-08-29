@@ -1,5 +1,11 @@
 import { prisma } from "./prisma";
 import { DEFAULT_LOCALE, type Locale } from "@financemanager/i18n/config";
+import {
+  DEFAULT_CATEGORIES,
+  categoryName,
+  childCategories,
+  rootCategories,
+} from "@financemanager/core/categories";
 
 // Default categories + a starter account, created for every new household so
 // the app is usable immediately.
@@ -10,29 +16,7 @@ import { DEFAULT_LOCALE, type Locale } from "@financemanager/i18n/config";
 // consistent — tables, forms, charts and the CSV export all read one value —
 // and a later rename by the user is simply respected.
 
-type DefaultCategory = {
-  /** Stable id for this seeded row; used to re-label existing households. */
-  key: string;
-  names: Record<Locale, string>;
-  type: "INCOME" | "EXPENSE";
-  color: string;
-};
 
-export const DEFAULT_CATEGORIES: DefaultCategory[] = [
-  { key: "salary",        names: { en: "Salary",        fa: "حقوق" },          type: "INCOME",  color: "#16a34a" },
-  { key: "business",      names: { en: "Business",      fa: "کسب‌وکار" },      type: "INCOME",  color: "#0ea5e9" },
-  { key: "investments",   names: { en: "Investments",   fa: "سرمایه‌گذاری" },  type: "INCOME",  color: "#8b5cf6" },
-  { key: "other_income",  names: { en: "Other Income",  fa: "درآمد متفرقه" },  type: "INCOME",  color: "#22c55e" },
-  { key: "housing",       names: { en: "Housing",       fa: "مسکن" },          type: "EXPENSE", color: "#ef4444" },
-  { key: "groceries",     names: { en: "Groceries",     fa: "خواربار" },       type: "EXPENSE", color: "#f97316" },
-  { key: "transport",     names: { en: "Transport",     fa: "حمل‌ونقل" },      type: "EXPENSE", color: "#eab308" },
-  { key: "utilities",     names: { en: "Utilities",     fa: "قبوض" },          type: "EXPENSE", color: "#06b6d4" },
-  { key: "dining",        names: { en: "Dining",        fa: "رستوران" },       type: "EXPENSE", color: "#ec4899" },
-  { key: "health",        names: { en: "Health",        fa: "سلامت و درمان" }, type: "EXPENSE", color: "#14b8a6" },
-  { key: "entertainment", names: { en: "Entertainment", fa: "سرگرمی" },        type: "EXPENSE", color: "#a855f7" },
-  { key: "shopping",      names: { en: "Shopping",      fa: "خرید" },          type: "EXPENSE", color: "#f43f5e" },
-  { key: "other",         names: { en: "Other",         fa: "متفرقه" },        type: "EXPENSE", color: "#64748b" },
-];
 
 /** Name of the starter account, per locale. */
 export const DEFAULT_ACCOUNT_NAME: Record<Locale, string> = {
@@ -40,25 +24,14 @@ export const DEFAULT_ACCOUNT_NAME: Record<Locale, string> = {
   fa: "نقد",
 };
 
-function categoryName(c: DefaultCategory, locale: Locale): string {
-  return c.names[locale] ?? c.names[DEFAULT_LOCALE];
-}
-
 export async function seedDefaultsForHousehold(
   householdId: string,
   currency: string,
   createdById?: string,
   locale: Locale = DEFAULT_LOCALE,
 ) {
-  await prisma.category.createMany({
-    data: DEFAULT_CATEGORIES.map((c) => ({
-      name: categoryName(c, locale),
-      type: c.type,
-      color: c.color,
-      householdId,
-      createdById,
-    })),
-  });
+  await seedDefaultCategories(householdId, locale, createdById);
+
   await prisma.account.create({
     data: {
       householdId,
@@ -68,6 +41,62 @@ export async function seedDefaultsForHousehold(
       currency,
       openingBalance: 0,
     },
+  });
+}
+
+
+/**
+ * Create the default category tree for a household.
+ *
+ * Exported because the demo seed needs exactly the same tree: it used to build
+ * its own flat copy from DEFAULT_CATEGORIES, which silently skipped both the
+ * parent links and `seedKey` the moment sub-categories were introduced. One
+ * implementation, two callers.
+ */
+export async function seedDefaultCategories(
+  householdId: string,
+  locale: Locale = DEFAULT_LOCALE,
+  createdById?: string,
+) {
+  // Parents first, so the children can point at real ids. `seedKey` is what
+  // identifies a seeded row from here on -- see relabelDefaults.
+  const roots = rootCategories();
+  const children = childCategories();
+
+  await prisma.category.createMany({
+    data: roots.map((c) => ({
+      name: categoryName(c, locale),
+      type: c.type,
+      color: c.color,
+      seedKey: c.key,
+      householdId,
+      createdById,
+    })),
+  });
+
+  const rootIdByKey = new Map(
+    (
+      await prisma.category.findMany({
+        where: { householdId, seedKey: { in: roots.map((c) => c.key) } },
+        select: { id: true, seedKey: true },
+      })
+    ).map((r) => [r.seedKey!, r.id]),
+  );
+
+  await prisma.category.createMany({
+    data: children.flatMap((c) => {
+      const parentId = rootIdByKey.get(c.parent!);
+      if (!parentId) return []; // parent missing -> skip rather than orphan
+      return [{
+        name: categoryName(c, locale),
+        type: c.type,
+        color: c.color,
+        seedKey: c.key,
+        parentId,
+        householdId,
+        createdById,
+      }];
+    }),
   });
 }
 
@@ -104,16 +133,16 @@ export async function relabelDefaults(
   householdId: string,
   locale: Locale,
 ): Promise<{ categories: number; accounts: number }> {
-  // Every name any locale would have produced -> the seed entry it came from.
-  const bySeededName = new Map<string, DefaultCategory>();
-  for (const c of DEFAULT_CATEGORIES) {
-    for (const n of Object.values(c.names)) bySeededName.set(n, c);
-  }
+  // Keyed by seedKey rather than by matching the localised name. Name matching
+  // mislabelled any category a user had renamed to text that happened to equal
+  // another locale's seed string; the key cannot collide. Rows seeded before
+  // this column existed were backfilled by the sync_foundations migration.
+  const bySeedKey = new Map(DEFAULT_CATEGORIES.map((c) => [c.key, c]));
 
   const existing = await prisma.category.findMany({ where: { householdId } });
   let categories = 0;
   for (const row of existing) {
-    const seed = bySeededName.get(row.name);
+    const seed = row.seedKey ? bySeedKey.get(row.seedKey) : undefined;
     if (!seed) continue; // user-created or renamed — leave it alone
     const target = categoryName(seed, locale);
     if (target === row.name) continue;

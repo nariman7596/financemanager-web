@@ -3,6 +3,7 @@
 // dependency obvious at the import site and avoid pulling the whole domain in.
 export * from "./access";
 export * from "./calendar";
+export * from "./categories";
 export * from "./constants";
 export * from "./csv";
 export * from "./currency";

@@ -37,7 +37,9 @@ model User {
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
-  memberships Membership[]
+  memberships   Membership[]
+  devices       Device[]
+  refreshTokens RefreshToken[]
 }
 
 // A shared financial space. A user working solo has a household of one.
@@ -48,6 +50,11 @@ model Household {
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
+  // Monotonic change counter for this household. Every write bumps it inside
+  // the same transaction and stamps the row's `revision`, giving sync a total
+  // order per tenant that no device clock can skew.
+  syncRevision BigInt @default(0)
+
   members      Membership[]
   invitations  Invitation[]
   accounts     Account[]
@@ -57,6 +64,9 @@ model Household {
   investments  Investment[]
   recurring    RecurringTransaction[]
   plaidItems   PlaidItem[]
+  conflicts    SyncConflict[]
+  cursors      SyncCursor[]
+  key          HouseholdKey?
 }
 
 // Links a user to a household with a role.
@@ -107,9 +117,17 @@ model Account {
 
   // Bank sync (see src/lib/plaid.ts): set when this Account is linked to a
   // real bank account via Plaid instead of being purely manually tracked.
-  source         String    @default("MANUAL") // MANUAL | PLAID
+  source         String  @default("MANUAL") // MANUAL | PLAID
   plaidItemId    String?
   plaidAccountId String? // Plaid's account_id within the item
+
+  // --- sync envelope (ARCHITECTURE.md §4) ---
+  // `revision` is assigned by the server from Household.syncRevision inside the
+  // write transaction; client clocks are never trusted for ordering. Deletes
+  // are tombstones so other devices learn about them.
+  revision           BigInt    @default(0)
+  deletedAt          DateTime?
+  lastWriterDeviceId String?
 
   household            Household              @relation(fields: [householdId], references: [id], onDelete: Cascade)
   plaidItem            PlaidItem?             @relation(fields: [plaidItemId], references: [id], onDelete: SetNull)
@@ -121,6 +139,7 @@ model Account {
 
   @@unique([plaidItemId, plaidAccountId])
   @@index([householdId])
+  @@index([householdId, revision])
 }
 
 // Income / expense category.
@@ -129,19 +148,46 @@ model Category {
   householdId String
   createdById String?
   name        String
-  type        String   @default("EXPENSE") // INCOME | EXPENSE
+  type        String   @default("EXPENSE") // INCOME | EXPENSE | INVESTMENT
   color       String   @default("#328eff")
   icon        String?
   isArchived  Boolean  @default(false)
   createdAt   DateTime @default(now())
 
+  // Exactly ONE level of nesting. Arbitrary depth would make every report a
+  // recursive CTE and every budget ambiguous about whether it covers
+  // descendants. A parent may still hold transactions directly and reports
+  // roll children up into it — requiring a leaf would have orphaned every
+  // transaction already filed against a top-level category.
+  parentId String?
+
+  // Which built-in default this row came from, or null if the household made
+  // it. Language switching relabels seeded rows (relabelDefaults); matching on
+  // the localised NAME broke as soon as a user renamed a category to something
+  // that collided with another locale's seed text. The key is stable.
+  seedKey String?
+
+  // --- sync envelope (ARCHITECTURE.md §4) ---
+  revision           BigInt    @default(0)
+  deletedAt          DateTime?
+  lastWriterDeviceId String?
+
   household    Household              @relation(fields: [householdId], references: [id], onDelete: Cascade)
+  parent       Category?              @relation("CategoryTree", fields: [parentId], references: [id], onDelete: Cascade)
+  children     Category[]             @relation("CategoryTree")
   transactions Transaction[]
   budgets      Budget[]
   recurring    RecurringTransaction[]
 
-  @@unique([householdId, name, type])
+  // NOTE: uniqueness is enforced by TWO PARTIAL INDEXES created by hand in the
+  // migration, not by @@unique. A plain unique index over (householdId,
+  // parentId, name, type) does NOT stop duplicate top-level categories,
+  // because Postgres treats NULLs as distinct -- two rows with parentId NULL
+  // and the same name both insert happily. Verified against a real Postgres.
+  // See the migration for the two indexes that cover both cases.
   @@index([householdId])
+  @@index([householdId, parentId])
+  @@index([householdId, revision])
 }
 
 // A single money movement.
@@ -169,7 +215,28 @@ model Transaction {
   // (see src/lib/plaid.ts). plaidTransactionId is the dedup key — sync
   // upserts on it instead of blindly inserting, unlike the CSV importer.
   plaidTransactionId String? @unique
-  pending             Boolean @default(false)
+  pending            Boolean @default(false)
+
+  // --- provenance: where did this row come from? ---
+  origin String @default("MANUAL") // MANUAL | IMPORT | PLAID | SMS | RECURRING
+
+  // SMS ingest (ARCHITECTURE.md §5). `smsHash` is sha256 of the NORMALISED
+  // message body and is the dedup key: the same message read by the Android
+  // reader and also pasted by hand must become one transaction, not two.
+  // `rawSms` is encrypted at rest in Phase 5 -- bank messages carry balances
+  // and partial account numbers.
+  rawSms        String?
+  smsHash       String?
+  smsConfidence Float?
+
+  // A low-confidence parse becomes a draft for review rather than a posted
+  // transaction. Money the user did not enter must never appear unannounced.
+  needsReview Boolean @default(false)
+
+  // --- sync envelope (ARCHITECTURE.md §4) ---
+  revision           BigInt    @default(0)
+  deletedAt          DateTime?
+  lastWriterDeviceId String?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -180,7 +247,10 @@ model Transaction {
   category        Category?             @relation(fields: [categoryId], references: [id])
   recurring       RecurringTransaction? @relation(fields: [recurringId], references: [id], onDelete: SetNull)
 
+  // One SMS can only ever become one transaction in a household.
+  @@unique([householdId, smsHash])
   @@index([householdId, date])
+  @@index([householdId, revision])
   @@index([accountId])
   @@index([categoryId])
   @@index([recurringId])
@@ -188,15 +258,15 @@ model Transaction {
 
 // A recurring rule / template (see src/lib/recurring.ts).
 model RecurringTransaction {
-  id                String   @id @default(cuid())
+  id                String  @id @default(cuid())
   householdId       String
   createdById       String?
   accountId         String
   categoryId        String?
   transferAccountId String?
-  type              String   @default("EXPENSE") // INCOME | EXPENSE | TRANSFER
+  type              String  @default("EXPENSE") // INCOME | EXPENSE | TRANSFER
   amount            Decimal
-  currency          String   @default("USD")
+  currency          String  @default("USD")
   description       String?
   notes             String?
 
@@ -217,6 +287,11 @@ model RecurringTransaction {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
+  // --- sync envelope (ARCHITECTURE.md §4) ---
+  revision           BigInt    @default(0)
+  deletedAt          DateTime?
+  lastWriterDeviceId String?
+
   household       Household     @relation(fields: [householdId], references: [id], onDelete: Cascade)
   account         Account       @relation("RecurringAccount", fields: [accountId], references: [id], onDelete: Cascade)
   transferAccount Account?      @relation("RecurringTransferAccount", fields: [transferAccountId], references: [id])
@@ -224,6 +299,7 @@ model RecurringTransaction {
   transactions    Transaction[]
 
   @@index([householdId])
+  @@index([householdId, revision])
   @@index([isActive, nextRunDate])
 }
 
@@ -240,11 +316,17 @@ model Budget {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
+  // --- sync envelope (ARCHITECTURE.md §4) ---
+  revision           BigInt    @default(0)
+  deletedAt          DateTime?
+  lastWriterDeviceId String?
+
   household Household @relation(fields: [householdId], references: [id], onDelete: Cascade)
   category  Category  @relation(fields: [categoryId], references: [id], onDelete: Cascade)
 
   @@unique([householdId, categoryId, period])
   @@index([householdId])
+  @@index([householdId, revision])
 }
 
 // An investment holding: stock, crypto, ETF, etc.
@@ -264,10 +346,16 @@ model Investment {
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
+  // --- sync envelope (ARCHITECTURE.md §4) ---
+  revision           BigInt    @default(0)
+  deletedAt          DateTime?
+  lastWriterDeviceId String?
+
   household Household @relation(fields: [householdId], references: [id], onDelete: Cascade)
   account   Account?  @relation(fields: [accountId], references: [id])
 
   @@index([householdId])
+  @@index([householdId, revision])
 }
 
 // A linked bank connection via Plaid (see src/lib/plaid.ts). One item can
@@ -302,4 +390,103 @@ model ExchangeRate {
   asOf  DateTime @default(now())
 
   @@unique([base, quote])
+}
+
+// ---------------------------------------------------------------------------
+// Sync, devices and keys (ARCHITECTURE.md §4 and §6). Nothing reads these yet;
+// Phase 4 (the API) and Phase 6 (the sync protocol) fill them in. They land in
+// one migration so there is a single risky schema change rather than five.
+// ---------------------------------------------------------------------------
+
+// A registered installation. Sync cursors are per-device, not per-user: a
+// phone and a laptop pull independently and are at different revisions.
+model Device {
+  id         String   @id // client-generated UUID
+  userId     String
+  platform   String // IOS | ANDROID | WEB
+  name       String? // "Nariman's iPhone"
+  pushToken  String?
+  lastSeenAt DateTime @default(now())
+  createdAt  DateTime @default(now())
+
+  user    User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  cursors SyncCursor[]
+
+  @@index([userId])
+}
+
+// How far this device has read, per household.
+model SyncCursor {
+  deviceId     String
+  householdId  String
+  lastRevision BigInt   @default(0)
+  lastSyncedAt DateTime @default(now())
+
+  device    Device    @relation(fields: [deviceId], references: [id], onDelete: Cascade)
+  household Household @relation(fields: [householdId], references: [id], onDelete: Cascade)
+
+  @@id([deviceId, householdId])
+}
+
+// Idempotency ledger. A push retried after a network timeout must not apply
+// twice, so every mutation carries a client-generated opId that is recorded
+// here. Pruned after 30 days.
+model SyncOperation {
+  opId            String   @id // client-generated UUID, one per mutation
+  deviceId        String
+  householdId     String
+  entity          String // "transaction" | "category" | ...
+  entityId        String
+  appliedRevision BigInt
+  appliedAt       DateTime @default(now())
+
+  @@index([householdId, appliedAt])
+}
+
+// A write that lost to a concurrent write. Last-writer-wins decides the row,
+// but the loser is kept and shown to the user: silently discarding a figure
+// somebody typed is not acceptable in a ledger.
+model SyncConflict {
+  id              String    @id @default(cuid())
+  householdId     String
+  entity          String
+  entityId        String
+  losingPayload   Json // encrypted in Phase 5 when it carries narrative fields
+  winningRevision BigInt
+  resolvedAt      DateTime?
+  createdAt       DateTime  @default(now())
+
+  household Household @relation(fields: [householdId], references: [id], onDelete: Cascade)
+
+  @@index([householdId, resolvedAt])
+}
+
+// Refresh-token rotation for mobile (Phase 4). One row per live session. Reuse
+// of an already-rotated token revokes the whole family, which is how a stolen
+// token is detected.
+model RefreshToken {
+  id        String    @id @default(cuid())
+  userId    String
+  deviceId  String
+  tokenHash String    @unique // sha256 -- the token itself is never stored
+  familyId  String
+  expiresAt DateTime
+  revokedAt DateTime?
+  createdAt DateTime  @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, familyId])
+}
+
+// Envelope encryption (Phase 5): one data key per household, itself encrypted
+// with the master key from the environment. Rotating the master key re-wraps
+// these rows and never touches the data.
+model HouseholdKey {
+  householdId String   @id
+  wrappedDek  String // AES-256-GCM(KEK, DEK)
+  keyVersion  Int      @default(1)
+  rotatedAt   DateTime @default(now())
+
+  household Household @relation(fields: [householdId], references: [id], onDelete: Cascade)
 }

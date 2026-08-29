@@ -26,6 +26,7 @@ export const en: Record<string, string> = {
   "enum.txnType.INCOME": "income",
   "enum.txnType.EXPENSE": "expense",
   "enum.txnType.TRANSFER": "transfer",
+  "enum.txnType.INVESTMENT": "investment",
   "enum.accountType.CHECKING": "Checking",
   "enum.accountType.SAVINGS": "Savings",
   "enum.accountType.CASH": "Cash",

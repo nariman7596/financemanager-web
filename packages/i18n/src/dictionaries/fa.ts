@@ -25,6 +25,7 @@ export const fa: Record<string, string> = {
   "enum.txnType.INCOME": "درآمد",
   "enum.txnType.EXPENSE": "هزینه",
   "enum.txnType.TRANSFER": "انتقال",
+  "enum.txnType.INVESTMENT": "سرمایه‌گذاری",
   "enum.accountType.CHECKING": "جاری",
   "enum.accountType.SAVINGS": "پس‌انداز",
   "enum.accountType.CASH": "نقد",
