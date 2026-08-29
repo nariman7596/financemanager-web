@@ -17,25 +17,33 @@ RUN apt-get update \
   && apt-get install -y --no-install-recommends openssl ca-certificates \
   && rm -rf /var/lib/apt/lists/*
 
-# --- deps: install the whole workspace (the Prisma CLI is needed at runtime) ---
+# --- deps: warm the pnpm store straight from the lockfile ---
+#
+# `pnpm fetch` reads ONLY pnpm-lock.yaml, so this layer never has to enumerate
+# the workspace's package.json files. That enumeration is exactly what broke
+# the build once: two packages were added in a later commit, the COPY list was
+# not updated, pnpm installed "all 3 workspace projects" instead of 5, and the
+# missing workspace symlinks surfaced as "Can't resolve @financemanager/i18n".
+# Adding a package must never again require editing this file.
 FROM base AS deps
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml .npmrc ./
-COPY apps/web/package.json ./apps/web/
-COPY packages/config/package.json ./packages/config/
 # `corepack install` (no arguments) reads the exact pnpm version out of
-# package.json's `packageManager` field and materialises it in the image, so
-# the version is pinned in exactly one place and the build never silently
-# resolves a different one.
+# package.json's `packageManager` field, so the version is pinned in one place
+# and the build never silently resolves a different one.
 RUN corepack enable && corepack install
-RUN pnpm install --frozen-lockfile
+RUN pnpm fetch
 
-# --- build: generate the Prisma client + build Next ---
-FROM base AS build
-RUN corepack enable
-COPY --from=deps /app/node_modules ./node_modules
-COPY --from=deps /app/apps/web/node_modules ./apps/web/node_modules
+# --- build: install offline from the warmed store, then build ---
+# Inherits the store from `deps`, so this install needs no network at all.
+FROM deps AS build
 COPY . .
-RUN corepack install && pnpm --filter @financemanager/web build
+# `pnpm fetch` leaves a modules directory behind, and the install below wants
+# to purge it before recreating it. That prompt cannot be answered in a
+# `docker build` (no TTY) and pnpm aborts rather than guessing, so the purge is
+# confirmed up front. Verified by rehearsing these exact commands outside
+# Docker, where the same abort reproduces.
+RUN pnpm install --frozen-lockfile --offline --config.confirmModulesPurge=false
+RUN pnpm --filter @financemanager/web build
 
 # --- runner: the image that actually runs in production ---
 FROM base AS runner

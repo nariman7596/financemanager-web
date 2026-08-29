@@ -16,10 +16,9 @@ on:
     paths-ignore:
       - "docs/**"
       - "**/*.md"
-  # Feature branches need the `verify` job too — a gate that only runs on main
-  # tells you the tree was broken after it is already the deploy candidate.
-  # The `build` job stays main-only (see its `if:`), so pull requests are
-  # checked without publishing an image.
+  # Feature branches need these jobs too — a gate that only runs on main tells
+  # you the tree was broken after it is already the deploy candidate. Both
+  # `verify` and `build` run here; only main publishes the image.
   pull_request:
     branches: [main]
   workflow_dispatch: # lets you rebuild by hand from the Actions tab
@@ -64,9 +63,11 @@ jobs:
 
   build:
     needs: verify
-    # Never publish from a pull request: the image tagged `latest` is what the
-    # server pulls, so only main may produce one.
-    if: github.event_name != 'pull_request'
+    # Runs on pull requests too, but only PUSHES from main (see `push:` below).
+    # The Dockerfile is not exercised by any other job, so skipping this on PRs
+    # meant a broken Dockerfile could only ever be discovered on main — which is
+    # exactly how it was discovered. Building here costs a couple of minutes and
+    # catches it before merge.
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -102,7 +103,9 @@ jobs:
           # The VPS is x86_64. Building only this platform keeps the job fast;
           # add linux/arm64 here if you ever deploy to an ARM server.
           platforms: linux/amd64
-          push: true
+          # The `latest` tag is what the server pulls, so only main publishes.
+          # A pull request builds the same image and throws it away.
+          push: ${{ github.event_name != 'pull_request' }}
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
           # Reuse layers between runs so later builds are much quicker.
