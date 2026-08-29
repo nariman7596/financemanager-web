@@ -152,6 +152,35 @@ pnpm db:seed           # optional demo data
 pnpm dev               # http://localhost:3000
 ```
 Full container/VPS guide: `docs/DOCKER.md`.
+
+### Running the tests
+`packages/core`, `packages/i18n` and `packages/api-client` are pure and need
+nothing. **`packages/db` and `apps/api` need a real Postgres** — they are the
+encryption and household-isolation guarantees, and mocking the database would
+test the mock instead of the guard.
+
+```bash
+docker compose -f docker-compose.dev.yml up -d
+export DATABASE_URL="postgresql://…/financemanager_test?schema=public"
+export DIRECT_URL="$DATABASE_URL"
+export AUTH_SECRET=$(openssl rand -base64 32)
+export TOKEN_ENCRYPTION_KEY=$(openssl rand -base64 32)   # tests fail without it
+pnpm db:migrate:deploy
+pnpm test
+```
+
+Two things that will bite otherwise:
+- Root `test` runs `--concurrency=1` on purpose. The db and api suites drive the
+  same database and both TRUNCATE it; in parallel each deletes the other's
+  fixtures.
+- The api suite spawns the **compiled** server (`pnpm build` runs first) and
+  drives it over HTTP. NestJS DI needs `emitDecoratorMetadata`, which esbuild —
+  and therefore vitest's transform — does not emit, so in-process supertest
+  cannot work.
+
+In a sandbox with no Docker daemon, Postgres 16 binaries are usually present:
+`initdb`/`pg_ctl` from `/usr/lib/postgresql/16/bin` run fine as the `postgres`
+user (not root) with a data dir under `/var/lib/postgresql`.
 Demo logins (same household, different roles):
 - **demo@financemanager.app / demo1234** — OWNER
 - **partner@financemanager.app / demo1234** — MEMBER
@@ -321,7 +350,14 @@ their own household (OWNER) with default categories + a Cash account via
   OWNER membership per user, set householdId on their rows) before the
   non-null columns apply.
 
-## Status — foundation complete & verified
+## Status — rebuild in progress (Phases 0-6 done, on a branch)
+The single-package web app is being reshaped into a monorepo with a NestJS API
+and an offline-first sync protocol, so a React Native client can share the
+domain. Phases 1-2 are merged to `main`; **3-6 are on the branch, unmerged**,
+because Phase 3 applies a migration to the live database on deploy. Nothing on
+the VPS has changed since Phase 2.
+
+## Status — original web app: complete & verified
 Production build passes; all routes smoke-tested (200) with demo data.
 Done: auth, accounts, transactions (add/**edit**/delete), budgets, investments,
 dashboard, settings, categories, multi-currency, seed data, **live data
@@ -441,18 +477,53 @@ refresh**, **recurring auto-posting**, **CSV import/export**, **dark mode**,
   institution.
 
 ## WHERE TO CONTINUE (next steps, prioritized)
-1. **Bank sync production readiness** — sandbox-only so far (see "Bank sync"
-   above). Needs real Plaid credentials to test live, then production
-   `PLAID_ENV` + webhook-based sync (instead of relying only on cron polling)
-   before going beyond sandbox users.
-2. **PDF/Excel report export** — Reports exports summary + transactions CSV;
-   richer formats (PDF/xlsx) would need a library (better added in prod env).
-3. **Stock symbol→id coverage** — `CRYPTO_IDS` map in marketdata.ts is a small
-   starter; extend, or swap to a lookup API.
-4. **Demo seed dates** — seeded relative to seed time, so demo data drifts to
-   "last month" as time passes; consider seeding into the current month.
+
+**0. BLOCKED ON THE USER — merge Phases 3-6 to `main`.** Four commits are
+stacked and verified but unmerged. Merging publishes images, and the web
+container applies `prisma migrate deploy` on start, so deploying **applies the
+Phase 3 migration to the live database**. Before merging, the user needs to:
+  - run `deploy/backup.sh` and confirm the archive is valid, and
+  - generate `TOKEN_ENCRYPTION_KEY` (`openssl rand -base64 32`) and store it
+    somewhere that is NOT that server — it is not in the database, and losing
+    it loses every encrypted field permanently (docs/ENCRYPTION.md).
+  Then: `git checkout main && git merge --ff-only claude/personal-finance-app-9s8mrr
+  && git push origin main`, watch the Actions run, then pull on the VPS.
+
+**1. Phase 7 — `packages/client-core`, the offline engine.** The next build
+step. LocalStore interface + adapters (expo-sqlite for mobile, IndexedDB for
+web), a durable dependency-ordered outbox with backoff and single-op
+quarantine, the pull/push loop, and React Query integration. Deliberately
+testable headlessly *before* any mobile UI exists — it is the riskiest logic in
+the project and should not be debugged through a simulator. The wire contract
+it targets is `docs/SYNC.md`; `packages/api-client` already exposes
+`sync.changes/push/conflicts`.
+
+**2. Phase 8 — `apps/mobile` (Expo, iOS first).** Then 9 (SMS parsing), 10
+(Android ingest), 11 (reports v2), 12 (web PWA offline), 13 (hardening), 14
+(release). See ROADMAP.md.
+
+**Carried over from the original app** (still valid, lower priority): Plaid is
+sandbox-only and needs real credentials; PDF/Excel report export; the
+`CRYPTO_IDS` map in marketdata.ts is a small starter; demo seed dates drift
+because they are seeded relative to seed time.
 
 ## Recently done
+- **Phase 6 — sync protocol, server side**: `/sync/changes` + `/sync/push` +
+  conflicts, tombstone sweep. Fixed the Phase 4 gap where web writes never got
+  a revision (now stamped by a Prisma extension). Pull cursor is `(revision,
+  id)` via a raw row-comparison query — EXPLAIN ANALYZE on 20k rows showed
+  Prisma's OR form bitmap-scanning and sorting (1.24 ms) versus an Index Only
+  Scan (0.20 ms), hence the widened indexes. 15 tests incl. two-device
+  convergence, delete-beats-edit and replay idempotency.
+- **Phase 5 — envelope encryption at rest**: per-household DEK wrapped by
+  `TOKEN_ENCRYPTION_KEY`, applied by a Prisma extension. Caught the demo seed
+  writing plaintext because it built its own PrismaClient. Backfill + key
+  rotation rehearsed end to end.
+- **Phase 4 — NestJS API + typed client**: auth with refresh rotation and reuse
+  detection, `HouseholdGuard` sharing one resolution with the web app, CRUD via
+  one audited base class. Caught three defects only running it could find (see
+  the API section). Memory measured at 105-132 MB.
+- **`packages/db` extracted** so both transports share one data model.
 - **Phase 3 — schema foundations for sync + sub-categories**: one migration adds
   the sync envelope, the six sync/device/key tables, `Category.parentId`/
   `seedKey`, the INVESTMENT category type and `Transaction` provenance. Every
@@ -547,24 +618,48 @@ refresh**, **recurring auto-posting**, **CSV import/export**, **dark mode**,
 
 ## Repo & branch
 Lives in its own repo **`nariman7596/financemanager-web`**, default branch
-**`main`**. Develop on `main` (or feature branches off it). Local dev happens on
-a Mac in VS Code + Docker (see `docs/WORKFLOW.md`).
+**`main`**. Local dev happens on a Mac in VS Code + Docker (see
+`docs/WORKFLOW.md`).
+
+**Current work is on `claude/personal-finance-app-9s8mrr`**, the branch for the
+cross-platform rebuild (ARCHITECTURE.md / ROADMAP.md). See "On return" at the
+bottom for exactly what is merged and what is waiting.
 
 ## On return
-- Working tree is clean; everything committed and pushed to `main`.
-- **Verify before pushing.** CI builds the image the server runs, so a red build
-  means the server silently keeps the old one — that happened twice this
-  session. Run `pnpm typecheck` *and* `pnpm build` locally first.
-- Open: 3 dependabot advisories (2 high) on the default branch. Recurring-rule
-  scheduling still advances by Gregorian month — it runs from a background job
-  with no user to take a locale from, so making it calendar-aware needs a
-  decision about where that calendar is stored (probably on the rule itself).
-  A Jalali `from > to` in the Reports filter falls back to the preset silently,
-  since selects cannot express the native input's min/max.
-- Bank sync (Plaid) just landed but is sandbox-only and unverified live — get
-  free sandbox keys at dashboard.plaid.com, set `PLAID_CLIENT_ID`/
-  `PLAID_SECRET`/`PLAID_ENV=sandbox`/`TOKEN_ENCRYPTION_KEY` in `.env`, then
-  drive Connect a bank → map → Sync now in a browser (sandbox login
-  `user_good`/`pass_good`) before considering it done.
-- Otherwise pick up from the "WHERE TO CONTINUE" list above (stock-symbol
-  coverage, PDF/Excel export, etc.).
+Session of 2026-08-29 ended here. Phases 0-6 of ROADMAP.md are complete.
+
+**State of the branches**
+- `main` = Phases 0-2 (planning docs, monorepo, `packages/core` + `packages/i18n`).
+  Green in CI, image published, safe to deploy.
+- `claude/personal-finance-app-9s8mrr` = `main` + **four unmerged commits**:
+  Phase 3 (schema/sync foundations + sub-categories), the `packages/db`
+  extraction, Phase 4 (NestJS API), Phase 5 (encryption), Phase 6 (sync
+  protocol). All verified locally; **not yet built by CI**, because CI only
+  builds `main` and PRs and no PR is open.
+
+**The one decision waiting on the user** — see WHERE TO CONTINUE item 0. Do not
+merge without the backup and the `TOKEN_ENCRYPTION_KEY`: deploying applies the
+Phase 3 migration to the live database, and the encryption key is not in any
+backup taken from the database.
+
+**Hard-won lessons worth not relearning**
+- A red CI build is SILENT in production: the VPS only pulls `:latest`, so it
+  keeps serving the previous image and nothing announces the deploy did not
+  happen. It has now happened three times. `pnpm typecheck && pnpm lint &&
+  pnpm test && pnpm build` before every push.
+- The Docker build is the one thing that cannot be verified in a sandbox with
+  no Docker daemon. It broke on the Phase 2 merge (the deps stage enumerated
+  workspace manifests and two new packages were not added). It now uses
+  `pnpm fetch` from the lockfile alone so adding a package cannot break it, and
+  the build job runs on PRs so a break is caught before `main`.
+- **Never construct a `PrismaClient` outside `packages/db/src/client.ts`.** It
+  bypasses both the encryption and revision extensions. A test enforces this.
+- Verify against the database and over HTTP, not by reading code. Doing that is
+  what found: BigInt breaking every API list endpoint, seeded rows stuck at
+  revision 0 (invisible to sync forever), the seed writing plaintext, and
+  Postgres treating NULLs as distinct so a plain unique index does not stop
+  duplicate top-level categories.
+
+**Still open from before the rebuild**: 3 dependabot advisories on `main` plus
+an open PR bumping vitest 2 → 3; Plaid is sandbox-only; a Jalali `from > to` in
+the Reports filter falls back to the preset silently.
