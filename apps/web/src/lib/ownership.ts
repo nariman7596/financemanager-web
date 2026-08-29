@@ -1,4 +1,4 @@
-import { prisma } from "./prisma";
+import { prisma } from "@financemanager/db";
 
 // Core ownership operations. Pure (no server-only / no auth) so they can be
 // unit-tested; the Server Actions wrap these with checkHousehold("OWNER").

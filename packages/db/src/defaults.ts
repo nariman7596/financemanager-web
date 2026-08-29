@@ -1,4 +1,4 @@
-import { prisma } from "./prisma";
+import { prisma } from "./client";
 import { DEFAULT_LOCALE, type Locale } from "@financemanager/i18n/config";
 import {
   DEFAULT_CATEGORIES,

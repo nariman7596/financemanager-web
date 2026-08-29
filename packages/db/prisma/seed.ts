@@ -1,6 +1,7 @@
 import { PrismaClient } from "@prisma/client";
 import bcrypt from "bcryptjs";
-import { seedDefaultCategories } from "../src/lib/defaults";
+import { seedDefaultCategories } from "../src/defaults";
+
 
 const prisma = new PrismaClient();
 

@@ -1,7 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { prisma } from "@/lib/prisma";
+import { prisma } from "@financemanager/db";
 import { getSession } from "@/lib/session";
 
 /** Update the signed-in user's personal profile (their display name). */

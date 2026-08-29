@@ -1,6 +1,6 @@
 import { Plus, Pencil } from "lucide-react";
 import { requireHousehold } from "@/lib/household";
-import { prisma } from "@/lib/prisma";
+import { prisma } from "@financemanager/db";
 import { formatMoney, formatDate, toNumber } from "@financemanager/core/money";
 import { Topbar } from "@/components/Topbar";
 import { Modal } from "@/components/Modal";

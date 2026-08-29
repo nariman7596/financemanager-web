@@ -1,7 +1,7 @@
 import "server-only";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
-import { prisma } from "./prisma";
+import { prisma } from "@financemanager/db";
 import { getSession } from "./session";
 import { roleAtLeast, type Role } from "@financemanager/core/access";
 

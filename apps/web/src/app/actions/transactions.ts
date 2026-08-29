@@ -1,7 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { prisma } from "@/lib/prisma";
+import { prisma } from "@financemanager/db";
 import { checkHousehold } from "@/lib/household";
 import { transactionSchema } from "@financemanager/core/validation";
 

@@ -1,0 +1,9 @@
+{
+  "extends": "../config/tsconfig/base.json",
+  "compilerOptions": {
+    // Unlike packages/core, this package is server-only by definition: it
+    // talks to Postgres. Node globals are legitimate here.
+    "types": ["node"]
+  },
+  "include": ["src/**/*.ts", "prisma/**/*.ts"]
+}

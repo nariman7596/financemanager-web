@@ -1,7 +1,7 @@
 import "server-only";
 import { addDays, addWeeks } from "date-fns";
 import { addMonthsInCalendar, addYearsInCalendar } from "@financemanager/core/calendar";
-import { prisma } from "./prisma";
+import { prisma } from "@financemanager/db";
 
 // ---------------------------------------------------------------------------
 // Recurring auto-posting engine.

@@ -1,6 +1,6 @@
 import { Plus } from "lucide-react";
 import { requireHousehold } from "@/lib/household";
-import { prisma } from "@/lib/prisma";
+import { prisma } from "@financemanager/db";
 import { Topbar } from "@/components/Topbar";
 import { Modal } from "@/components/Modal";
 import { SettingsForm } from "@/components/forms/SettingsForm";

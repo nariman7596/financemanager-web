@@ -1,4 +1,4 @@
-import { prisma } from "./prisma";
+import { prisma } from "@financemanager/db";
 import { parseCsvObjects } from "@financemanager/core/csv";
 import { TRANSACTION_TYPES, CURRENCY_CODES, type TransactionType } from "@financemanager/core/constants";
 

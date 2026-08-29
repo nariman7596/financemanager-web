@@ -1,7 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { prisma } from "@/lib/prisma";
+import { prisma } from "@financemanager/db";
 import { getLocale } from "@/lib/i18n/server";
 import { getSession } from "@/lib/session";
 import {
@@ -11,7 +11,7 @@ import {
   clearActiveHousehold,
   type Role,
 } from "@/lib/household";
-import { createHousehold } from "@/lib/defaults";
+import { createHousehold } from "@financemanager/db";
 import { transferOwnershipTo, deleteHouseholdFor } from "@/lib/ownership";
 import { CURRENCY_CODES } from "@financemanager/core/constants";
 

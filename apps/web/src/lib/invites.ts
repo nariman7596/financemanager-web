@@ -1,4 +1,4 @@
-import { prisma } from "./prisma";
+import { prisma } from "@financemanager/db";
 
 /**
  * Convert any pending invitations addressed to `email` into memberships for

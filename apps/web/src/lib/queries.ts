@@ -10,7 +10,7 @@ import {
   monthLabelIn,
 } from "@financemanager/core/calendar";
 import { DEFAULT_LOCALE, type Locale } from "@financemanager/i18n/config";
-import { prisma } from "./prisma";
+import { prisma } from "@financemanager/db";
 import { toNumber } from "@financemanager/core/money";
 import { loadRates } from "./currency";
 import { convert } from "@financemanager/core/currency";

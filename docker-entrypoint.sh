@@ -11,16 +11,20 @@
 # turning every container start into a network dependency.
 set -e
 
-BIN=./node_modules/.bin
+WEB=/app/apps/web
+DB=/app/packages/db
 
 echo "→ Applying database schema…"
+# The schema and its migrations live in packages/db, so this runs from there.
+cd "$DB"
 if [ -d prisma/migrations ] && [ -n "$(ls -A prisma/migrations 2>/dev/null)" ]; then
   # Versioned migrations exist → apply them (safe for real data).
-  "$BIN/prisma" migrate deploy
+  ./node_modules/.bin/prisma migrate deploy
 else
   # No migrations yet → push the schema directly (fine for first deploy).
-  "$BIN/prisma" db push --skip-generate
+  ./node_modules/.bin/prisma db push --skip-generate
 fi
 
 echo "→ Starting FinanceManager on :${PORT:-3000}"
-exec "$BIN/next" start
+cd "$WEB"
+exec ./node_modules/.bin/next start

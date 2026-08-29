@@ -1,5 +1,5 @@
 import "server-only";
-import { prisma } from "./prisma";
+import { prisma } from "@financemanager/db";
 import { CURRENCY_CODES } from "@financemanager/core/constants";
 import { toNumber } from "@financemanager/core/money";
 

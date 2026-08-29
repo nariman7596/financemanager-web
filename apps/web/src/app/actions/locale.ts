@@ -4,8 +4,8 @@ import { cookies } from "next/headers";
 import { revalidatePath } from "next/cache";
 import { LOCALE_COOKIE, isLocale, type Locale } from "@financemanager/i18n/config";
 import { getSession } from "@/lib/session";
-import { prisma } from "@/lib/prisma";
-import { relabelDefaults } from "@/lib/defaults";
+import { prisma } from "@financemanager/db";
+import { relabelDefaults } from "@financemanager/db";
 
 const ONE_YEAR = 60 * 60 * 24 * 365;
 

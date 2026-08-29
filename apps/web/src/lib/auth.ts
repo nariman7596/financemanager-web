@@ -1,7 +1,7 @@
 import "server-only";
 import { redirect } from "next/navigation";
 import bcrypt from "bcryptjs";
-import { prisma } from "./prisma";
+import { prisma } from "@financemanager/db";
 import { getSession, type SessionPayload } from "./session";
 
 export async function hashPassword(plain: string): Promise<string> {

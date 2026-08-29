@@ -1,5 +1,5 @@
 import { requireHousehold, roleAtLeast } from "@/lib/household";
-import { prisma } from "@/lib/prisma";
+import { prisma } from "@financemanager/db";
 import { formatDate } from "@financemanager/core/money";
 import { getT, getLocale } from "@/lib/i18n/server";
 import { Topbar } from "@/components/Topbar";

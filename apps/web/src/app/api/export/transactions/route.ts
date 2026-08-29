@@ -1,7 +1,7 @@
 import type { NextRequest } from "next/server";
 import { parseISO, isValid, startOfDay, endOfDay } from "date-fns";
 import { getActiveContext } from "@/lib/household";
-import { prisma } from "@/lib/prisma";
+import { prisma } from "@financemanager/db";
 import { toCsv } from "@financemanager/core/csv";
 import { toNumber } from "@financemanager/core/money";
 

@@ -7,7 +7,7 @@ import {
   CountryCode,
   type Transaction as PlaidTransaction,
 } from "plaid";
-import { prisma } from "./prisma";
+import { prisma } from "@financemanager/db";
 import { encrypt, decrypt } from "./crypto";
 import { TRANSACTION_TYPES } from "@financemanager/core/constants";
 

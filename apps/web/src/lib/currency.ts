@@ -1,4 +1,4 @@
-import { prisma } from "./prisma";
+import { prisma } from "@financemanager/db";
 import { toNumber } from "@financemanager/core/money";
 import { convert, type RateMap } from "@financemanager/core/currency";
 
