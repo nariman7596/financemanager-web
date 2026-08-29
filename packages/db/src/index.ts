@@ -16,3 +16,13 @@ export {
   relabelDefaults,
   DEFAULT_ACCOUNT_NAME,
 } from "./defaults";
+
+// The household security core, shared by the web app and the API.
+export {
+  resolveHouseholdContext,
+  hasRole,
+  type HouseholdContext,
+  type Role,
+} from "./access";
+
+export { nextRevision } from "./revision";

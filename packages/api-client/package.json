@@ -1,0 +1,21 @@
+{
+  "name": "@financemanager/api-client",
+  "version": "0.1.0",
+  "private": true,
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@financemanager/core": "workspace:*",
+    "zod": "^3.23.8"
+  },
+  "devDependencies": {
+    "@financemanager/config": "workspace:*",
+    "typescript": "^5.6.3",
+    "vitest": "^2.1.8"
+  }
+}

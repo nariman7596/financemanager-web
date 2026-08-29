@@ -64,6 +64,32 @@ services:
       internal:
         aliases: [financemanager]
 
+  # The transport the mobile client talks to. Same private posture as the web
+  # app: bound to a single address, never 0.0.0.0. Reached over the SSH tunnel
+  # or the VPN, exactly like the app.
+  #
+  # It does NOT apply migrations — the app container owns that, so the two
+  # cannot race each other on startup.
+  api:
+    image: ghcr.io/nariman7596/financemanager-web-api:${IMAGE_TAG:-latest}
+    pull_policy: always
+    restart: unless-stopped
+    environment:
+      DATABASE_URL: postgresql://fm:${DB_PASSWORD}@db:5432/financemanager?schema=public
+      DIRECT_URL: postgresql://fm:${DB_PASSWORD}@db:5432/financemanager?schema=public
+      AUTH_SECRET: ${AUTH_SECRET:?set AUTH_SECRET in .env}
+      API_PORT: 3001
+    ports:
+      - "${APP_BIND:-127.0.0.1}:3001:3001"
+    depends_on:
+      db:
+        condition: service_healthy
+      app:
+        condition: service_started
+    networks:
+      internal:
+        aliases: [financemanager-api]
+
   cron:
     # Tiny alpine+curl image; cheap enough to build anywhere, including here.
     build: ./deploy/cron

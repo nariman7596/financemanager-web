@@ -36,6 +36,27 @@ jobs:
   # has bitten this project twice. Catching it here costs about a minute.
   verify:
     runs-on: ubuntu-latest
+
+    # The API suite drives the real compiled server against a real Postgres —
+    # it is the household-isolation guarantee, and mocking the database would
+    # test the mock instead of the guard.
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: fm
+          POSTGRES_PASSWORD: fm
+          POSTGRES_DB: financemanager_test
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U fm"
+          --health-interval 5s --health-timeout 5s --health-retries 10
+
+    env:
+      DATABASE_URL: postgresql://fm:fm@127.0.0.1:5432/financemanager_test?schema=public
+      DIRECT_URL: postgresql://fm:fm@127.0.0.1:5432/financemanager_test?schema=public
+      AUTH_SECRET: ci-only-secret-not-used-for-any-deployment-0000
+
     steps:
       - name: Check out the repository
         uses: actions/checkout@v4
@@ -51,6 +72,9 @@ jobs:
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
+
+      - name: Apply migrations
+        run: pnpm db:migrate:deploy
 
       - name: Typecheck
         run: pnpm typecheck
@@ -87,7 +111,7 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }} # provided automatically
 
-      - name: Derive image tags
+      - name: Derive image tags (web)
         id: meta
         uses: docker/metadata-action@v5
         with:
@@ -96,10 +120,23 @@ jobs:
             type=raw,value=latest
             type=sha,format=short
 
-      - name: Build and push
+      - name: Derive image tags (api)
+        id: meta-api
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}-api
+          tags: |
+            type=raw,value=latest
+            type=sha,format=short
+
+      - name: Build and push the web image
         uses: docker/build-push-action@v6
         with:
           context: .
+          # MUST be explicit. Without a target Docker builds the LAST stage in
+          # the Dockerfile, which is now api-runner — the web image would
+          # silently become the API and the site would 404 everywhere.
+          target: runner
           # The VPS is x86_64. Building only this platform keeps the job fast;
           # add linux/arm64 here if you ever deploy to an ARM server.
           platforms: linux/amd64
@@ -109,6 +146,18 @@ jobs:
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
           # Reuse layers between runs so later builds are much quicker.
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Build and push the API image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          target: api-runner
+          platforms: linux/amd64
+          push: ${{ github.event_name != 'pull_request' }}
+          tags: ${{ steps.meta-api.outputs.tags }}
+          labels: ${{ steps.meta-api.outputs.labels }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
 

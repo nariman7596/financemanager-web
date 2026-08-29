@@ -1,4 +1,5 @@
 import { prisma } from "./client";
+import { nextRevision } from "./revision";
 import { DEFAULT_LOCALE, type Locale } from "@financemanager/i18n/config";
 import {
   DEFAULT_CATEGORIES,
@@ -42,6 +43,16 @@ export async function seedDefaultsForHousehold(
       openingBalance: 0,
     },
   });
+
+  // Seeded rows must carry a revision above zero or they can never sync: a
+  // device's first pull asks for `revision > 0`, so anything left at the
+  // default is invisible to it forever. They all share one revision because
+  // they are one atomic event -- the household coming into existence.
+  const revision = await nextRevision(householdId);
+  await Promise.all([
+    prisma.category.updateMany({ where: { householdId, revision: 0n }, data: { revision } }),
+    prisma.account.updateMany({ where: { householdId, revision: 0n }, data: { revision } }),
+  ]);
 }
 
 

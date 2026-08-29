@@ -10,6 +10,9 @@ the phase plan.
 
 ```
 apps/web            Next.js app (routes, server actions, React components)
+apps/api            NestJS API — the transport mobile talks to. 24 tests.
+packages/db         Prisma schema/migrations/client + household bootstrap
+packages/api-client typed fetch client for web + mobile. 6 tests.
 packages/core       THE DOMAIN — pure TS, no framework. 70 tests.
 packages/i18n       locale config + en/fa dictionaries + createT. 9 tests.
 packages/config     shared tsconfig / tailwind preset / eslint
@@ -43,6 +46,45 @@ Nothing calls pnpm at runtime: the Docker entrypoint and the systemd unit both
 invoke `node_modules/.bin/next` directly, because `corepack enable` only
 installs shims and would fetch the real binary from the registry on first use —
 turning every container start into a network dependency.
+
+## The API (apps/api)
+
+`/api/v1/*`, built with NestJS. Runs as its own container next to the web app
+(`docker-compose.ghcr.yml`), from a second image built by the same CI job — the
+web build MUST keep `target: runner`, or Docker builds the last stage and the
+web image silently becomes the API.
+
+- **Auth**: access JWT (15 min, `scope: "api"`) + opaque refresh token (60 d),
+  stored only as sha256. Refresh **rotates**; replaying a rotated token revokes
+  the whole family, which is how a stolen token is detected.
+- **`HouseholdGuard`** resolves `{userId, householdId, role}` through
+  `resolveHouseholdContext` in `packages/db/src/access.ts` — the *same*
+  function the web app's `getActiveContext` uses, so the two transports cannot
+  drift. `X-Household-Id` is a preference, exactly like the `fm_household`
+  cookie: honoured only when a Membership backs it.
+- **Scoping lives in one place**: `HouseholdCrudController`. Every resource
+  inherits it, so there is one implementation to audit rather than six chances
+  to forget a `householdId` filter. Cross-household reads return **404, not
+  403** — a 403 would confirm the row exists.
+- **Validation reuses the zod schemas from `packages/core`.** PATCH merges the
+  body into the current row and validates the whole thing, because
+  `transactionSchema`/`recurringSchema` are `ZodEffects` (they carry
+  cross-field `.refine()` rules) and have no `.partial()`.
+- **BigInt**: `revision` is a BigInt and `JSON.stringify` throws on it outright
+  — every list endpoint 500'd until `SerializeInterceptor` existed. It is sent
+  as a **string**, since a JSON number loses precision above 2^53 and would
+  corrupt a sync cursor.
+- Built with **tsc, not esbuild/tsx**: Nest's DI needs `emitDecoratorMetadata`,
+  which esbuild does not emit. Shared packages are mapped via tsconfig `paths`
+  and compiled into `dist`, with `tsc-alias` rewriting the specifiers — which
+  is why their runtime deps are also listed in `apps/api/package.json`.
+- Tests drive the **real compiled server over HTTP** rather than in-process
+  supertest, for the same decorator-metadata reason.
+
+⚠️ **Web Server Actions do not stamp `revision` yet** — rows created in the
+browser stay at 0 and a sync pull (`revision > cursor`) would never see them.
+Nothing syncs yet, so no data is at risk, but Phase 6 must wire revision
+allocation into the web writes before the protocol goes live.
 
 ## Stack
 - Next.js 15 (App Router) + TypeScript

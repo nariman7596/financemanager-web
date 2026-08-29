@@ -44,6 +44,7 @@ COPY . .
 # Docker, where the same abort reproduces.
 RUN pnpm install --frozen-lockfile --offline --config.confirmModulesPurge=false
 RUN pnpm --filter @financemanager/web build
+RUN pnpm --filter @financemanager/api build
 
 # --- runner: the image that actually runs in production ---
 FROM base AS runner
@@ -63,3 +64,21 @@ EXPOSE 3000
 # depend on reaching the npm registry. The entrypoint calls the local binaries
 # directly instead, so the container starts fine on an offline box.
 ENTRYPOINT ["/app/docker-entrypoint.sh"]
+
+# --- api-runner: the NestJS transport the mobile client talks to ---
+#
+# A separate image from the web one, built from the same tree. They are
+# deployed as two containers so the API can be restarted, scaled or rolled back
+# without touching the web app -- and so a crash in one does not take the other
+# down on a box with no headroom to spare.
+#
+# Deliberately does NOT apply migrations: the web container's entrypoint owns
+# that. Two containers racing `migrate deploy` on the same database at startup
+# is a good way to find out what a half-applied migration looks like.
+FROM base AS api-runner
+ENV NODE_ENV=production
+ENV API_PORT=3001
+COPY --from=build /app /app
+WORKDIR /app/apps/api
+EXPOSE 3001
+CMD ["node", "dist/apps/api/src/main.js"]

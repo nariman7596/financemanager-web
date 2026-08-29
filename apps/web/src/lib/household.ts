@@ -1,7 +1,11 @@
 import "server-only";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
-import { prisma } from "@financemanager/db";
+import {
+  prisma,
+  resolveHouseholdContext,
+  type HouseholdContext as SharedHouseholdContext,
+} from "@financemanager/db";
 import { getSession } from "./session";
 import { roleAtLeast, type Role } from "@financemanager/core/access";
 
@@ -19,12 +23,12 @@ export { ROLES, roleAtLeast, type Role } from "@financemanager/core/access";
 
 const ACTIVE_COOKIE = "fm_household";
 
-export interface HouseholdContext {
-  userId: string;
+// The shared context (userId/householdId/role) plus the display identity the
+// web app's chrome needs. Resolution itself lives in @financemanager/db so the
+// API enforces the identical policy — see ARCHITECTURE.md D1.
+export interface HouseholdContext extends SharedHouseholdContext {
   email: string;
   name?: string | null;
-  householdId: string;
-  role: Role;
 }
 
 /**
@@ -36,24 +40,15 @@ export async function getActiveContext(): Promise<HouseholdContext | null> {
   const session = await getSession();
   if (!session) return null;
 
-  const memberships = await prisma.membership.findMany({
-    where: { userId: session.userId },
-    orderBy: { createdAt: "asc" },
-  });
-  if (memberships.length === 0) return null;
-
   const store = await cookies();
-  const wanted = store.get(ACTIVE_COOKIE)?.value;
-  const active =
-    memberships.find((m) => m.householdId === wanted) ?? memberships[0];
+  const ctx = await resolveHouseholdContext(
+    session.userId,
+    store.get(ACTIVE_COOKIE)?.value,
+  );
+  if (!ctx) return null;
 
-  return {
-    userId: session.userId,
-    email: session.email,
-    name: session.name,
-    householdId: active.householdId,
-    role: active.role as Role,
-  };
+  // The web app also carries the signed-in identity for display.
+  return { ...ctx, email: session.email, name: session.name };
 }
 
 /**
