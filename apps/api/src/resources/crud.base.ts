@@ -3,7 +3,7 @@ import {
   Post, Query, UseGuards,
 } from "@nestjs/common";
 import type { ZodSchema } from "zod";
-import { nextRevision, prisma } from "@financemanager/db";
+import { prisma } from "@financemanager/db";
 import type { HouseholdContext } from "@financemanager/db";
 import { AuthGuard } from "../auth/auth.guard";
 import { HouseholdGuard } from "../household/household.guard";
@@ -34,6 +34,10 @@ export abstract class HouseholdCrudController {
   protected abstract readonly label: string;
   /** The zod schema from @financemanager/core that validates a write. */
   protected abstract readonly schema: ZodSchema;
+
+  // Revisions are stamped by the client extension in packages/db, not here:
+  // the web app's Server Actions write through the same client and would
+  // otherwise never get one.
 
   /** Extra defaults applied on create (e.g. a currency). */
   protected createData(_ctx: HouseholdContext, body: any): Record<string, unknown> {
@@ -67,7 +71,6 @@ export abstract class HouseholdCrudController {
         ...this.createData(ctx, data),
         householdId: ctx.householdId,
         createdById: ctx.userId,
-        revision: await nextRevision(ctx.householdId),
       },
     });
   }
@@ -92,7 +95,7 @@ export abstract class HouseholdCrudController {
 
     await this.delegate.updateMany({
       where: { id, householdId: ctx.householdId, deletedAt: null },
-      data: { ...data, revision: await nextRevision(ctx.householdId) },
+      data,
     });
     return this.delegate.findFirst({ where: { id, householdId: ctx.householdId } });
   }
@@ -102,7 +105,7 @@ export abstract class HouseholdCrudController {
   async remove(@Ctx() ctx: HouseholdContext, @Param("id") id: string) {
     const { count } = await this.delegate.updateMany({
       where: { id, householdId: ctx.householdId, deletedAt: null },
-      data: { deletedAt: new Date(), revision: await nextRevision(ctx.householdId) },
+      data: { deletedAt: new Date() },
     });
     if (count === 0) throw new NotFoundException(`${this.label} not found`);
     return { ok: true };

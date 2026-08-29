@@ -3,6 +3,7 @@ import { APP_GUARD } from "@nestjs/core";
 import { ThrottlerGuard, ThrottlerModule } from "@nestjs/throttler";
 import { AuthModule } from "./auth/auth.module";
 import { ResourcesModule } from "./resources/resources.module";
+import { SyncModule } from "./sync/sync.module";
 
 @Module({
   imports: [
@@ -11,6 +12,7 @@ import { ResourcesModule } from "./resources/resources.module";
     ThrottlerModule.forRoot([{ name: "default", ttl: 60_000, limit: 300 }]),
     AuthModule,
     ResourcesModule,
+    SyncModule,
   ],
   providers: [{ provide: APP_GUARD, useClass: ThrottlerGuard }],
 })

@@ -139,7 +139,7 @@ model Account {
 
   @@unique([plaidItemId, plaidAccountId])
   @@index([householdId])
-  @@index([householdId, revision])
+  @@index([householdId, revision, id])
 }
 
 // Income / expense category.
@@ -187,7 +187,7 @@ model Category {
   // See the migration for the two indexes that cover both cases.
   @@index([householdId])
   @@index([householdId, parentId])
-  @@index([householdId, revision])
+  @@index([householdId, revision, id])
 }
 
 // A single money movement.
@@ -250,7 +250,7 @@ model Transaction {
   // One SMS can only ever become one transaction in a household.
   @@unique([householdId, smsHash])
   @@index([householdId, date])
-  @@index([householdId, revision])
+  @@index([householdId, revision, id])
   @@index([accountId])
   @@index([categoryId])
   @@index([recurringId])
@@ -299,7 +299,7 @@ model RecurringTransaction {
   transactions    Transaction[]
 
   @@index([householdId])
-  @@index([householdId, revision])
+  @@index([householdId, revision, id])
   @@index([isActive, nextRunDate])
 }
 
@@ -326,7 +326,7 @@ model Budget {
 
   @@unique([householdId, categoryId, period])
   @@index([householdId])
-  @@index([householdId, revision])
+  @@index([householdId, revision, id])
 }
 
 // An investment holding: stock, crypto, ETF, etc.
@@ -355,7 +355,7 @@ model Investment {
   account   Account?  @relation(fields: [accountId], references: [id])
 
   @@index([householdId])
-  @@index([householdId, revision])
+  @@index([householdId, revision, id])
 }
 
 // A linked bank connection via Plaid (see src/lib/plaid.ts). One item can

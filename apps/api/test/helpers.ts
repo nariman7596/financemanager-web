@@ -81,3 +81,44 @@ export async function register(email: string, name = email.split("@")[0]): Promi
   }
   return res.body as Session;
 }
+
+/**
+ * Create a user + household directly and mint an access token locally.
+ *
+ * Deliberately avoids /auth/register: that endpoint is rate limited to 10/min
+ * on purpose, and a suite that registers a user per test would trip it. The
+ * throttle is a production control worth keeping strict, so the tests that are
+ * not about registration go around it instead of relaxing it.
+ */
+export async function createUser(email: string): Promise<Session> {
+  const { SignJWT } = await import("jose");
+  const bcrypt = (await import("bcryptjs")).default;
+  const { createHousehold } = await import("@financemanager/db");
+
+  const user = await prisma.user.create({
+    data: {
+      email, name: email.split("@")[0],
+      passwordHash: await bcrypt.hash("password123", 4),
+      baseCurrency: "USD",
+    },
+  });
+  await createHousehold(user.id, `${email}'s Household`, "USD", "en");
+
+  const accessToken = await new SignJWT({ userId: user.id, email, scope: "api" })
+    .setProtectedHeader({ alg: "HS256" })
+    .setIssuedAt()
+    .setExpirationTime("1h")
+    .sign(new TextEncoder().encode(process.env.AUTH_SECRET!));
+
+  const memberships = await prisma.membership.findMany({
+    where: { userId: user.id }, include: { household: true },
+  });
+  return {
+    accessToken,
+    refreshToken: "",
+    user: { id: user.id, email },
+    households: memberships.map((m) => ({
+      id: m.householdId, name: m.household.name, role: m.role,
+    })),
+  };
+}

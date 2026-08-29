@@ -1,5 +1,6 @@
 import { PrismaClient } from "@prisma/client";
 import { withFieldEncryption } from "./encryption.extension";
+import { withRevisionStamping } from "./revision.extension";
 
 // Reuse a single PrismaClient across hot-reloads in development to avoid
 // exhausting database connections.
@@ -21,4 +22,6 @@ export const rawPrisma =
 
 if (process.env.NODE_ENV !== "production") globalForPrisma.prisma = rawPrisma;
 
-export const prisma = withFieldEncryption(rawPrisma) as unknown as PrismaClient;
+export const prisma = withRevisionStamping(
+  withFieldEncryption(rawPrisma) as unknown as PrismaClient,
+) as unknown as PrismaClient;

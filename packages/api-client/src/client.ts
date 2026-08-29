@@ -7,6 +7,7 @@ import {
   type LoginInput, type RegisterInput,
   type Session, type Transaction, type TransactionInput,
 } from "./types";
+import type { ChangesPage, Conflict, PushOp, PushResult } from "./sync";
 
 export interface TokenStore {
   getAccessToken(): string | null | Promise<string | null>;
@@ -135,6 +136,18 @@ export function createApiClient(options: ClientOptions) {
         }
         await tokens.clear();
       },
+    },
+
+    sync: {
+      /** Everything that changed after `cursor`. Pass the cursor back verbatim. */
+      changes: (cursor: string, limit = 500) =>
+        request<ChangesPage>(`/sync/changes?since=${encodeURIComponent(cursor)}&limit=${limit}`),
+      /** Apply a batch of local mutations. Safe to retry: ops carry an opId. */
+      push: (deviceId: string, ops: PushOp[]) =>
+        request<PushResult>("/sync/push", { body: { deviceId, ops } }),
+      conflicts: () => request<Conflict[]>("/sync/conflicts"),
+      resolveConflict: (id: string) =>
+        request<{ ok: true }>(`/sync/conflicts/${id}/resolve`, { method: "POST" }),
     },
 
     accounts: resource<Account, AccountInput>("accounts"),

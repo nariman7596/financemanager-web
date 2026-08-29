@@ -81,10 +81,12 @@ web image silently becomes the API.
 - Tests drive the **real compiled server over HTTP** rather than in-process
   supertest, for the same decorator-metadata reason.
 
-⚠️ **Web Server Actions do not stamp `revision` yet** — rows created in the
-browser stay at 0 and a sync pull (`revision > cursor`) would never see them.
-Nothing syncs yet, so no data is at risk, but Phase 6 must wire revision
-allocation into the web writes before the protocol goes live.
+**Revisions are stamped by a Prisma extension** (`packages/db/src/revision.extension.ts`),
+not at each call site — the web app's Server Actions never stamped one, so
+anything created in the browser stayed at revision 0 and would have been
+invisible to sync forever. Covering it at the client layer means neither
+transport can forget. An explicit `revision` in the payload is respected, which
+is how the sync push assigns its own inside a batch transaction.
 
 ## Encryption at rest (docs/ENCRYPTION.md)
 
@@ -109,6 +111,29 @@ depends on aggregating those in SQL (ARCHITECTURE.md D3).
 - ⚠️ `TOKEN_ENCRYPTION_KEY` is NOT in the database, so a dump does not contain
   it. Losing it loses every encrypted field permanently. It belongs in the
   backup runbook.
+
+## Sync protocol (docs/SYNC.md)
+
+`GET /api/v1/sync/changes` + `POST /api/v1/sync/push`, plus `/sync/conflicts`.
+Server side only — Phase 7 builds the client engine.
+
+- The **server** assigns order via `Household.syncRevision`; device clocks are
+  never trusted.
+- Pushes are **idempotent** by client-generated `opId` (`SyncOperation` ledger),
+  so a retry after a timeout applies once.
+- Conflicts: two offline creates never conflict (client-generated ids); on
+  concurrent edits the later arrival takes the row and the overwritten value is
+  kept in `SyncConflict`; **a delete always beats an edit**.
+- The pull cursor is `(revision, id)` and **opaque**. The id tiebreak matters:
+  rows seeded with a household share one revision, so a revision-only cursor
+  lets a page boundary fall inside that group and skip rows.
+- The pull uses a **raw** row-comparison query against
+  `(householdId, revision, id)` — Prisma's OR form makes Postgres bitmap-scan
+  and sort (1.24 ms vs 0.20 ms on 20k rows). Rows are then fetched through the
+  normal client so encrypted fields are decrypted.
+- Tombstones are swept only below the lowest `SyncCursor`
+  (`/api/cron/sweep-tombstones`), or an offline device never learns about the
+  delete and re-creates the row.
 
 ## Stack
 - Next.js 15 (App Router) + TypeScript

@@ -26,3 +26,10 @@ export {
 } from "./access";
 
 export { nextRevision } from "./revision";
+
+// The sync protocol (ARCHITECTURE.md §4).
+export {
+  SYNC_ENTITIES, parseCursor, formatCursor, pullChanges, pushOps, saveCursor,
+  listConflicts, resolveConflict, sweepTombstones,
+  type Cursor, type ChangeRow, type PushOp, type PushResult, type SyncEntityName,
+} from "./sync";
