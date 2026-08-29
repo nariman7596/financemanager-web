@@ -4,7 +4,7 @@ import { useState } from "react";
 import { useFormStatus } from "react-dom";
 import { upsertBudget } from "@/app/actions/budgets";
 import { useCloseModal } from "@/components/Modal";
-import { BUDGET_PERIODS, CURRENCIES } from "@/lib/constants";
+import { BUDGET_PERIODS, CURRENCIES } from "@financemanager/core/constants";
 import { useT } from "@/lib/i18n/client";
 
 type Category = { id: string; name: string };

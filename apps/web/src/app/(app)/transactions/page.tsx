@@ -1,7 +1,7 @@
 import { Plus, Pencil, Download, Upload } from "lucide-react";
 import { requireHousehold } from "@/lib/household";
 import { prisma } from "@/lib/prisma";
-import { formatMoney, formatDate, toNumber } from "@/lib/utils";
+import { formatMoney, formatDate, toNumber } from "@financemanager/core/money";
 import { Topbar } from "@/components/Topbar";
 import { Modal } from "@/components/Modal";
 import { TransactionForm } from "@/components/forms/TransactionForm";
@@ -10,7 +10,7 @@ import { DeleteButton } from "@/components/DeleteButton";
 import { deleteTransaction } from "@/app/actions/transactions";
 import { cn } from "@/lib/utils";
 import { getT, getLocale } from "@/lib/i18n/server";
-import type { TFunc } from "@/lib/i18n/translate";
+import type { TFunc } from "@financemanager/i18n/translate";
 
 export const dynamic = "force-dynamic";
 

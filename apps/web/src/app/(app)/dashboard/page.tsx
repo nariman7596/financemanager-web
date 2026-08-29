@@ -8,15 +8,15 @@ import {
   getBudgetProgress,
   getSpendingByMember,
 } from "@/lib/queries";
-import { formatMoney } from "@/lib/utils";
+import { formatMoney } from "@financemanager/core/money";
 import { Topbar } from "@/components/Topbar";
 import { StatCard } from "@/components/StatCard";
 import { CashFlowChart, SpendingPieChart } from "@/components/Charts";
 import { BudgetBar } from "@/components/BudgetBar";
 import { MemberSpending } from "@/components/MemberSpending";
 import { getT, getLocale } from "@/lib/i18n/server";
-import { monthNameIn } from "@/lib/calendar";
-import type { TFunc } from "@/lib/i18n/translate";
+import { monthNameIn } from "@financemanager/core/calendar";
+import type { TFunc } from "@financemanager/i18n/translate";
 import Link from "next/link";
 
 export const dynamic = "force-dynamic";

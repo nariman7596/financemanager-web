@@ -3,7 +3,7 @@ import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { prisma } from "./prisma";
 import { getSession } from "./session";
-import { roleAtLeast, type Role } from "./roles";
+import { roleAtLeast, type Role } from "@financemanager/core/access";
 
 // ---------------------------------------------------------------------------
 // Household access control — the security core.
@@ -15,7 +15,7 @@ import { roleAtLeast, type Role } from "./roles";
 // householdId that didn't come from one of these helpers.
 // ---------------------------------------------------------------------------
 
-export { ROLES, roleAtLeast, type Role } from "./roles";
+export { ROLES, roleAtLeast, type Role } from "@financemanager/core/access";
 
 const ACTIVE_COOKIE = "fm_household";
 

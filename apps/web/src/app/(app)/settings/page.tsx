@@ -9,7 +9,7 @@ import { DeleteButton } from "@/components/DeleteButton";
 import { deleteCategory } from "@/app/actions/categories";
 import { LanguageSwitcher } from "@/components/LanguageSwitcher";
 import { getT } from "@/lib/i18n/server";
-import type { TFunc } from "@/lib/i18n/translate";
+import type { TFunc } from "@financemanager/i18n/translate";
 
 export const dynamic = "force-dynamic";
 

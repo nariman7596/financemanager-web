@@ -7,7 +7,7 @@ import {
   INVESTMENT_TYPES,
   RECURRENCES,
   TRANSACTION_TYPES,
-} from "./constants";
+} from "../constants";
 
 const currency = z.enum(CURRENCY_CODES as [string, ...string[]]);
 const positiveAmount = z.coerce.number().positive("Amount must be greater than 0");

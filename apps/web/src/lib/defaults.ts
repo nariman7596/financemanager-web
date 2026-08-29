@@ -1,5 +1,5 @@
 import { prisma } from "./prisma";
-import { DEFAULT_LOCALE, type Locale } from "./i18n/config";
+import { DEFAULT_LOCALE, type Locale } from "@financemanager/i18n/config";
 
 // Default categories + a starter account, created for every new household so
 // the app is usable immediately.

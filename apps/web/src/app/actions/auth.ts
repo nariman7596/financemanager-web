@@ -5,10 +5,10 @@ import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { hashPassword, verifyPassword } from "@/lib/auth";
 import { setSessionCookie, clearSessionCookie } from "@/lib/session";
-import { loginSchema, registerSchema } from "@/lib/validation";
+import { loginSchema, registerSchema } from "@financemanager/core/validation";
 import { createHousehold } from "@/lib/defaults";
 import { acceptInvitesForUser } from "@/lib/invites";
-import { LOCALE_COOKIE, isLocale, DEFAULT_LOCALE } from "@/lib/i18n/config";
+import { LOCALE_COOKIE, isLocale, DEFAULT_LOCALE } from "@financemanager/i18n/config";
 import { getT } from "@/lib/i18n/server";
 
 const ONE_YEAR = 60 * 60 * 24 * 365;

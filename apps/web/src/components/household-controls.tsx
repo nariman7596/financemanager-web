@@ -4,7 +4,7 @@ import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { useFormStatus } from "react-dom";
 import { useT } from "@/lib/i18n/client";
-import { CURRENCIES } from "@/lib/constants";
+import { CURRENCIES } from "@financemanager/core/constants";
 import {
   inviteMember,
   changeRole,

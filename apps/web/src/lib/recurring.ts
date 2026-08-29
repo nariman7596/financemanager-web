@@ -1,6 +1,6 @@
 import "server-only";
 import { addDays, addWeeks } from "date-fns";
-import { addMonthsInCalendar, addYearsInCalendar } from "./calendar";
+import { addMonthsInCalendar, addYearsInCalendar } from "@financemanager/core/calendar";
 import { prisma } from "./prisma";
 
 // ---------------------------------------------------------------------------

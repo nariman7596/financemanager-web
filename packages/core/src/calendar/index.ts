@@ -1,7 +1,7 @@
 import * as gregorian from "date-fns";
 import * as jalali from "date-fns-jalali";
 
-import { type Locale } from "./i18n/config";
+import { type Locale } from "@financemanager/i18n/config";
 
 /**
  * Month arithmetic in the reader's calendar.

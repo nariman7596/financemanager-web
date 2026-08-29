@@ -3,7 +3,11 @@
   "version": "0.1.0",
   "private": true,
   "license": "UNLICENSED",
-  "files": ["tsconfig", "tailwind", "eslint"],
+  "files": [
+    "tsconfig",
+    "tailwind",
+    "eslint"
+  ],
   "exports": {
     "./tsconfig/*": "./tsconfig/*",
     "./tailwind/preset": "./tailwind/preset.ts",
@@ -11,6 +15,7 @@
     "./eslint/package": "./eslint/package.js"
   },
   "devDependencies": {
-    "tailwindcss": "^3.4.15"
+    "tailwindcss": "^3.4.15",
+    "@typescript-eslint/parser": "^8.18.0"
   }
 }

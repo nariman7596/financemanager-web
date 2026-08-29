@@ -3,7 +3,7 @@
 import { useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Languages } from "lucide-react";
-import { LOCALES, LOCALE_NAMES } from "@/lib/i18n/config";
+import { LOCALES, LOCALE_NAMES } from "@financemanager/i18n/config";
 import { useLocale } from "@/lib/i18n/client";
 import { setLocale } from "@/app/actions/locale";
 import { cn } from "@/lib/utils";

@@ -9,7 +9,7 @@ import { BudgetBar } from "@/components/BudgetBar";
 import { DeleteButton } from "@/components/DeleteButton";
 import { deleteBudget } from "@/app/actions/budgets";
 import { getT, getLocale } from "@/lib/i18n/server";
-import { monthNameIn } from "@/lib/calendar";
+import { monthNameIn } from "@financemanager/core/calendar";
 
 export const dynamic = "force-dynamic";
 

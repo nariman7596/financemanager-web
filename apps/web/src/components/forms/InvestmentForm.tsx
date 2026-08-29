@@ -4,7 +4,7 @@ import { useState } from "react";
 import { useFormStatus } from "react-dom";
 import { createInvestment } from "@/app/actions/investments";
 import { useCloseModal } from "@/components/Modal";
-import { INVESTMENT_TYPES, CURRENCIES } from "@/lib/constants";
+import { INVESTMENT_TYPES, CURRENCIES } from "@financemanager/core/constants";
 import { useT } from "@/lib/i18n/client";
 import { DateField } from "@/components/DateField";
 

@@ -3,10 +3,10 @@
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import { checkHousehold } from "@/lib/household";
-import { recurringSchema } from "@/lib/validation";
+import { recurringSchema } from "@financemanager/core/validation";
 import { postDueRecurring } from "@/lib/recurring";
 import { getLocale } from "@/lib/i18n/server";
-import { calendarForLocale } from "@/lib/calendar";
+import { calendarForLocale } from "@financemanager/core/calendar";
 
 function revalidateMoney() {
   revalidatePath("/recurring");

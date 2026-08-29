@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import { checkHousehold } from "@/lib/household";
-import { accountSchema } from "@/lib/validation";
+import { accountSchema } from "@financemanager/core/validation";
 
 export async function createAccount(formData: FormData) {
   const { ctx, error } = await checkHousehold("MEMBER");

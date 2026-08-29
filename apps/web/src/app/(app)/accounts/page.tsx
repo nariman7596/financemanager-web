@@ -1,7 +1,7 @@
 import { Plus, Landmark } from "lucide-react";
 import { requireHousehold } from "@/lib/household";
 import { getAccountBalances, getBaseCurrency } from "@/lib/queries";
-import { formatMoney, formatDate } from "@/lib/utils";
+import { formatMoney, formatDate } from "@financemanager/core/money";
 import { prisma } from "@/lib/prisma";
 import { plaidConfigured } from "@/lib/plaid";
 import { Topbar } from "@/components/Topbar";

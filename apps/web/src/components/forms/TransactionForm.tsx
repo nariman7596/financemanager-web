@@ -5,7 +5,7 @@ import { useFormStatus } from "react-dom";
 import { createTransaction, updateTransaction } from "@/app/actions/transactions";
 import { useCloseModal } from "@/components/Modal";
 import Link from "next/link";
-import { TRANSACTION_TYPES, CURRENCIES } from "@/lib/constants";
+import { TRANSACTION_TYPES, CURRENCIES } from "@financemanager/core/constants";
 import { useT } from "@/lib/i18n/client";
 import { DateField } from "@/components/DateField";
 

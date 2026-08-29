@@ -1,7 +1,7 @@
 import "server-only";
 import { cookies } from "next/headers";
-import { DEFAULT_LOCALE, LOCALE_COOKIE, isLocale, type Locale } from "./config";
-import { createT, type TFunc } from "./translate";
+import { DEFAULT_LOCALE, LOCALE_COOKIE, isLocale, type Locale } from "@financemanager/i18n/config";
+import { createT, type TFunc } from "@financemanager/i18n/translate";
 
 /** Resolve the active locale from the cookie (Server Components / Actions). */
 export async function getLocale(): Promise<Locale> {

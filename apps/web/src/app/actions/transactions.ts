@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import { checkHousehold } from "@/lib/household";
-import { transactionSchema } from "@/lib/validation";
+import { transactionSchema } from "@financemanager/core/validation";
 
 function parse(formData: FormData) {
   return transactionSchema.safeParse({

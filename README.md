@@ -109,6 +109,10 @@ apps/
       components/         # UI: Sidebar, HouseholdSwitcher, Charts, Modal, forms, …
 
 packages/
+  core/                   # the domain: money, currency, calendar, date ranges,
+                          # csv, report builder, zod schemas, role ranks.
+                          # Pure TypeScript — no framework, no database.
+  i18n/                   # locale config + en/fa dictionaries + createT
   config/                 # shared tsconfig / tailwind preset / eslint configs
 
 deploy/                   # Caddy, cron container, backup + restore scripts

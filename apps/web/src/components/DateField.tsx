@@ -8,7 +8,7 @@ import {
   fromJalaliParts,
   toJalaliParts,
   todayYmd,
-} from "@/lib/calendar";
+} from "@financemanager/core/calendar";
 
 type Props = {
   /** Form-field name. Omit in controlled mode — nothing is submitted. */

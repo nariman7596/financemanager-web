@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { RANGE_PRESETS, type RangePreset } from "@/lib/dateRange";
+import { RANGE_PRESETS, type RangePreset } from "@financemanager/core/date-range";
 import { cn } from "@/lib/utils";
 import { useT } from "@/lib/i18n/client";
 import { DateField } from "@/components/DateField";

@@ -4,7 +4,7 @@ import { useState } from "react";
 import { useFormStatus } from "react-dom";
 import { createRecurring, updateRecurring } from "@/app/actions/recurring";
 import { useCloseModal } from "@/components/Modal";
-import { TRANSACTION_TYPES, RECURRENCES, CURRENCIES } from "@/lib/constants";
+import { TRANSACTION_TYPES, RECURRENCES, CURRENCIES } from "@financemanager/core/constants";
 import { useT } from "@/lib/i18n/client";
 import { DateField } from "@/components/DateField";
 

@@ -1,7 +1,7 @@
 import { Plus, Pencil } from "lucide-react";
 import { requireHousehold } from "@/lib/household";
 import { prisma } from "@/lib/prisma";
-import { formatMoney, formatDate, toNumber } from "@/lib/utils";
+import { formatMoney, formatDate, toNumber } from "@financemanager/core/money";
 import { Topbar } from "@/components/Topbar";
 import { Modal } from "@/components/Modal";
 import { RecurringForm } from "@/components/forms/RecurringForm";
@@ -10,7 +10,7 @@ import { RecurringToggle } from "@/components/RecurringToggle";
 import { DeleteButton } from "@/components/DeleteButton";
 import { deleteRecurring } from "@/app/actions/recurring";
 import { getT, getLocale } from "@/lib/i18n/server";
-import type { TFunc } from "@/lib/i18n/translate";
+import type { TFunc } from "@financemanager/i18n/translate";
 
 export const dynamic = "force-dynamic";
 

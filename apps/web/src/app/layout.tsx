@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import "./globals.css";
 import { getLocale } from "@/lib/i18n/server";
-import { dirFor } from "@/lib/i18n/config";
+import { dirFor } from "@financemanager/i18n/config";
 import { I18nProvider } from "@/lib/i18n/client";
 
 export const metadata: Metadata = {

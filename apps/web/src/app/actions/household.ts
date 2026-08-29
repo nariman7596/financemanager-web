@@ -13,7 +13,7 @@ import {
 } from "@/lib/household";
 import { createHousehold } from "@/lib/defaults";
 import { transferOwnershipTo, deleteHouseholdFor } from "@/lib/ownership";
-import { CURRENCY_CODES } from "@/lib/constants";
+import { CURRENCY_CODES } from "@financemanager/core/constants";
 
 // Roles an ADMIN may assign / invite at (never OWNER — ownership isn't
 // transferable in this version, which also prevents accidental lockout).

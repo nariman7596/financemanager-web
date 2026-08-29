@@ -1,5 +1,5 @@
-import { formatMoney } from "@/lib/utils";
-import type { TFunc } from "@/lib/i18n/translate";
+import { formatMoney } from "@financemanager/core/money";
+import type { TFunc } from "@financemanager/i18n/translate";
 
 export function BudgetBar({
   budget,

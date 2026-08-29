@@ -16,6 +16,12 @@ on:
     paths-ignore:
       - "docs/**"
       - "**/*.md"
+  # Feature branches need the `verify` job too — a gate that only runs on main
+  # tells you the tree was broken after it is already the deploy candidate.
+  # The `build` job stays main-only (see its `if:`), so pull requests are
+  # checked without publishing an image.
+  pull_request:
+    branches: [main]
   workflow_dispatch: # lets you rebuild by hand from the Actions tab
 
 env:
@@ -53,8 +59,14 @@ jobs:
       - name: Lint
         run: pnpm lint
 
+      - name: Test
+        run: pnpm test
+
   build:
     needs: verify
+    # Never publish from a pull request: the image tagged `latest` is what the
+    # server pulls, so only main may produce one.
+    if: github.event_name != 'pull_request'
     runs-on: ubuntu-latest
     permissions:
       contents: read

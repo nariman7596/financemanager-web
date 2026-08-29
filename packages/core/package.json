@@ -1,0 +1,35 @@
+{
+  "name": "@financemanager/core",
+  "version": "0.1.0",
+  "private": true,
+  "exports": {
+    ".": "./src/index.ts",
+    "./access": "./src/access/index.ts",
+    "./calendar": "./src/calendar/index.ts",
+    "./constants": "./src/constants/index.ts",
+    "./csv": "./src/csv/index.ts",
+    "./currency": "./src/currency/index.ts",
+    "./date-range": "./src/date-range/index.ts",
+    "./money": "./src/money/index.ts",
+    "./reports": "./src/reports/index.ts",
+    "./validation": "./src/validation/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "lint": "eslint src --ext .ts"
+  },
+  "dependencies": {
+    "@financemanager/i18n": "workspace:*",
+    "date-fns": "^3.6.0",
+    "date-fns-jalali": "3.6.0-1",
+    "zod": "^3.23.8"
+  },
+  "devDependencies": {
+    "@financemanager/config": "workspace:*",
+    "@typescript-eslint/parser": "^8.18.0",
+    "eslint": "^8.57.1",
+    "typescript": "^5.6.3",
+    "vitest": "^2.1.8"
+  }
+}

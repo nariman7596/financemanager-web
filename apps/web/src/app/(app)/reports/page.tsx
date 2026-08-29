@@ -7,15 +7,15 @@ import {
   getCategoryBreakdown,
   getMemberBreakdown,
 } from "@/lib/queries";
-import { resolveRange } from "@/lib/dateRange";
-import { formatDate, formatMoney } from "@/lib/utils";
+import { resolveRange } from "@financemanager/core/date-range";
+import { formatDate, formatMoney } from "@financemanager/core/money";
 import { Topbar } from "@/components/Topbar";
 import { StatCard } from "@/components/StatCard";
 import { CashFlowChart, SpendingPieChart } from "@/components/Charts";
 import { MemberSpending } from "@/components/MemberSpending";
 import { DateRangePicker } from "@/components/DateRangePicker";
 import { getT, getLocale } from "@/lib/i18n/server";
-import type { TFunc } from "@/lib/i18n/translate";
+import type { TFunc } from "@financemanager/i18n/translate";
 
 export const dynamic = "force-dynamic";
 

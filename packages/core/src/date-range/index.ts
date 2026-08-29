@@ -10,8 +10,8 @@ import {
   endOfMonthIn,
   subMonthsIn,
   startOfYearIn,
-} from "./calendar";
-import { DEFAULT_LOCALE, type Locale } from "./i18n/config";
+} from "../calendar";
+import { DEFAULT_LOCALE, type Locale } from "@financemanager/i18n/config";
 
 // Date-range presets + URL-param resolution for the Reports page. Pure (no
 // server-only) so it's testable and usable on client + server. Pass `now` for

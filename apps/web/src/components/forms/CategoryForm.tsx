@@ -4,7 +4,7 @@ import { useState } from "react";
 import { useFormStatus } from "react-dom";
 import { createCategory } from "@/app/actions/categories";
 import { useCloseModal } from "@/components/Modal";
-import { CATEGORY_TYPES } from "@/lib/constants";
+import { CATEGORY_TYPES } from "@financemanager/core/constants";
 import { useT } from "@/lib/i18n/client";
 
 function Submit() {

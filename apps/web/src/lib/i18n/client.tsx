@@ -1,8 +1,8 @@
 "use client";
 
 import { createContext, useContext } from "react";
-import { DEFAULT_LOCALE, type Locale } from "./config";
-import { createT, type TFunc } from "./translate";
+import { DEFAULT_LOCALE, type Locale } from "@financemanager/i18n/config";
+import { createT, type TFunc } from "@financemanager/i18n/translate";
 
 type I18nValue = { locale: Locale; t: TFunc };
 

@@ -2,7 +2,7 @@
 
 import { cookies } from "next/headers";
 import { revalidatePath } from "next/cache";
-import { LOCALE_COOKIE, isLocale, type Locale } from "@/lib/i18n/config";
+import { LOCALE_COOKIE, isLocale, type Locale } from "@financemanager/i18n/config";
 import { getSession } from "@/lib/session";
 import { prisma } from "@/lib/prisma";
 import { relabelDefaults } from "@/lib/defaults";

@@ -1,6 +1,6 @@
 import { prisma } from "./prisma";
-import { parseCsvObjects } from "./csv";
-import { TRANSACTION_TYPES, CURRENCY_CODES, type TransactionType } from "./constants";
+import { parseCsvObjects } from "@financemanager/core/csv";
+import { TRANSACTION_TYPES, CURRENCY_CODES, type TransactionType } from "@financemanager/core/constants";
 
 // Core CSV -> transactions import. No auth / no server-only here so it can be
 // unit-tested directly; the Server Action wraps this with requireUser +

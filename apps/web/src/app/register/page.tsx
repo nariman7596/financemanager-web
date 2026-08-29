@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useActionState } from "react";
 import { useFormStatus } from "react-dom";
 import { registerAction } from "@/app/actions/auth";
-import { CURRENCIES } from "@/lib/constants";
+import { CURRENCIES } from "@financemanager/core/constants";
 import { Wallet } from "lucide-react";
 import { useT } from "@/lib/i18n/client";
 import { LanguageSwitcher } from "@/components/LanguageSwitcher";

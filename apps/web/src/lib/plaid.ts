@@ -9,7 +9,7 @@ import {
 } from "plaid";
 import { prisma } from "./prisma";
 import { encrypt, decrypt } from "./crypto";
-import { TRANSACTION_TYPES } from "./constants";
+import { TRANSACTION_TYPES } from "@financemanager/core/constants";
 
 // ---------------------------------------------------------------------------
 // Bank sync via Plaid. Mirrors the shape of marketdata.ts / recurring.ts:

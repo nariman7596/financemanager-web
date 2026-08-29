@@ -15,7 +15,7 @@ import {
   Line,
   ComposedChart,
 } from "recharts";
-import { formatMoney } from "@/lib/utils";
+import { formatMoney } from "@financemanager/core/money";
 import { useIsDark, chartTheme } from "@/lib/useIsDark";
 import { useT } from "@/lib/i18n/client";
 

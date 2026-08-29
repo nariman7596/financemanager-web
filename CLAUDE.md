@@ -5,8 +5,30 @@ budgets, and investments with full control over money flows.
 
 ## Repo layout — pnpm + Turborepo workspace
 The app used to be a single package at the repo root; it now lives in
-`apps/web/`. Shared tsconfig/tailwind/eslint live in `packages/config`. See
-`ARCHITECTURE.md` for the target layout and `ROADMAP.md` for the phase plan.
+`apps/web/`. See `ARCHITECTURE.md` for the target layout and `ROADMAP.md` for
+the phase plan.
+
+```
+apps/web            Next.js app (routes, server actions, React components)
+packages/core       THE DOMAIN — pure TS, no framework. 70 tests.
+packages/i18n       locale config + en/fa dictionaries + createT. 9 tests.
+packages/config     shared tsconfig / tailwind preset / eslint
+```
+
+**`packages/core` must stay platform-agnostic** — it has to run on the server,
+in the browser, in Hermes and in tests. No `next/*`, no `react-native`, no Node
+built-ins, no Prisma. `packages/config/eslint/package.js` enforces this and the
+rule is verified to fire; `pnpm lint` fails the build if you reach for one.
+Subpaths: `@financemanager/core/{access,calendar,constants,csv,currency,
+date-range,money,reports,validation}`.
+
+Both packages ship **TypeScript source, not a build artifact** — `apps/web`
+compiles them via `transpilePackages` in `next.config.mjs`. Adding a new
+shared package means adding it to that list too, or Next will fail to parse it.
+
+The database-backed halves stayed in the app on purpose: `apps/web/src/lib/
+currency.ts` loads the ExchangeRate table and calls core's pure `convert`;
+`queries.ts`, `recurring.ts`, `importer.ts` still hold their Prisma access.
 
 Deployment entry points (`docker-compose*.yml`, `Dockerfile`,
 `docker-entrypoint.sh`, `deploy/`) stay at the **repo root** on purpose: the

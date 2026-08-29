@@ -6,8 +6,8 @@ import {
   getCategoryBreakdown,
   getMemberBreakdown,
 } from "@/lib/queries";
-import { resolveRange } from "@/lib/dateRange";
-import { buildReportCsv } from "@/lib/reportCsv";
+import { resolveRange } from "@financemanager/core/date-range";
+import { buildReportCsv } from "@financemanager/core/reports";
 import { getT, getLocale } from "@/lib/i18n/server";
 
 // GET /api/export/report?preset=|from=&to= -> a summary report CSV (totals +

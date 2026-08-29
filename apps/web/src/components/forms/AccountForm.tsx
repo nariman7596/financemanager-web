@@ -4,7 +4,7 @@ import { useState } from "react";
 import { useFormStatus } from "react-dom";
 import { createAccount } from "@/app/actions/accounts";
 import { useCloseModal } from "@/components/Modal";
-import { ACCOUNT_TYPES, CURRENCIES } from "@/lib/constants";
+import { ACCOUNT_TYPES, CURRENCIES } from "@financemanager/core/constants";
 import { useT } from "@/lib/i18n/client";
 
 function Submit() {
