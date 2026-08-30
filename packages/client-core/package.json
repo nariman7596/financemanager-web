@@ -1,0 +1,26 @@
+{
+  "name": "@financemanager/client-core",
+  "version": "0.1.0",
+  "private": true,
+  "exports": {
+    ".": "./src/index.ts",
+    "./store/memory": "./src/store/memory.ts",
+    "./store/sql": "./src/store/sql.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint src --ext .ts",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@financemanager/api-client": "workspace:*",
+    "@financemanager/core": "workspace:*"
+  },
+  "devDependencies": {
+    "@financemanager/config": "workspace:*",
+    "@typescript-eslint/parser": "^8.18.0",
+    "eslint": "^8.57.1",
+    "typescript": "^5.6.3",
+    "vitest": "^2.1.8"
+  }
+}

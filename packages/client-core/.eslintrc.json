@@ -1,0 +1,5 @@
+{
+  "root": true,
+  "extends": ["../config/eslint/package.js"],
+  "ignorePatterns": ["*.test.ts", "vitest.config.ts"]
+}

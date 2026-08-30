@@ -13,6 +13,7 @@ apps/web            Next.js app (routes, server actions, React components)
 apps/api            NestJS API — the transport mobile talks to. 24 tests.
 packages/db         Prisma schema/migrations/client + household bootstrap
 packages/api-client typed fetch client for web + mobile. 6 tests.
+packages/client-core THE OFFLINE ENGINE — local store, outbox, sync loop. 53 tests.
 packages/core       THE DOMAIN — pure TS, no framework. 70 tests.
 packages/i18n       locale config + en/fa dictionaries + createT. 9 tests.
 packages/config     shared tsconfig / tailwind preset / eslint
@@ -111,6 +112,40 @@ depends on aggregating those in SQL (ARCHITECTURE.md D3).
 - ⚠️ `TOKEN_ENCRYPTION_KEY` is NOT in the database, so a dump does not contain
   it. Losing it loses every encrypted field permanently. It belongs in the
   backup runbook.
+
+## The offline engine (packages/client-core)
+
+Platform-agnostic — no React, no React Native, no Node built-ins — so it runs
+in a browser, in Hermes and in tests. The UI reads and writes the **local**
+store only; this moves data to and from the server in the background.
+
+Invariants, each with a test:
+- **A pending local edit outranks an incoming change for the same row** until
+  it is pushed. Overwriting would discard what the user typed offline. Nothing
+  is lost: pushing bumps the server revision, so a later pull delivers the
+  settled value.
+- **Repeated edits to an unsent row coalesce into one op.** Correctness, not
+  thrift: two ops for one unpushed row carry the *same* baseRevision, so the
+  server would record a conflict against this device's own earlier edit.
+- **An auth failure never costs a retry and never drops the queue.**
+- **A permanently rejected op is quarantined; the rest of the batch is not
+  penalised** — backing off innocent ops behind a bad row is the freezing that
+  quarantine exists to prevent.
+- **Push before pull**, so the pull returns the settled result.
+
+Rows are stored as JSON, not typed columns: the mirror is only read by
+household and id, and JSON means a server schema change needs no migration on
+phones still running an old build. The SQL adapter is tested against a real
+engine via `node:sqlite`, so the statements that run on a phone are the ones
+that were tested.
+
+`createFakeServer()` + `flaky()` are exported: the mobile app can build screens
+with no backend running, and the suite tests convergence under lost responses.
+
+Deliberately deferred: the IndexedDB adapter (Phase 12, when the web PWA needs
+it — an untested adapter now would just rot) and the React Query bindings
+(Phase 8, where React actually exists; keeping this package headless is what
+makes it testable).
 
 ## Sync protocol (docs/SYNC.md)
 
@@ -489,17 +524,16 @@ Phase 3 migration to the live database**. Before merging, the user needs to:
   Then: `git checkout main && git merge --ff-only claude/personal-finance-app-9s8mrr
   && git push origin main`, watch the Actions run, then pull on the VPS.
 
-**1. Phase 7 — `packages/client-core`, the offline engine.** The next build
-step. LocalStore interface + adapters (expo-sqlite for mobile, IndexedDB for
-web), a durable dependency-ordered outbox with backoff and single-op
-quarantine, the pull/push loop, and React Query integration. Deliberately
-testable headlessly *before* any mobile UI exists — it is the riskiest logic in
-the project and should not be debugged through a simulator. The wire contract
-it targets is `docs/SYNC.md`; `packages/api-client` already exposes
-`sync.changes/push/conflicts`.
+**1. Phase 8 — `apps/mobile` (Expo, iOS first).** The engine is done and
+tested; this wires it to screens. Needs: an expo-sqlite `SqlDriver` (~10 lines,
+the adapter is already written and tested), `react-native-get-random-values`
+imported at the entry point (uuidv7 needs `crypto.getRandomValues`), React
+Query bindings over `engine.list/get/mutate/remove` with `onChange` for
+invalidation, and RTL via `I18nManager` (which needs an app reload — the
+language switcher must say so).
 
-**2. Phase 8 — `apps/mobile` (Expo, iOS first).** Then 9 (SMS parsing), 10
-(Android ingest), 11 (reports v2), 12 (web PWA offline), 13 (hardening), 14
+**2. Then** 9 (SMS parsing), 10 (Android ingest), 11 (reports v2), 12 (web PWA
+offline — this is where the IndexedDB adapter belongs), 13 (hardening), 14
 (release). See ROADMAP.md.
 
 **Carried over from the original app** (still valid, lower priority): Plaid is
@@ -508,6 +542,13 @@ sandbox-only and needs real credentials; PDF/Excel report export; the
 because they are seeded relative to seed time.
 
 ## Recently done
+- **Phase 7 — `packages/client-core`, the offline engine**: LocalStore
+  interface with memory + SQL adapters (the SQL one tested against real
+  `node:sqlite`), a durable coalescing outbox with jittered backoff and
+  single-op quarantine, and the push/pull loop. 53 tests including two-device
+  convergence and a flaky network that fails every third call and loses
+  responses after applying them. Testing caught a real flaw: a permanently
+  rejected op was backing off every innocent op in its batch.
 - **Phase 6 — sync protocol, server side**: `/sync/changes` + `/sync/push` +
   conflicts, tombstone sweep. Fixed the Phase 4 gap where web writes never got
   a revision (now stamped by a Prisma extension). Pull cursor is `(revision,
@@ -626,16 +667,16 @@ cross-platform rebuild (ARCHITECTURE.md / ROADMAP.md). See "On return" at the
 bottom for exactly what is merged and what is waiting.
 
 ## On return
-Session of 2026-08-29 ended here. Phases 0-6 of ROADMAP.md are complete.
+Session of 2026-08-30. Phases 0-7 of ROADMAP.md are complete.
 
 **State of the branches**
 - `main` = Phases 0-2 (planning docs, monorepo, `packages/core` + `packages/i18n`).
   Green in CI, image published, safe to deploy.
-- `claude/personal-finance-app-9s8mrr` = `main` + **four unmerged commits**:
+- `claude/personal-finance-app-9s8mrr` = `main` + **unmerged commits**:
   Phase 3 (schema/sync foundations + sub-categories), the `packages/db`
   extraction, Phase 4 (NestJS API), Phase 5 (encryption), Phase 6 (sync
-  protocol). All verified locally; **not yet built by CI**, because CI only
-  builds `main` and PRs and no PR is open.
+  protocol), Phase 7 (offline engine). All verified locally; **not yet built by
+  CI**, because CI only builds `main` and PRs and no PR is open.
 
 **The one decision waiting on the user** — see WHERE TO CONTINUE item 0. Do not
 merge without the backup and the `TOKEN_ENCRYPTION_KEY`: deploying applies the
@@ -659,6 +700,10 @@ backup taken from the database.
   revision 0 (invisible to sync forever), the seed writing plaintext, and
   Postgres treating NULLs as distinct so a plain unique index does not stop
   duplicate top-level categories.
+
+**Environment note**: a fresh container has no Postgres. Bring one up as in
+"Running the tests" above before touching the db or api suites; client-core,
+core, i18n and api-client need nothing.
 
 **Still open from before the rebuild**: 3 dependabot advisories on `main` plus
 an open PR bumping vitest 2 → 3; Plaid is sandbox-only; a Jalali `from > to` in
