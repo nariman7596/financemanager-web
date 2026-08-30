@@ -290,7 +290,13 @@ quotes it, so its rate is derived from IRR (exactly 10 rial to the toman) rather
 than being left silently absent.
 
 ## Deploy
-Postgres everywhere via Docker. Three guides:
+Postgres everywhere via Docker. Guides:
+- **`docs/DEPLOY-IRAN.md`** — a fresh VPS inside Iran. GHCR and Docker Hub both
+  refuse Iranian IPs, so the CI-builds-server-pulls model does not work there:
+  either build on the server (needs 4 GB, or swap), build elsewhere and copy the
+  image over with `docker save`/`scp`, or give the server an outbound proxy.
+  On a *fresh* server the Phase 3 migration has an empty database to run
+  against, so the branch can be deployed directly without the backup gate.
 - **`docs/DOCKER.md`** — primary, ELI5: Docker on a VPS with per-project
   isolation (app box + its own Postgres box) behind a shared Caddy reverse
   proxy (auto-HTTPS). Repo ships `Dockerfile`, `docker-entrypoint.sh` (applies

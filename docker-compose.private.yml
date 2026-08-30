@@ -32,7 +32,12 @@ services:
       retries: 10
 
   app:
-    build: .
+    build:
+      context: .
+      # MUST be explicit. Without it Docker builds the LAST stage in the
+      # Dockerfile, which is api-runner — the web container would silently
+      # start the API and every page would 404.
+      target: runner
     restart: unless-stopped
     environment:
       DATABASE_URL: postgresql://fm:${DB_PASSWORD}@db:5432/financemanager?schema=public
@@ -40,6 +45,11 @@ services:
       DIRECT_URL: postgresql://fm:${DB_PASSWORD}@db:5432/financemanager?schema=public
       AUTH_SECRET: ${AUTH_SECRET:?set AUTH_SECRET in .env}
       CRON_SECRET: ${CRON_SECRET:?set CRON_SECRET in .env}
+      # Encrypts transaction descriptions/notes, raw SMS and Plaid tokens.
+      # Required: without it the app boots fine and then fails the first time
+      # anyone saves a description. NOT stored in the database — back it up
+      # separately (docs/ENCRYPTION.md).
+      TOKEN_ENCRYPTION_KEY: ${TOKEN_ENCRYPTION_KEY:?set TOKEN_ENCRYPTION_KEY in .env}
       STOCK_API_KEY: ${STOCK_API_KEY:-}
       # Session cookies are Secure by default, which browsers only send over
       # HTTPS (http://localhost counts as secure, so SSH tunnels are fine).
@@ -61,6 +71,31 @@ services:
     networks:
       internal:
         aliases: [financemanager]
+
+  # The transport the mobile client talks to (Phase 4). Same private posture as
+  # the app: bound to one address, never 0.0.0.0. It does NOT apply migrations —
+  # the app container owns that, so the two cannot race on startup.
+  api:
+    build:
+      context: .
+      target: api-runner
+    restart: unless-stopped
+    environment:
+      DATABASE_URL: postgresql://fm:${DB_PASSWORD}@db:5432/financemanager?schema=public
+      DIRECT_URL: postgresql://fm:${DB_PASSWORD}@db:5432/financemanager?schema=public
+      AUTH_SECRET: ${AUTH_SECRET:?set AUTH_SECRET in .env}
+      TOKEN_ENCRYPTION_KEY: ${TOKEN_ENCRYPTION_KEY:?set TOKEN_ENCRYPTION_KEY in .env}
+      API_PORT: 3001
+    ports:
+      - "${APP_BIND:-127.0.0.1}:3001:3001"
+    depends_on:
+      db:
+        condition: service_healthy
+      app:
+        condition: service_started
+    networks:
+      internal:
+        aliases: [financemanager-api]
 
   cron:
     build: ./deploy/cron
