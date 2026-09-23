@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   jalaliToUtcDate,
+  looksLikeTransaction,
   matchSmsAccount,
   normalizeSms,
   parseBankSms,
@@ -24,9 +25,44 @@ describe("parseBankSms", () => {
       amountRial: 70_000_000,
       balanceRial: 450_105,
       kind: "پایا",
+      note: null,
       date: new Date("2026-09-23T00:00:00Z"), // 1 Mehr 1405
       time: "11:32",
     });
+  });
+
+  // Real Bank Refah messages, typed from the owner's phone.
+  it("reads a Refah purchase from the previous month", () => {
+    const sms = "بانک رفاه\nحساب405943623\nخرید19,060,000-\nمانده70,457,105\n06/31-21:38";
+    expect(parseBankSms(sms, NOW)).toMatchObject({
+      direction: "OUT",
+      amountRial: 19_060_000,
+      balanceRial: 70_457_105,
+      kind: "خرید",
+      date: new Date("2026-09-22T00:00:00Z"), // 31 Shahrivar 1405
+      time: "21:38",
+    });
+  });
+
+  it("reads a Refah salary: Arabic letters, a note line and a 1-digit year", () => {
+    // "بانك" with Arabic kaf, and "5/07/01" = 1 Mehr 1405 — not 7 Mordad.
+    const sms = "بانك رفاه\nحساب 405943623\nواریز2,745,513,902+\nحقوق ماهانه\nمانده2,745,964,007\n5/07/01-13:00";
+    expect(parseBankSms(sms, NOW)).toEqual({
+      bank: "بانک رفاه",
+      accountRef: "405943623",
+      direction: "IN",
+      amountRial: 2_745_513_902,
+      balanceRial: 2_745_964_007,
+      kind: "واریز",
+      note: "حقوق ماهانه",
+      date: new Date("2026-09-23T00:00:00Z"),
+      time: "13:00",
+    });
+  });
+
+  it("reads a direction word spelled with Arabic ya", () => {
+    const p = parseBankSms("حساب1234567\nواريز 300,000\n07/01", NOW);
+    expect(p?.direction).toBe("IN");
   });
 
   it("reads a deposit by its trailing plus sign", () => {
@@ -68,6 +104,19 @@ describe("parseBankSms", () => {
     expect(parseBankSms("حساب405943623\nمبلغ70,000,000\n07/01", NOW)).toBeNull();
     // No date: refuse rather than book it on the wrong day.
     expect(parseBankSms("حساب405943623\nپایا70,000,000-", NOW)).toBeNull();
+  });
+});
+
+describe("looksLikeTransaction", () => {
+  it("is false for the notices banks send from the same number", () => {
+    // Refah's mobile-bank login notice, and an OTP: never worth a review item.
+    expect(looksLikeTransaction("بانک رفاه\nمشتری گرامی\nورود به همراه بانک\n1405/07/01 11:32:11")).toBe(false);
+    expect(looksLikeTransaction("رمز پویا: 482913\nاعتبار 2 دقیقه")).toBe(false);
+  });
+
+  it("is true for an amount the parser could not place", () => {
+    expect(looksLikeTransaction("حساب405943623\nمبلغ70,000,000\n07/01")).toBe(true);
+    expect(looksLikeTransaction("حساب405943623\nپایا70,000,000-")).toBe(true);
   });
 });
 

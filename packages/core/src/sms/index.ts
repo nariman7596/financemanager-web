@@ -37,6 +37,8 @@ export type ParsedSms = {
   balanceRial: number | null;
   /** The label on the amount line, e.g. "پایا", "خرید", "برداشت". */
   kind: string | null;
+  /** A free-text line the bank adds, e.g. "حقوق ماهانه" on a salary deposit. */
+  note: string | null;
   /** Midnight UTC of the transaction's calendar day (the app's date convention). */
   date: Date;
   /** "HH:MM" if the message carried a time. */
@@ -60,13 +62,17 @@ export function normalizeSms(text: string): string {
     else if (a >= 0) out += String(a);
     else if (ch === "٬") out += ","; // Arabic thousands separator
     else if (ch === "٫") out += "."; // Arabic decimal separator
-    else if (/[‎‏‪-‮⁦-⁩﻿]/.test(ch)) continue;
+    // Arabic letter forms some bank gateways send ("بانك", "واريز"): fold to
+    // Persian so word matching sees one spelling.
+    else if (ch === "ك") out += "ک";
+    else if (ch === "ي" || ch === "ى") out += "ی";
+    else if (/[\u200e\u200f\u202a-\u202e\u2066-\u2069\ufeff]/.test(ch)) continue;
     else out += ch;
   }
   return out
     .replace(/\r\n?/g, "\n")
     .split("\n")
-    .map((l) => l.replace(/[ \t ]+/g, " ").trim())
+    .map((l) => l.replace(/[ \t\u00a0]+/g, " ").trim())
     .filter((l) => l.length > 0)
     .join("\n");
 }
@@ -128,7 +134,10 @@ export function tehranJalaliToday(now: Date): { year: number; month: number; day
 
 function parseDate(lines: string[], now: Date): { date: Date; time: string | null } | null {
   for (const line of lines) {
-    const d = line.match(/(?:(\d{2,4})\/)?(\d{1,2})\/(\d{1,2})(?!\d)/);
+    // Year optional and of any width: Refah alone sends "07/01", "5/07/01"
+    // and "1405/07/01". A 1-digit year must be read as the year, not as the
+    // month — "5/07/01" is 1 Mehr 1405, not 7 Mordad.
+    const d = line.match(/(?:(\d{1,4})\/)?(\d{1,2})\/(\d{1,2})(?!\d)/);
     if (!d) continue;
     const time = line.match(/(\d{1,2}):(\d{2})/);
     const month = Number(d[2]);
@@ -138,7 +147,7 @@ function parseDate(lines: string[], now: Date): { date: Date; time: string | nul
     let date: Date | null;
     if (d[1]) {
       let year = Number(d[1]);
-      if (year < 100) year += 1400; // "05/07/01" → 1405
+      if (year < 100) year += 1400; // "5/07/01", "05/07/01" → 1405
       date = jalaliToUtcDate(year, month, day);
     } else {
       // No year: this year, unless that would be in the future — a message
@@ -171,6 +180,7 @@ export function parseBankSms(text: string, now: Date = new Date()): ParsedSms | 
   let accountRef: string | null = null;
   let balanceRial: number | null = null;
   let amount: { amount: number; sign: "+" | "-" | null; label: string } | null = null;
+  let note: string | null = null;
 
   for (const line of lines) {
     if (line.includes("/") && /\d\/\d/.test(line)) continue; // the date line
@@ -193,8 +203,12 @@ export function parseBankSms(text: string, now: Date = new Date()): ParsedSms | 
       const a = parseAmountLine(line);
       if (a && (a.sign || hasAny(a.label, OUT_WORDS) || hasAny(a.label, IN_WORDS))) {
         amount = a;
+        continue;
       }
     }
+
+    // A digit-free line after the amount is the bank's own description.
+    if (amount && !note && !/\d/.test(line) && line !== bank) note = line;
   }
 
   if (!amount) return null;
@@ -216,9 +230,28 @@ export function parseBankSms(text: string, now: Date = new Date()): ParsedSms | 
     amountRial: amount.amount,
     balanceRial,
     kind: amount.label || null,
+    note,
     date: when.date,
     time: when.time,
   };
+}
+
+/**
+ * Whether an unreadable message still looks like money moved — a signed or
+ * thousands-separated amount, or a direction word. Banks also send login
+ * notices, OTPs and adverts from the same sender; those are not worth the
+ * user's attention, while an unreadable transaction is.
+ */
+export function looksLikeTransaction(text: string): boolean {
+  const lines = normalizeSms(text).split("\n");
+  return lines.some((line) => {
+    if (/\d\/\d/.test(line) || hasAny(line, BALANCE_WORDS)) return false;
+    return (
+      /\d{1,3}(?:,\d{3})+/.test(line) ||
+      /[+-]\s*\d{4,}|\d{4,}\s*[+-]/.test(line) ||
+      ((hasAny(line, OUT_WORDS) || hasAny(line, IN_WORDS)) && /\d/.test(line))
+    );
+  });
 }
 
 /**

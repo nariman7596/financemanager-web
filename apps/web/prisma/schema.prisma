@@ -331,7 +331,7 @@ model SmsMessage {
   createdById   String?
   body          String
   hash          String
-  status        String // BOOKED | UNPARSED | UNMATCHED | DISMISSED
+  status        String // BOOKED | UNPARSED | UNMATCHED | IGNORED | DISMISSED
   transactionId String?  @unique
   receivedAt    DateTime @default(now())
 

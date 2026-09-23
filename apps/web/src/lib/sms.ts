@@ -2,6 +2,7 @@ import { createHash, randomBytes } from "node:crypto";
 import { Prisma } from "@prisma/client";
 import { prisma } from "./prisma";
 import {
+  looksLikeTransaction,
   matchSmsAccount,
   normalizeSms,
   parseBankSms,
@@ -58,7 +59,7 @@ export async function authenticateApiToken(header: string | null): Promise<SmsSc
 // Ingest
 // ---------------------------------------------------------------------------
 
-export type SmsOutcome = "BOOKED" | "DUPLICATE" | "UNPARSED" | "UNMATCHED";
+export type SmsOutcome = "BOOKED" | "DUPLICATE" | "UNPARSED" | "UNMATCHED" | "IGNORED";
 
 function smsHash(text: string): string {
   return createHash("sha256").update(normalizeSms(text)).digest("hex");
@@ -76,8 +77,11 @@ async function processMessage(
 ): Promise<SmsOutcome> {
   const parsed = parseBankSms(message.body, message.receivedAt);
   if (!parsed) {
-    await prisma.smsMessage.update({ where: { id: message.id }, data: { status: "UNPARSED" } });
-    return "UNPARSED";
+    // A login notice or an OTP from the bank's number is kept (so it is not
+    // re-processed) but never shown; only an unreadable *transaction* is.
+    const status = looksLikeTransaction(message.body) ? "UNPARSED" : "IGNORED";
+    await prisma.smsMessage.update({ where: { id: message.id }, data: { status } });
+    return status;
   }
 
   // Only rial/toman accounts: an SMS amount is always rial, and a balance is
@@ -111,7 +115,8 @@ async function processMessage(
         amount,
         currency,
         date: parsed.date,
-        description: parsed.kind,
+        // The bank's own note ("حقوق ماهانه") says more than the kind ("واریز").
+        description: parsed.note ?? parsed.kind,
         origin: "SMS",
         needsReview: true,
         bankBalance: balance,
@@ -169,7 +174,14 @@ export type BatchSummary = Record<Lowercase<SmsOutcome>, number> & { received: n
 
 /** Everything the phone had queued, in one request. */
 export async function ingestSmsBatch(scope: SmsScope, body: string): Promise<BatchSummary> {
-  const summary: BatchSummary = { received: 0, booked: 0, duplicate: 0, unparsed: 0, unmatched: 0 };
+  const summary: BatchSummary = {
+    received: 0,
+    booked: 0,
+    duplicate: 0,
+    unparsed: 0,
+    unmatched: 0,
+    ignored: 0,
+  };
   for (const text of splitSmsBatch(body)) {
     summary.received++;
     const outcome = await ingestSms(scope, text);

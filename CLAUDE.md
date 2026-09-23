@@ -293,6 +293,8 @@ flushes with the next SMS at home. Messages in a batch are split on a
   matched to an **IRR/IRT** account by `Account.smsMatch` (trailing ≥4 digits;
   ambiguous = no match) and booked immediately as a Transaction with
   `origin="SMS"`, `needsReview=true`, `bankBalance`, rial→toman for IRT.
+  Messages with no amount-like content (login notices, OTPs) are stored as
+  `IGNORED` and never surface; the bank's note line becomes the description.
   Unreadable/unmatched messages stay (`UNPARSED`/`UNMATCHED`) and are retried
   when re-sent or when an account's SMS number is set (`retryUnmatched`).
 - `/review` page (nav badge + a pill in the mobile header): pick a category, or
