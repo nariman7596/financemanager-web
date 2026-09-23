@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { convert, type RateMap } from "./index";
+import { convert, rialTomanRescale, type RateMap } from "./index";
 
 const rates = (o: Record<string, number>): RateMap => new Map(Object.entries(o));
 
@@ -37,5 +37,18 @@ describe("convert", () => {
     const m = rates({ "USD->IRR": 1_000_000, "USD->IRT": 100_000 });
     expect(convert(10_000, "IRR", "IRT", m)).toBeCloseTo(1_000);
     expect(convert(1_000, "IRT", "IRR", m)).toBeCloseTo(10_000);
+  });
+});
+
+describe("rialTomanRescale", () => {
+  it("restates rial as toman and back by exactly 10", () => {
+    expect(rialTomanRescale("IRR", "IRT")).toEqual({ op: "divide", by: 10 });
+    expect(rialTomanRescale("IRT", "IRR")).toEqual({ op: "multiply", by: 10 });
+  });
+
+  it("refuses every other pair: those need a market rate", () => {
+    expect(rialTomanRescale("USD", "IRT")).toBeNull();
+    expect(rialTomanRescale("IRT", "USD")).toBeNull();
+    expect(rialTomanRescale("IRT", "IRT")).toBeNull();
   });
 });

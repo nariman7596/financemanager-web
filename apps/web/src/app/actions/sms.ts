@@ -3,9 +3,8 @@
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import { checkHousehold } from "@/lib/household";
-import { newApiToken, retrySmsMessage, retryUnmatched } from "@/lib/sms";
+import { newApiToken, retrySmsMessage } from "@/lib/sms";
 import { getT } from "@/lib/i18n/server";
-import { normalizeSmsMatch } from "@financemanager/core/sms";
 
 function revalidateReview() {
   // The nav badge counts review items, and it lives in the shared layout.
@@ -38,38 +37,6 @@ export async function revokeSmsToken(formData: FormData): Promise<void> {
     where: { id: String(formData.get("id")), householdId: ctx.householdId },
   });
   revalidatePath("/settings");
-}
-
-// ---------------------------------------------------------------------------
-// Which account an SMS belongs to
-// ---------------------------------------------------------------------------
-
-export async function setAccountSmsMatch(
-  formData: FormData,
-): Promise<{ ok?: true; booked?: number; error?: string }> {
-  const { ctx, error } = await checkHousehold("MEMBER");
-  if (!ctx) return { error };
-  const t = await getT();
-  const id = String(formData.get("id"));
-  // A number for banks that print one, or the bank's name for those that don't.
-  const cleaned = normalizeSmsMatch(String(formData.get("smsMatch") ?? ""));
-  if ("error" in cleaned) return { error: t("sms.err.matchTooShort") };
-  const normalized = cleaned.value;
-
-  const res = await prisma.account.updateMany({
-    where: { id, householdId: ctx.householdId },
-    data: { smsMatch: normalized },
-  });
-  if (res.count === 0) return { error: t("sms.err.notFound") };
-
-  // Messages that arrived before this account was set up can book now.
-  const booked = normalized
-    ? await retryUnmatched({ householdId: ctx.householdId, userId: ctx.userId })
-    : 0;
-  revalidatePath("/accounts");
-  revalidatePath("/transactions");
-  revalidateReview();
-  return { ok: true, booked };
 }
 
 // ---------------------------------------------------------------------------

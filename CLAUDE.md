@@ -323,6 +323,19 @@ flushes with the next SMS at home. Messages in a batch are split on a
 - Next idea: flag when the bank-reported balance disagrees with the app's
   running balance (e.g. a Paya fee the bank never SMSes).
 
+## Editing accounts (`updateAccount` in `apps/web/src/app/actions/accounts.ts`)
+Pencil button on each account card → `AccountForm` in edit mode (name, type,
+currency, opening balance, SMS number — the old separate SMS-number form is
+folded in). A **rial ↔ toman** change restates the account's whole history by
+exactly 10 in one DB transaction (opening balance unless the user edited it,
+transactions and recurring rules in the old currency touching the account,
+`bankBalance`) using Prisma's atomic `multiply`/`divide`, so the balance stays
+the same money (`rialTomanRescale` in core/currency). It refuses when a
+transfer links the account to one in a different currency than the target,
+and refuses any other currency pair while the account has history (that would
+need a market rate). A transfer that was booked in rial into a toman account
+is corrected by the restatement.
+
 ## CSV import/export
 - Export: `GET /api/export/transactions` (session-authed) streams all the user's
   transactions as CSV. Columns: date,type,amount,currency,account,category,
