@@ -25,6 +25,8 @@ function revalidateMoney() {
   revalidatePath("/transactions");
   revalidatePath("/dashboard");
   revalidatePath("/budgets");
+  // SMS rows are deleted from /review too, and its count badge is in the layout.
+  revalidatePath("/", "layout");
 }
 
 export async function createTransaction(formData: FormData) {

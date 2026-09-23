@@ -8,6 +8,7 @@ import { Topbar } from "@/components/Topbar";
 import { Modal } from "@/components/Modal";
 import { StatCard } from "@/components/StatCard";
 import { AccountForm } from "@/components/forms/AccountForm";
+import { AccountSmsForm } from "@/components/forms/AccountSmsForm";
 import { DeleteButton } from "@/components/DeleteButton";
 import { UnlinkAccountButton } from "@/components/UnlinkAccountButton";
 import { PlaidLinkButton } from "@/components/PlaidLinkButton";
@@ -99,6 +100,18 @@ export default async function AccountsPage() {
                 <p className="text-xs text-slate-400 mt-1">
                   {t("accounts.opening", { amount: formatMoney(a.openingBalance, a.currency) })}
                 </p>
+                {(a.currency === "IRR" || a.currency === "IRT") && (
+                  <Modal
+                    title={t("sms.matchTitle", { name: a.name })}
+                    trigger={
+                      <button className="text-xs text-brand-600 hover:underline underline-offset-2 mt-1">
+                        {a.smsMatch ? t("sms.matchSet", { number: a.smsMatch }) : t("sms.matchUnset")}
+                      </button>
+                    }
+                  >
+                    <AccountSmsForm id={a.id} smsMatch={a.smsMatch} />
+                  </Modal>
+                )}
                 <div className="mt-3 pt-3 border-t border-[var(--border)] flex items-center justify-between gap-2">
                   {linked ? (
                     <>

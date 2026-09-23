@@ -38,6 +38,7 @@ model User {
   updatedAt    DateTime @updatedAt
 
   memberships Membership[]
+  apiTokens   ApiToken[]
 }
 
 // A shared financial space. A user working solo has a household of one.
@@ -57,6 +58,8 @@ model Household {
   investments  Investment[]
   recurring    RecurringTransaction[]
   plaidItems   PlaidItem[]
+  smsMessages  SmsMessage[]
+  apiTokens    ApiToken[]
 }
 
 // Links a user to a household with a role.
@@ -107,9 +110,15 @@ model Account {
 
   // Bank sync (see src/lib/plaid.ts): set when this Account is linked to a
   // real bank account via Plaid instead of being purely manually tracked.
-  source         String    @default("MANUAL") // MANUAL | PLAID
+  source         String  @default("MANUAL") // MANUAL | PLAID
   plaidItemId    String?
   plaidAccountId String? // Plaid's account_id within the item
+
+  // SMS import (see src/lib/sms.ts): the account/card number this account's
+  // bank prints in its SMS (matched on trailing digits, so "3623" is enough),
+  // or — for banks that print no number, like Blu — the bank's name as on the
+  // message's first line ("بلو").
+  smsMatch String?
 
   household            Household              @relation(fields: [householdId], references: [id], onDelete: Cascade)
   plaidItem            PlaidItem?             @relation(fields: [plaidItemId], references: [id], onDelete: SetNull)
@@ -169,7 +178,14 @@ model Transaction {
   // (see src/lib/plaid.ts). plaidTransactionId is the dedup key — sync
   // upserts on it instead of blindly inserting, unlike the CSV importer.
   plaidTransactionId String? @unique
-  pending             Boolean @default(false)
+  pending            Boolean @default(false)
+
+  // Where the row came from: MANUAL | SMS (more sources may follow). An SMS
+  // row is booked immediately so balances are right, but flagged for the user
+  // to pick its category; bankBalance is the balance the bank reported.
+  origin      String   @default("MANUAL")
+  needsReview Boolean  @default(false)
+  bankBalance Decimal?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -179,8 +195,10 @@ model Transaction {
   transferAccount Account?              @relation("TransferAccount", fields: [transferAccountId], references: [id])
   category        Category?             @relation(fields: [categoryId], references: [id])
   recurring       RecurringTransaction? @relation(fields: [recurringId], references: [id], onDelete: SetNull)
+  smsMessage      SmsMessage?
 
   @@index([householdId, date])
+  @@index([householdId, needsReview])
   @@index([accountId])
   @@index([categoryId])
   @@index([recurringId])
@@ -188,15 +206,15 @@ model Transaction {
 
 // A recurring rule / template (see src/lib/recurring.ts).
 model RecurringTransaction {
-  id                String   @id @default(cuid())
+  id                String  @id @default(cuid())
   householdId       String
   createdById       String?
   accountId         String
   categoryId        String?
   transferAccountId String?
-  type              String   @default("EXPENSE") // INCOME | EXPENSE | TRANSFER
+  type              String  @default("EXPENSE") // INCOME | EXPENSE | TRANSFER
   amount            Decimal
-  currency          String   @default("USD")
+  currency          String  @default("USD")
   description       String?
   notes             String?
 
@@ -302,4 +320,45 @@ model ExchangeRate {
   asOf  DateTime @default(now())
 
   @@unique([base, quote])
+}
+
+// Every bank SMS the phone forwarded, whether or not it became a transaction.
+// `hash` (of the normalised text) makes delivery idempotent: the iOS shortcut
+// re-sends its whole queue until the server acknowledges it, so the same
+// message arriving twice must be a no-op. Messages that could not be read or
+// matched to an account stay here for the user to retry or dismiss.
+model SmsMessage {
+  id            String   @id @default(cuid())
+  householdId   String
+  createdById   String?
+  body          String
+  hash          String
+  status        String // BOOKED | UNPARSED | UNMATCHED | IGNORED | DISMISSED
+  transactionId String?  @unique
+  receivedAt    DateTime @default(now())
+
+  household   Household    @relation(fields: [householdId], references: [id], onDelete: Cascade)
+  transaction Transaction? @relation(fields: [transactionId], references: [id], onDelete: SetNull)
+
+  @@unique([householdId, hash])
+  @@index([householdId, status])
+}
+
+// A key that lets a device post into one household without a browser session
+// (the iOS shortcut). Only the SHA-256 of the token is stored; the token is
+// shown once at creation. `prefix` identifies it in the UI.
+model ApiToken {
+  id          String    @id @default(cuid())
+  householdId String
+  userId      String
+  name        String
+  tokenHash   String    @unique
+  prefix      String
+  createdAt   DateTime  @default(now())
+  lastUsedAt  DateTime?
+
+  household Household @relation(fields: [householdId], references: [id], onDelete: Cascade)
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([householdId])
 }
