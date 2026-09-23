@@ -351,6 +351,19 @@ submits via `onSubmit` + `useTransition`, not `<form action>`: React resets a
 form after an action, which reverted the currency select while the notice
 still named the new currency, and would have dropped the checkbox.
 
+## Person (settle-up) accounts — account type `PERSON`
+The owner handles money for family (a parent's savings kept in his Blu
+account, a spouse's crypto bought from his balance). That money is neither his
+income nor his expense, but it moved his numbers. Each such person is an
+account of type `PERSON`: negative balance = money held for them, positive =
+they owe him. Every movement is a **transfer** (Review → "transfer ↔ person"),
+so reports never count it. The Accounts page then splits its totals — **my
+money** (everything, net), **in my accounts** (non-PERSON balances), **others'
+money I hold** (negative PERSON balances), plus what others owe — and PERSON
+cards say it in words ("this much of X's money is with you" / "X owes you
+this") instead of showing a sign. No schema change: `Account.type` is a
+string; the enum lives in `packages/core/src/constants`.
+
 ## CSV import/export
 - Export: `GET /api/export/transactions` (session-authed) streams all the user's
   transactions as CSV. Columns: date,type,amount,currency,account,category,

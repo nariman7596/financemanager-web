@@ -29,10 +29,17 @@ export default async function AccountsPage() {
     getReconciliations(ctx.householdId),
   ]);
   const canEdit = ctx.role !== "VIEWER";
-  const totalInBase = await sumInCurrency(
-    accounts.map((a) => ({ amount: a.balance, currency: a.currency })),
-    base,
-  );
+  // People you settle with are not places money is kept: split them out so
+  // the page tells your own money apart from money you hold for others.
+  const inBase = (list: typeof accounts) =>
+    sumInCurrency(list.map((a) => ({ amount: a.balance, currency: a.currency })), base);
+  const people = accounts.filter((a) => a.type === "PERSON");
+  const [totalInBase, inAccounts, heldForOthers, owedToMe] = await Promise.all([
+    inBase(accounts),
+    inBase(accounts.filter((a) => a.type !== "PERSON")),
+    inBase(people.filter((a) => a.balance < 0)),
+    inBase(people.filter((a) => a.balance > 0)),
+  ]);
 
   const bankSyncEnabled = plaidConfigured();
   const plaidItems = bankSyncEnabled
@@ -77,8 +84,22 @@ export default async function AccountsPage() {
       />
 
       <div className="grid sm:grid-cols-3 gap-4 mb-6">
-        <StatCard label={t("accounts.totalBalance")} value={formatMoney(totalInBase, base)} hint={t("common.inCurrency", { code: base })} />
-        <StatCard label={t("accounts.count")} value={String(accounts.length)} />
+        {people.length === 0 ? (
+          <>
+            <StatCard label={t("accounts.totalBalance")} value={formatMoney(totalInBase, base)} hint={t("common.inCurrency", { code: base })} />
+            <StatCard label={t("accounts.count")} value={String(accounts.length)} />
+          </>
+        ) : (
+          <>
+            <StatCard label={t("accounts.ownMoney")} value={formatMoney(totalInBase, base)} hint={t("accounts.ownMoneyHint")} />
+            <StatCard label={t("accounts.inAccounts")} value={formatMoney(inAccounts, base)} hint={t("accounts.inAccountsHint")} />
+            <StatCard
+              label={t("accounts.othersMoney")}
+              value={formatMoney(-heldForOthers, base)}
+              hint={owedToMe > 0 ? t("accounts.owedToMeHint", { amount: formatMoney(owedToMe, base) }) : t("accounts.othersMoneyHint")}
+            />
+          </>
+        )}
       </div>
 
       {accounts.length === 0 ? (
@@ -124,11 +145,31 @@ export default async function AccountsPage() {
                   </div>
                 </div>
                 <p className="text-2xl font-semibold mt-4 tabular-nums">
-                  {formatMoney(a.balance, a.currency)}
+                  {a.type === "PERSON" ? formatMoney(Math.abs(a.balance), a.currency) : formatMoney(a.balance, a.currency)}
                 </p>
-                <p className="text-xs text-slate-400 mt-1">
-                  {t("accounts.opening", { amount: formatMoney(a.openingBalance, a.currency) })}
-                </p>
+                {a.type === "PERSON" ? (
+                  // Say what the number means instead of leaving a sign to decode.
+                  <p
+                    className={
+                      "text-sm mt-1 " +
+                      (a.balance < 0
+                        ? "text-amber-700 dark:text-amber-300"
+                        : a.balance > 0
+                          ? "text-emerald-600"
+                          : "text-slate-400")
+                    }
+                  >
+                    {a.balance < 0
+                      ? t("person.holding", { name: a.name })
+                      : a.balance > 0
+                        ? t("person.owes", { name: a.name })
+                        : t("person.settled")}
+                  </p>
+                ) : (
+                  <p className="text-xs text-slate-400 mt-1">
+                    {t("accounts.opening", { amount: formatMoney(a.openingBalance, a.currency) })}
+                  </p>
+                )}
                 {(() => {
                   const r = reconciliations.get(a.id);
                   if (!r) return null;
@@ -172,7 +213,7 @@ export default async function AccountsPage() {
                     </div>
                   );
                 })()}
-                {(a.currency === "IRR" || a.currency === "IRT") && (
+                {(a.currency === "IRR" || a.currency === "IRT") && a.type !== "PERSON" && (
                   <p className="text-xs text-slate-400 mt-1">
                     {a.smsMatch ? t("sms.matchSet", { number: a.smsMatch }) : t("sms.matchUnset")}
                   </p>

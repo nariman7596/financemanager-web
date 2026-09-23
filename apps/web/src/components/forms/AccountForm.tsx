@@ -32,6 +32,7 @@ export function AccountForm({ account }: { account?: EditableAccount }) {
   const [error, setError] = useState<string | null>(null);
   const initialCurrency = account?.currency ?? "USD";
   const [currency, setCurrency] = useState(initialCurrency);
+  const [type, setType] = useState(account?.type ?? "CHECKING");
   // Accounts linked by transfers that have to change currency with this one.
   const [linked, setLinked] = useState<string[] | null>(null);
   const [pending, startTransition] = useTransition();
@@ -67,7 +68,7 @@ export function AccountForm({ account }: { account?: EditableAccount }) {
       <div className="grid grid-cols-2 gap-3">
         <div>
           <label className="label">{t("accForm.type")}</label>
-          <select name="type" className="input" defaultValue={account?.type ?? "CHECKING"}>
+          <select name="type" className="input" defaultValue={account?.type ?? "CHECKING"} onChange={(e) => setType(e.target.value)}>
             {ACCOUNT_TYPES.map((val) => (
               <option key={val} value={val}>{t("enum.accountType." + val)}</option>
             ))}
@@ -90,7 +91,7 @@ export function AccountForm({ account }: { account?: EditableAccount }) {
         </p>
       )}
       <div>
-        <label className="label">{t("accForm.openingBalance")}</label>
+        <label className="label">{type === "PERSON" ? t("accForm.personBalance") : t("accForm.openingBalance")}</label>
         <input
           name="openingBalance"
           type="number"
@@ -98,8 +99,9 @@ export function AccountForm({ account }: { account?: EditableAccount }) {
           defaultValue={account?.openingBalance ?? 0}
           className="input"
         />
+        {type === "PERSON" && <p className="text-xs text-slate-400 mt-1">{t("accForm.personHint")}</p>}
       </div>
-      {(smsCurrency || account?.smsMatch) && (
+      {(smsCurrency || account?.smsMatch) && type !== "PERSON" && (
         <div>
           <label className="label">{t("sms.matchLabel")}</label>
           <input name="smsMatch" dir="auto" className="input" defaultValue={account?.smsMatch ?? ""} placeholder="405943623" />

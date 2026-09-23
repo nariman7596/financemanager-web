@@ -32,6 +32,7 @@ export const en: Record<string, string> = {
   "enum.accountType.CREDIT_CARD": "Credit Card",
   "enum.accountType.INVESTMENT": "Investment",
   "enum.accountType.OTHER": "Other",
+  "enum.accountType.PERSON": "Person (settle-up)",
   "enum.period.DAILY": "daily",
   "enum.period.WEEKLY": "weekly",
   "enum.period.MONTHLY": "monthly",
@@ -462,4 +463,18 @@ export const en: Record<string, string> = {
   "reconcile.bookIncome": "Record the difference as income",
   "reconcile.fixOpening": "It was the opening balance — fix it",
   "reconcile.adjustmentDescription": "Difference with the bank balance",
+
+  // Person (settle-up) accounts
+  "accounts.ownMoney": "My money",
+  "accounts.ownMoneyHint": "After what you hold for others and what others owe you",
+  "accounts.inAccounts": "In my accounts",
+  "accounts.inAccountsHint": "What the banks, cash and brokerage actually hold",
+  "accounts.othersMoney": "Others' money I hold",
+  "accounts.othersMoneyHint": "Part of the accounts' balance, but not yours",
+  "accounts.owedToMeHint": "And others owe you {amount}",
+  "person.holding": "You hold this much of {name}'s money",
+  "person.owes": "{name} owes you this much",
+  "person.settled": "Settled",
+  "accForm.personBalance": "Balance with this person",
+  "accForm.personHint": "Negative: you hold their money (e.g. -1500000000). Positive: they owe you. Money in or out for them is recorded as a transfer, never as income or expense.",
 };
