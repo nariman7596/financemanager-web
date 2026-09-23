@@ -31,6 +31,7 @@ export const fa: Record<string, string> = {
   "enum.accountType.CREDIT_CARD": "کارت اعتباری",
   "enum.accountType.INVESTMENT": "سرمایه‌گذاری",
   "enum.accountType.OTHER": "سایر",
+  "enum.accountType.PERSON": "طرف‌حساب (شخص)",
   "enum.period.DAILY": "روزانه",
   "enum.period.WEEKLY": "هفتگی",
   "enum.period.MONTHLY": "ماهانه",
@@ -461,4 +462,18 @@ export const fa: Record<string, string> = {
   "reconcile.bookIncome": "اختلاف را درآمد ثبت کن",
   "reconcile.fixOpening": "از موجودیِ اولیه بوده — اصلاحش کن",
   "reconcile.adjustmentDescription": "اختلاف با مانده‌ی بانک",
+
+  // Person (settle-up) accounts
+  "accounts.ownMoney": "پولِ خودم",
+  "accounts.ownMoneyHint": "بعد از کمِ امانتِ دیگران و اضافهِ طلب‌ها",
+  "accounts.inAccounts": "موجودیِ حساب‌ها",
+  "accounts.inAccountsHint": "آنچه واقعاً در بانک‌ها، نقد و کارگزاری هست",
+  "accounts.othersMoney": "پولِ دیگران پیشِ من",
+  "accounts.othersMoneyHint": "جزوِ موجودیِ حساب‌هاست، ولی مالِ تو نیست",
+  "accounts.owedToMeHint": "و {amount} هم از دیگران طلب داری",
+  "person.holding": "این مقدار از پولِ {name} پیشِ توست",
+  "person.owes": "{name} این مقدار به تو بدهکار است",
+  "person.settled": "تسویه",
+  "accForm.personBalance": "مانده با این شخص",
+  "accForm.personHint": "منفی: پولِ او پیشِ توست (مثلاً ‎-1500000000). مثبت: او به تو بدهکار است. پولی که برایش می‌آید یا خرج می‌شود «انتقال» ثبت می‌شود، نه درآمد یا هزینه.",
 };

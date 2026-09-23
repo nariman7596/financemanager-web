@@ -8,6 +8,10 @@ export const ACCOUNT_TYPES = [
   "CREDIT_CARD",
   "INVESTMENT",
   "OTHER",
+  // Not a place money is kept but a person you settle with: money held for
+  // them (negative balance) or lent to them (positive). Movements are
+  // transfers, so they never count as your income or expense.
+  "PERSON",
 ] as const;
 export type AccountType = (typeof ACCOUNT_TYPES)[number];
 
