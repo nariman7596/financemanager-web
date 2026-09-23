@@ -91,6 +91,15 @@ as a secure context so SSH tunnels work; reaching the app at a VPN/LAN address
 needs `COOKIE_SECURE=false`, which is only acceptable because nothing is
 internet-facing. See `docs/DEPLOY-PRIVATE.md`.
 
+**Optional public mode for phone access** (`docker-compose.public.yml`,
+`docs/DEPLOY-PUBLIC.md`): Caddy on **8443** (443 stays Xray's) with a real
+certificate for `<ip-dashes>.sslip.io`, obtained via port 80 — no domain, no
+tunnel, just Safari → Add to Home Screen. Enabled by `COMPOSE_FILE=` in `.env`
+so the usual `docker compose` commands include it. Being public, it pairs with
+`ALLOW_REGISTRATION=false` (sign-up closed except for invited emails, checked
+in `registerAction`). Plain `http://IP:3000` was rejected: passwords and
+figures would cross the carrier network in clear text.
+
 Backups: `deploy/backup.sh` nightly via cron, `deploy/restore.sh` to restore
 (restore has been tested end to end). Do **not** replace it with the usual
 `pg_dump | gzip && find -delete` one-liner — a failed dump still writes a valid

@@ -1,0 +1,11 @@
+# Used by docker-compose.public.yml. APP_DOMAIN comes from .env — for a server
+# with no domain of its own, <ip-with-dashes>.sslip.io resolves to that IP, so
+# Caddy can still obtain a real certificate for it.
+#
+# Port 8443 because 443 belongs to the Xray VPN on this server. Port 80 is used
+# only to obtain and renew the certificate (ACME HTTP-01).
+
+{$APP_DOMAIN}:8443 {
+	encode gzip
+	reverse_proxy app:3000
+}

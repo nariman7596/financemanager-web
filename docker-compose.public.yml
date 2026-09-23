@@ -1,0 +1,37 @@
+# Makes the app reachable from a phone's browser over HTTPS, with no tunnel.
+# Layered on top of docker-compose.ghcr.yml rather than replacing it, so the
+# database, backups and update commands stay exactly the same. Enable it by
+# putting this line in .env:
+#
+#   COMPOSE_FILE=docker-compose.ghcr.yml:docker-compose.public.yml
+#
+# after which plain `docker compose pull && docker compose up -d` runs both.
+#
+# Caddy terminates TLS on 8443 (443 is the Xray VPN's) with a certificate it
+# obtains itself through port 80. The app container still binds only to
+# 127.0.0.1:3000; Caddy reaches it over the internal Docker network.
+#
+# Being public, set ALLOW_REGISTRATION=false once your own accounts exist.
+# See docs/DEPLOY-PUBLIC.md.
+
+services:
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    environment:
+      APP_DOMAIN: ${APP_DOMAIN:?set APP_DOMAIN in .env (e.g. 1-2-3-4.sslip.io)}
+    ports:
+      - "80:80"        # certificate issuance + renewal only — must stay open
+      - "8443:8443"    # the app
+    volumes:
+      - ./deploy/proxy/Caddyfile.public:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data
+      - caddy-config:/config
+    depends_on:
+      app:
+        condition: service_started
+    networks: [internal]
+
+volumes:
+  caddy-data:
+  caddy-config:

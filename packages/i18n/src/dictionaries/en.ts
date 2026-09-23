@@ -86,6 +86,7 @@ export const en: Record<string, string> = {
   "auth.err.emailExists": "An account with that email already exists",
   "auth.err.invalidEmailPassword": "Enter a valid email and password",
   "auth.err.invalidCredentials": "Invalid email or password",
+  "auth.err.registrationClosed": "Registration is closed. Ask a household admin to invite this email first.",
   "auth.householdName": "{name}'s Household",
 
   // ---- Dashboard ----
