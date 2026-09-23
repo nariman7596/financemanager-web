@@ -335,6 +335,14 @@ transfer links the account to one in a different currency than the target,
 and refuses any other currency pair while the account has history (that would
 need a market rate). A transfer that was booked in rial into a toman account
 is corrected by the restatement.
+Accounts linked by transfers in the same old currency **move together**: the
+action walks transfers (and recurring transfer rules) transitively, returns
+`{ linked: [names] }` on the first save, and converts the whole group once the
+form resubmits with `convertLinked=1`. Converting one side alone was a
+deadlock — each account refused because the other was still in rial. The form
+submits via `onSubmit` + `useTransition`, not `<form action>`: React resets a
+form after an action, which reverted the currency select while the notice
+still named the new currency, and would have dropped the checkbox.
 
 ## CSV import/export
 - Export: `GET /api/export/transactions` (session-authed) streams all the user's

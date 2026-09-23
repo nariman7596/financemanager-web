@@ -36,19 +36,23 @@ export async function createAccount(formData: FormData) {
  * Edit an account: name, type, currency, opening balance and the number its
  * bank prints in SMS.
  *
- * Changing the currency between rial and toman restates the account's whole
- * history by exactly 10 — opening balance, transactions, SMS-reported
- * balances, recurring rules — in one database transaction, so the balance
- * means the same money before and after. Any other currency change is only
- * allowed while the account has no history: it would need a market rate, and
- * rewriting past amounts at today's rate would change what they were worth.
+ * Changing the currency between rial and toman restates history by exactly 10
+ * — opening balance, transactions, SMS-reported balances, recurring rules — in
+ * one database transaction, so every balance means the same money before and
+ * after. A transfer counts on both of its accounts, so accounts linked by
+ * transfers in the same old currency must move together: the first attempt
+ * names them, and the change goes through once the user ticks "convert them
+ * too". Any other currency change is only allowed while the account has no
+ * history: it would need a market rate, and rewriting past amounts at today's
+ * rate would change what they were worth.
  */
 export async function updateAccount(
   formData: FormData,
-): Promise<{ ok?: true; error?: string }> {
+): Promise<{ ok?: true; error?: string; linked?: string[] }> {
   const { ctx, error } = await checkHousehold("MEMBER");
   if (!ctx) return { error };
   const t = await getT();
+  const householdId = ctx.householdId;
 
   const id = String(formData.get("id"));
   const parsed = accountSchema.safeParse({
@@ -61,35 +65,73 @@ export async function updateAccount(
   const sms = normalizeSmsMatch(String(formData.get("smsMatch") ?? ""));
   if ("error" in sms) return { error: t("sms.err.matchTooShort") };
 
-  const account = await prisma.account.findFirst({ where: { id, householdId: ctx.householdId } });
+  const account = await prisma.account.findFirst({ where: { id, householdId } });
   if (!account) return { error: t("sms.err.notFound") };
 
   const from = account.currency;
   const to = parsed.data.currency;
   const scale = from === to ? null : rialTomanRescale(from, to);
-  const touching = { householdId: ctx.householdId, OR: [{ accountId: id }, { transferAccountId: id }] };
+  const touching = (ids: string[]) => ({
+    householdId,
+    OR: [{ accountId: { in: ids } }, { transferAccountId: { in: ids } }],
+  });
 
+  // The accounts that must change currency together: this one plus every
+  // account reachable through transfers that still uses the old currency.
+  let group = [id];
   if (from !== to) {
-    const [txns, rules] = await Promise.all([
-      prisma.transaction.findMany({ where: touching, select: { type: true, accountId: true, transferAccountId: true } }),
-      prisma.recurringTransaction.findMany({ where: touching, select: { type: true, accountId: true, transferAccountId: true } }),
-    ]);
-    if (!scale && (txns.length > 0 || rules.length > 0)) return { error: t("accForm.err.currencyLocked") };
-
-    // A transfer's amount counts on both of its accounts. Restating it is
-    // only right if the other account already uses the new currency.
-    const others = new Set(
-      [...txns, ...rules]
-        .filter((r) => r.type === "TRANSFER")
-        .map((r) => (r.accountId === id ? r.transferAccountId : r.accountId))
-        .filter((o): o is string => !!o && o !== id),
-    );
-    if (others.size > 0) {
-      const clash = await prisma.account.findFirst({
-        where: { id: { in: [...others] }, householdId: ctx.householdId, currency: { not: to } },
-        select: { name: true },
-      });
-      if (clash) return { error: t("accForm.err.transferCurrency", { name: clash.name }) };
+    if (!scale) {
+      const [n, m] = await Promise.all([
+        prisma.transaction.count({ where: touching([id]) }),
+        prisma.recurringTransaction.count({ where: touching([id]) }),
+      ]);
+      if (n + m > 0) return { error: t("accForm.err.currencyLocked") };
+    } else {
+      const seen = new Set([id]);
+      let frontier = [id];
+      while (frontier.length > 0) {
+        const links = [
+          ...(await prisma.transaction.findMany({
+            where: { ...touching(frontier), type: "TRANSFER" },
+            select: { accountId: true, transferAccountId: true },
+          })),
+          ...(await prisma.recurringTransaction.findMany({
+            where: { ...touching(frontier), type: "TRANSFER" },
+            select: { accountId: true, transferAccountId: true },
+          })),
+        ];
+        const next = new Set<string>();
+        for (const l of links) {
+          for (const other of [l.accountId, l.transferAccountId]) {
+            if (other && !seen.has(other)) next.add(other);
+          }
+        }
+        if (next.size === 0) break;
+        const others = await prisma.account.findMany({
+          where: { id: { in: [...next] }, householdId },
+          select: { id: true, name: true, currency: true },
+        });
+        frontier = [];
+        for (const o of others) {
+          if (o.currency === from) {
+            seen.add(o.id);
+            frontier.push(o.id);
+          } else if (o.currency !== to) {
+            // Linked to a third currency: no single factor restates it.
+            return { error: t("accForm.err.transferCurrency", { name: o.name }) };
+          }
+        }
+      }
+      group = [...seen];
+      if (group.length > 1 && formData.get("convertLinked") !== "1") {
+        const linked = await prisma.account.findMany({
+          where: { id: { in: group.filter((g) => g !== id) } },
+          select: { name: true },
+          orderBy: { name: "asc" },
+        });
+        const names = linked.map((l) => l.name);
+        return { error: t("accForm.err.linked", { names: names.join("، ") }), linked: names };
+      }
     }
   }
 
@@ -107,25 +149,32 @@ export async function updateAccount(
       data: { ...parsed.data, openingBalance, smsMatch: sms.value },
     });
     if (scale) {
-      const amount = { [scale.op]: scale.by };
+      const factor = { [scale.op]: scale.by };
+      const linkedIds = group.filter((g) => g !== id);
+      if (linkedIds.length > 0) {
+        await tx.account.updateMany({
+          where: { id: { in: linkedIds }, householdId },
+          data: { openingBalance: factor, currency: to },
+        });
+      }
       await tx.transaction.updateMany({
-        where: { ...touching, currency: from },
-        data: { amount, currency: to },
+        where: { ...touching(group), currency: from },
+        data: { amount: factor, currency: to },
       });
       await tx.transaction.updateMany({
-        where: { householdId: ctx.householdId, accountId: id, bankBalance: { not: null } },
-        data: { bankBalance: amount },
+        where: { householdId, accountId: { in: group }, bankBalance: { not: null } },
+        data: { bankBalance: factor },
       });
       await tx.recurringTransaction.updateMany({
-        where: { ...touching, currency: from },
-        data: { amount, currency: to },
+        where: { ...touching(group), currency: from },
+        data: { amount: factor, currency: to },
       });
     }
   });
 
   // Messages that arrived before this account could be matched can book now.
   if (sms.value && sms.value !== account.smsMatch) {
-    await retryUnmatched({ householdId: ctx.householdId, userId: ctx.userId });
+    await retryUnmatched({ householdId, userId: ctx.userId });
   }
 
   revalidatePath("/", "layout");

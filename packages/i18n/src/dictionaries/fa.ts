@@ -286,6 +286,8 @@ export const fa: Record<string, string> = {
   "accForm.currencyChangeNotice": "این تغییرِ ارز فقط وقتی ممکن است که حساب هیچ تراکنشی نداشته باشد (به نرخِ بازار نیاز دارد).",
   "accForm.err.currencyLocked": "این حساب تراکنش دارد: ارزش فقط بینِ ریال و تومان عوض می‌شود.",
   "accForm.err.transferCurrency": "با حسابِ «{name}» که ارزِ دیگری دارد انتقال دارد. اول آن حساب را عوض کن.",
+  "accForm.err.linked": "این حساب با این حساب‌ها انتقال دارد: {names}. آن‌ها هم‌ارزند و باید با هم عوض شوند — تیکِ پایین را بزن و دوباره ذخیره کن.",
+  "accForm.convertLinked": "{names} را هم به {to} تبدیل کن (تراکنش‌ها و مانده‌هایشان به همین شکل تبدیل می‌شوند).",
   "accForm.addAccount": "افزودن حساب",
   // Plaid
   "plaid.sandboxHint": "از طریق Plaid Sandbox متصل می‌شود — از ورود آزمایشی {user} / {pass} در هر مؤسسه‌ای استفاده کنید.",

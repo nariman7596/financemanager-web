@@ -1,16 +1,14 @@
 "use client";
 
-import { useState } from "react";
-import { useFormStatus } from "react-dom";
+import { useState, useTransition } from "react";
 import { createAccount, updateAccount } from "@/app/actions/accounts";
 import { useCloseModal } from "@/components/Modal";
 import { ACCOUNT_TYPES, CURRENCIES } from "@financemanager/core/constants";
 import { rialTomanRescale } from "@financemanager/core/currency";
 import { useT } from "@/lib/i18n/client";
 
-function Submit({ editing }: { editing: boolean }) {
+function Submit({ editing, pending }: { editing: boolean; pending: boolean }) {
   const t = useT();
-  const { pending } = useFormStatus();
   return (
     <button type="submit" className="btn-primary w-full" disabled={pending}>
       {pending ? t("common.saving") : editing ? t("common.save") : t("accForm.addAccount")}
@@ -32,13 +30,26 @@ export function AccountForm({ account }: { account?: EditableAccount }) {
   const t = useT();
   const close = useCloseModal();
   const [error, setError] = useState<string | null>(null);
-  const [currency, setCurrency] = useState(account?.currency ?? "USD");
+  const initialCurrency = account?.currency ?? "USD";
+  const [currency, setCurrency] = useState(initialCurrency);
+  // Accounts linked by transfers that have to change currency with this one.
+  const [linked, setLinked] = useState<string[] | null>(null);
+  const [pending, startTransition] = useTransition();
 
-  async function action(formData: FormData) {
+  // Submitted by hand rather than through <form action>: React resets a form
+  // after its action, which would throw away the chosen currency and the
+  // "convert linked accounts" tick the server just asked for.
+  function onSubmit(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    const formData = new FormData(e.currentTarget);
     setError(null);
-    const res = account ? await updateAccount(formData) : await createAccount(formData);
-    if (res?.error) setError(res.error);
-    else close();
+    startTransition(async () => {
+      const res = account ? await updateAccount(formData) : await createAccount(formData);
+      if (res?.error) {
+        setError(res.error);
+        if ("linked" in res && res.linked) setLinked(res.linked);
+      } else close();
+    });
   }
 
   // What happens to the history if the currency changes (edit mode only).
@@ -47,7 +58,7 @@ export function AccountForm({ account }: { account?: EditableAccount }) {
   const smsCurrency = currency === "IRR" || currency === "IRT";
 
   return (
-    <form action={action} className="space-y-4">
+    <form onSubmit={onSubmit} className="space-y-4">
       {account && <input type="hidden" name="id" value={account.id} />}
       <div>
         <label className="label">{t("accForm.name")}</label>
@@ -64,7 +75,7 @@ export function AccountForm({ account }: { account?: EditableAccount }) {
         </div>
         <div>
           <label className="label">{t("accForm.currency")}</label>
-          <select name="currency" className="input" value={currency} onChange={(e) => setCurrency(e.target.value)}>
+          <select name="currency" className="input" defaultValue={initialCurrency} onChange={(e) => setCurrency(e.target.value)}>
             {CURRENCIES.map((c) => (
               <option key={c.code} value={c.code}>{c.code}</option>
             ))}
@@ -95,8 +106,14 @@ export function AccountForm({ account }: { account?: EditableAccount }) {
           <p className="text-xs text-slate-400 mt-1">{t("sms.matchHint")}</p>
         </div>
       )}
+      {linked && linked.length > 0 && (
+        <label className="flex items-start gap-2 text-sm rounded-lg px-3 py-2 border border-[var(--border)]">
+          <input type="checkbox" name="convertLinked" value="1" className="mt-1" />
+          <span>{t("accForm.convertLinked", { names: linked.join("، "), to: currency })}</span>
+        </label>
+      )}
       {error && <p className="text-sm text-red-600 bg-red-50 rounded-lg px-3 py-2">{error}</p>}
-      <Submit editing={!!account} />
+      <Submit editing={!!account} pending={pending} />
     </form>
   );
 }
