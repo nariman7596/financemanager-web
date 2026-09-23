@@ -18,6 +18,15 @@ import * as jalali from "date-fns-jalali";
  *   مانده450,105
  *   07/01-11:32
  *
+ * Others write a sentence and carry no account number at all. Blu:
+ *
+ *   بلو
+ *   واریز پول
+ *   عبدالرضا عزیز، 70,000,000 ریال به حساب شما نشست.
+ *   موجودی: 14,082,526,155 ریال
+ *   ۱۳:۵۱
+ *   ۱۴۰۵.۰۷.۰۱
+ *
  * The parser reads by those shapes rather than by bank, so a new bank usually
  * needs no code. What it cannot read is returned as null, never guessed: a
  * wrong amount booked silently is worse than a message left for the user.
@@ -26,7 +35,7 @@ import * as jalali from "date-fns-jalali";
 export type SmsDirection = "IN" | "OUT";
 
 export type ParsedSms = {
-  /** First line naming the bank, e.g. "بانک رفاه", if present. */
+  /** The line naming the bank ("بانک رفاه"), else the first line ("بلو"). */
   bank: string | null;
   /** Account or card reference as printed (digits, may carry * masking). */
   accountRef: string | null;
@@ -78,8 +87,8 @@ export function normalizeSms(text: string): string {
 }
 
 // Words that name the direction when a bank does not use a sign.
-const OUT_WORDS = ["برداشت", "خرید", "کسر", "انتقال از", "پرداخت", "کارمزد", "قسط"];
-const IN_WORDS = ["واریز", "انتقال به", "سود", "افزایش", "برگشت", "بستانکار"];
+const OUT_WORDS = ["برداشت", "خرید", "کسر", "انتقال از", "پرداخت", "کارمزد", "قسط", "پرید", "از حساب شما"];
+const IN_WORDS = ["واریز", "انتقال به", "سود", "افزایش", "برگشت", "بستانکار", "نشست", "به حساب شما"];
 const BALANCE_WORDS = ["مانده", "موجودی"];
 const ACCOUNT_WORDS = ["حساب", "کارت", "سپرده", "شماره"];
 
@@ -92,6 +101,14 @@ function toNumber(s: string): number {
 function hasAny(line: string, words: string[]): boolean {
   return words.some((w) => line.includes(w));
 }
+
+/** "07/01-11:32", "5/07/01", "1405/07/01", "1405.07.01" — dots only with a year. */
+function isDateLine(line: string): boolean {
+  return /\d\/\d/.test(line) || /\d{1,4}\.\d{1,2}\.\d{1,2}/.test(line);
+}
+
+/** A rial amount inside a sentence: "…، 70,000,000 ریال به حساب شما نشست." */
+const RIAL_IN_SENTENCE = new RegExp(String.raw`(${NUMBER})\s*(?:ریال|rial)`, "i");
 
 function parseAmountLine(line: string): {
   amount: number;
@@ -136,10 +153,17 @@ function parseDate(lines: string[], now: Date): { date: Date; time: string | nul
   for (const line of lines) {
     // Year optional and of any width: Refah alone sends "07/01", "5/07/01"
     // and "1405/07/01". A 1-digit year must be read as the year, not as the
-    // month — "5/07/01" is 1 Mehr 1405, not 7 Mordad.
-    const d = line.match(/(?:(\d{1,4})\/)?(\d{1,2})\/(\d{1,2})(?!\d)/);
+    // month — "5/07/01" is 1 Mehr 1405, not 7 Mordad. Blu writes "1405.07.01";
+    // dots are accepted only with a year, where they cannot be a decimal.
+    const d =
+      line.match(/(\d{1,4})\.(\d{1,2})\.(\d{1,2})(?!\d)/) ??
+      line.match(/(?:(\d{1,4})\/)?(\d{1,2})\/(\d{1,2})(?!\d)/);
     if (!d) continue;
-    const time = line.match(/(\d{1,2}):(\d{2})/);
+    // The time is on the date line (Refah) or a line of its own (Blu).
+    const time =
+      line.match(/(\d{1,2}):(\d{2})/) ??
+      lines.map((l) => l.match(/^(\d{1,2}):(\d{2})(?::\d{2})?$/)).find(Boolean) ??
+      null;
     const month = Number(d[2]);
     const day = Number(d[3]);
     const today = tehranJalaliToday(now);
@@ -175,7 +199,7 @@ export function parseBankSms(text: string, now: Date = new Date()): ParsedSms | 
   const lines = normalizeSms(text).split("\n");
   if (lines.length === 0) return null;
 
-  const bank = lines.find((l) => l.includes("بانک")) ?? null;
+  const bank = lines.find((l) => l.includes("بانک")) ?? lines[0] ?? null;
 
   let accountRef: string | null = null;
   let balanceRial: number | null = null;
@@ -183,7 +207,7 @@ export function parseBankSms(text: string, now: Date = new Date()): ParsedSms | 
   let note: string | null = null;
 
   for (const line of lines) {
-    if (line.includes("/") && /\d\/\d/.test(line)) continue; // the date line
+    if (isDateLine(line)) continue;
 
     if (hasAny(line, BALANCE_WORDS)) {
       const n = line.match(new RegExp(NUMBER));
@@ -191,7 +215,8 @@ export function parseBankSms(text: string, now: Date = new Date()): ParsedSms | 
       continue;
     }
 
-    if (!accountRef && hasAny(line, ACCOUNT_WORDS)) {
+    // "…ریال به حساب شما…" names the account but carries the amount, not a number.
+    if (!accountRef && hasAny(line, ACCOUNT_WORDS) && !RIAL_IN_SENTENCE.test(line)) {
       const ref = line.match(/[\d*]{4,}(?:[-.][\d*]+)*/);
       if (ref) {
         accountRef = ref[0];
@@ -209,6 +234,25 @@ export function parseBankSms(text: string, now: Date = new Date()): ParsedSms | 
 
     // A digit-free line after the amount is the bank's own description.
     if (amount && !note && !/\d/.test(line) && line !== bank) note = line;
+  }
+
+  // No "label+amount" line: look for an amount written into a sentence, and
+  // take the direction from the words around it. Both or neither → no guess.
+  if (!amount) {
+    const body = lines.filter((l) => !hasAny(l, BALANCE_WORDS) && !isDateLine(l));
+    for (const line of body) {
+      const m = line.match(RIAL_IN_SENTENCE);
+      if (!m) continue;
+      const text = body.join("\n");
+      const out = hasAny(text, OUT_WORDS);
+      const inn = hasAny(text, IN_WORDS);
+      if (out === inn) return null;
+      const header = body.find(
+        (l) => l !== bank && !/\d/.test(l) && (hasAny(l, OUT_WORDS) || hasAny(l, IN_WORDS)),
+      );
+      amount = { amount: toNumber(m[1]), sign: out ? "-" : "+", label: header ?? "" };
+      break;
+    }
   }
 
   if (!amount) return null;
@@ -245,9 +289,10 @@ export function parseBankSms(text: string, now: Date = new Date()): ParsedSms | 
 export function looksLikeTransaction(text: string): boolean {
   const lines = normalizeSms(text).split("\n");
   return lines.some((line) => {
-    if (/\d\/\d/.test(line) || hasAny(line, BALANCE_WORDS)) return false;
+    if (isDateLine(line) || hasAny(line, BALANCE_WORDS)) return false;
     return (
       /\d{1,3}(?:,\d{3})+/.test(line) ||
+      /\d\s*ریال/.test(line) ||
       /[+-]\s*\d{4,}|\d{4,}\s*[+-]/.test(line) ||
       ((hasAny(line, OUT_WORDS) || hasAny(line, IN_WORDS)) && /\d/.test(line))
     );
@@ -255,25 +300,52 @@ export function looksLikeTransaction(text: string): boolean {
 }
 
 /**
- * Pick the account an SMS belongs to. Each account stores the number its bank
- * prints (`smsMatch`); a message matches when the trailing digits agree for at
- * least four digits — banks often mask the start ("****1234") or print only an
- * account where the user stored the card, or vice versa.
+ * Pick the account an SMS belongs to, by what the account stores in `smsMatch`:
+ *
+ * - digits: the number its bank prints. Matches when the trailing digits agree
+ *   for at least four — banks mask the start ("****1234"), or print the account
+ *   where the user stored the card, or vice versa.
+ * - a word: for banks that print no number at all (Blu), the bank's name as it
+ *   appears on the message's first line ("بلو").
+ *
+ * A number wins over a word. Ambiguous is as bad as unknown: never guess which
+ * account the money left.
  */
 export function matchSmsAccount<T extends { id: string; smsMatch: string | null }>(
-  accountRef: string | null,
+  sms: { accountRef: string | null; bank: string | null },
   accounts: T[],
 ): T | null {
-  if (!accountRef) return null;
-  const ref = accountRef.match(/(\d+)\D*$/)?.[1] ?? "";
-  if (ref.length < 4) return null;
+  const ref = sms.accountRef?.match(/(\d+)\D*$/)?.[1] ?? "";
+  if (ref.length >= 4) {
+    const hits = accounts.filter((a) => {
+      const own = (a.smsMatch ?? "").replace(/\D/g, "");
+      if (own.length < 4) return false;
+      return own.endsWith(ref) || ref.endsWith(own);
+    });
+    if (hits.length === 1) return hits[0];
+    if (hits.length > 1) return null;
+  }
+
+  const bank = normalizeSms(sms.bank ?? "");
+  if (!bank) return null;
   const hits = accounts.filter((a) => {
-    const own = (a.smsMatch ?? "").replace(/\D/g, "");
-    if (own.length < 4) return false;
-    return own.endsWith(ref) || ref.endsWith(own);
+    const word = normalizeSms(a.smsMatch ?? "");
+    return word.length >= 2 && !/\d/.test(word) && bank.includes(word);
   });
-  // Ambiguous is as bad as unknown: never guess which account the money left.
   return hits.length === 1 ? hits[0] : null;
+}
+
+/**
+ * Clean what the user typed as an account's SMS match: digits (≥4) for a bank
+ * that prints a number, else a word (≥2 letters) for one that does not. Null
+ * means "stop matching"; an error string means it is too short to be safe.
+ */
+export function normalizeSmsMatch(input: string): { value: string | null } | { error: "tooShort" } {
+  const text = normalizeSms(input).replace(/\s+/g, " ").trim();
+  if (!text) return { value: null };
+  const digits = text.replace(/\D/g, "");
+  if (digits.length > 0) return digits.length >= 4 ? { value: digits } : { error: "tooShort" };
+  return text.length >= 2 ? { value: text } : { error: "tooShort" };
 }
 
 /** Rial amount in the account's own currency (toman is exactly 10 rial). */

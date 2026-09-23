@@ -95,7 +95,7 @@ async function processMessage(
     },
     select: { id: true, currency: true, smsMatch: true },
   });
-  const account = matchSmsAccount(parsed.accountRef, accounts);
+  const account = matchSmsAccount(parsed, accounts);
   if (!account) {
     await prisma.smsMessage.update({ where: { id: message.id }, data: { status: "UNMATCHED" } });
     return "UNMATCHED";

@@ -286,12 +286,15 @@ flushes with the next SMS at home. Messages in a batch are split on a
 - Parser: `packages/core/src/sms/` (pure, tested with a real Bank Refah SMS).
   Reads by shape, not by bank: label glued to value, rial amounts with a
   leading/trailing sign (or برداشت/واریز wording), مانده balance, Jalali
-  `MM/DD` with no year (current year unless that lands in the future). Returns
-  null rather than guess — no sign/direction word, or no date, is not booked.
+  `MM/DD` with no year (current year unless that lands in the future). Also
+  sentence-style banks (Blu: "…، 70,000,000 ریال به حساب شما نشست/پرید", no
+  account number, `۱۴۰۵.۰۷.۰۱`, time on its own line). Returns null rather than
+  guess — no or both directions, or no date, is not booked.
 - `apps/web/src/lib/sms.ts`: every message is stored once in `SmsMessage`
   (unique `householdId+hash` of normalised text → re-delivery is a no-op),
-  matched to an **IRR/IRT** account by `Account.smsMatch` (trailing ≥4 digits;
-  ambiguous = no match) and booked immediately as a Transaction with
+  matched to an **IRR/IRT** account by `Account.smsMatch` — trailing ≥4 digits,
+  or for number-less banks a word found on the SMS's first line ("بلو");
+  number beats word; ambiguous = no match and booked immediately as a Transaction with
   `origin="SMS"`, `needsReview=true`, `bankBalance`, rial→toman for IRT.
   Messages with no amount-like content (login notices, OTPs) are stored as
   `IGNORED` and never surface; the bank's note line becomes the description.

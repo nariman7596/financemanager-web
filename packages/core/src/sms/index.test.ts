@@ -4,6 +4,7 @@ import {
   looksLikeTransaction,
   matchSmsAccount,
   normalizeSms,
+  normalizeSmsMatch,
   parseBankSms,
   rialTo,
   splitSmsBatch,
@@ -60,6 +61,44 @@ describe("parseBankSms", () => {
     });
   });
 
+  // Real Blu messages: a sentence, no account number, dotted date, time apart.
+  const BLU_IN =
+    "بلو\nواریز پول\nعبدالرضا عزیز، 70,000,000 ریال به حساب شما نشست.\nموجودی: 14,082,526,155 ریال\n۱۳:۵۱\n۱۴۰۵.۰۷.۰۱";
+  const BLU_OUT =
+    "بلو\nبرداشت پول\nعبدالرضا عزیز، 1,000,000 ریال از حساب شما پرید.\nموجودی: 14,012,526,155 ریال\n۱۲:۳۳\n۱۴۰۵.۰۷.۰۱";
+
+  it("reads a Blu deposit written as a sentence", () => {
+    expect(parseBankSms(BLU_IN, NOW)).toEqual({
+      bank: "بلو",
+      accountRef: null,
+      direction: "IN",
+      amountRial: 70_000_000,
+      balanceRial: 14_082_526_155,
+      kind: "واریز پول",
+      note: null,
+      date: new Date("2026-09-23T00:00:00Z"),
+      time: "13:51",
+    });
+  });
+
+  it("reads a Blu withdrawal", () => {
+    expect(parseBankSms(BLU_OUT, NOW)).toMatchObject({
+      direction: "OUT",
+      amountRial: 1_000_000,
+      balanceRial: 14_012_526_155,
+      time: "12:33",
+    });
+  });
+
+  it("does not take a comma-less rial amount for an account number", () => {
+    const p = parseBankSms("بلو\nعبدالرضا عزیز، 70000000 ریال به حساب شما نشست.\n1405.07.01", NOW);
+    expect(p).toMatchObject({ accountRef: null, amountRial: 70_000_000, direction: "IN" });
+  });
+
+  it("refuses a sentence that says both in and out", () => {
+    expect(parseBankSms("بلو\n500,000 ریال از حساب شما به حساب شما\n1405.07.01", NOW)).toBeNull();
+  });
+
   it("reads a direction word spelled with Arabic ya", () => {
     const p = parseBankSms("حساب1234567\nواريز 300,000\n07/01", NOW);
     expect(p?.direction).toBe("IN");
@@ -112,6 +151,8 @@ describe("looksLikeTransaction", () => {
     // Refah's mobile-bank login notice, and an OTP: never worth a review item.
     expect(looksLikeTransaction("بانک رفاه\nمشتری گرامی\nورود به همراه بانک\n1405/07/01 11:32:11")).toBe(false);
     expect(looksLikeTransaction("رمز پویا: 482913\nاعتبار 2 دقیقه")).toBe(false);
+    // Blu's login notice.
+    expect(looksLikeTransaction("بلو\nعبدالرضا عزیز خوش آمدید.\n13:42:35\n1405.07.01")).toBe(false);
   });
 
   it("is true for an amount the parser could not place", () => {
@@ -136,25 +177,44 @@ describe("matchSmsAccount", () => {
   ];
 
   it("matches a full account number", () => {
-    expect(matchSmsAccount("405943623", accounts)?.id).toBe("refah");
+    expect(matchSmsAccount({ accountRef: "405943623", bank: null }, accounts)?.id).toBe("refah");
   });
 
   it("matches a masked card by its trailing digits", () => {
-    expect(matchSmsAccount("****5678", accounts)?.id).toBe("mellat-card");
+    expect(matchSmsAccount({ accountRef: "****5678", bank: null }, accounts)?.id).toBe("mellat-card");
   });
 
   it("matches when only the last digits were stored", () => {
-    expect(matchSmsAccount("405943623", [{ id: "x", smsMatch: "3623" }])?.id).toBe("x");
+    expect(matchSmsAccount({ accountRef: "405943623", bank: null }, [{ id: "x", smsMatch: "3623" }])?.id).toBe("x");
+  });
+
+  it("matches a bank that prints no number by the word on its first line", () => {
+    const withBlu = [...accounts, { id: "blu", smsMatch: "بلو" }];
+    expect(matchSmsAccount({ accountRef: null, bank: "بلو" }, withBlu)?.id).toBe("blu");
+    // A number still wins, and a word never matches another bank's message.
+    expect(matchSmsAccount({ accountRef: "405943623", bank: "بانک رفاه" }, withBlu)?.id).toBe("refah");
+    expect(matchSmsAccount({ accountRef: null, bank: "بانک ملت" }, withBlu)).toBeNull();
   });
 
   it("refuses short or ambiguous references", () => {
-    expect(matchSmsAccount("***23", accounts)).toBeNull();
+    expect(matchSmsAccount({ accountRef: "***23", bank: null }, accounts)).toBeNull();
     expect(
-      matchSmsAccount("1234", [
+      matchSmsAccount({ accountRef: "1234", bank: null }, [
         { id: "a", smsMatch: "11111234" },
         { id: "b", smsMatch: "22221234" },
       ]),
     ).toBeNull();
+  });
+});
+
+describe("normalizeSmsMatch", () => {
+  it("keeps digits for a number and a word for a bank name", () => {
+    expect(normalizeSmsMatch(" ۴۰۵-۹۴۳-۶۲۳ ")).toEqual({ value: "405943623" });
+    expect(normalizeSmsMatch(" بلو ")).toEqual({ value: "بلو" });
+    expect(normalizeSmsMatch("بانك رفاه")).toEqual({ value: "بانک رفاه" });
+    expect(normalizeSmsMatch("")).toEqual({ value: null });
+    expect(normalizeSmsMatch("123")).toEqual({ error: "tooShort" });
+    expect(normalizeSmsMatch("ب")).toEqual({ error: "tooShort" });
   });
 });
 

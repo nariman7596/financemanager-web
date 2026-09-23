@@ -5,6 +5,7 @@ import { prisma } from "@/lib/prisma";
 import { checkHousehold } from "@/lib/household";
 import { newApiToken, retrySmsMessage, retryUnmatched } from "@/lib/sms";
 import { getT } from "@/lib/i18n/server";
+import { normalizeSmsMatch } from "@financemanager/core/sms";
 
 function revalidateReview() {
   // The nav badge counts review items, and it lives in the shared layout.
@@ -50,14 +51,14 @@ export async function setAccountSmsMatch(
   if (!ctx) return { error };
   const t = await getT();
   const id = String(formData.get("id"));
-  const digits = String(formData.get("smsMatch") ?? "").replace(/[^\d۰-۹٠-٩]/g, "");
-  const normalized = digits.replace(/[۰-۹]/g, (d) => String("۰۱۲۳۴۵۶۷۸۹".indexOf(d)))
-    .replace(/[٠-٩]/g, (d) => String("٠١٢٣٤٥٦٧٨٩".indexOf(d)));
-  if (normalized && normalized.length < 4) return { error: t("sms.err.matchTooShort") };
+  // A number for banks that print one, or the bank's name for those that don't.
+  const cleaned = normalizeSmsMatch(String(formData.get("smsMatch") ?? ""));
+  if ("error" in cleaned) return { error: t("sms.err.matchTooShort") };
+  const normalized = cleaned.value;
 
   const res = await prisma.account.updateMany({
     where: { id, householdId: ctx.householdId },
-    data: { smsMatch: normalized || null },
+    data: { smsMatch: normalized },
   });
   if (res.count === 0) return { error: t("sms.err.notFound") };
 

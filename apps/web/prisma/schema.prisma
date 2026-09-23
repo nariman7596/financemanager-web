@@ -115,7 +115,9 @@ model Account {
   plaidAccountId String? // Plaid's account_id within the item
 
   // SMS import (see src/lib/sms.ts): the account/card number this account's
-  // bank prints in its SMS. Matched on trailing digits, so "3623" is enough.
+  // bank prints in its SMS (matched on trailing digits, so "3623" is enough),
+  // or — for banks that print no number, like Blu — the bank's name as on the
+  // message's first line ("بلو").
   smsMatch String?
 
   household            Household              @relation(fields: [householdId], references: [id], onDelete: Cascade)

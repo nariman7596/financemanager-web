@@ -36,8 +36,7 @@ export function AccountSmsForm({ id, smsMatch }: { id: string; smsMatch: string 
         <label className="label">{t("sms.matchLabel")}</label>
         <input
           name="smsMatch"
-          dir="ltr"
-          inputMode="numeric"
+          dir="auto"
           className="input"
           defaultValue={smsMatch ?? ""}
           placeholder="405943623"
