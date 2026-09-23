@@ -151,6 +151,10 @@ describe("looksLikeTransaction", () => {
     // Refah's mobile-bank login notice, and an OTP: never worth a review item.
     expect(looksLikeTransaction("بانک رفاه\nمشتری گرامی\nورود به همراه بانک\n1405/07/01 11:32:11")).toBe(false);
     expect(looksLikeTransaction("رمز پویا: 482913\nاعتبار 2 دقیقه")).toBe(false);
+    // Blu's purchase OTP: an amount, but money has not moved yet.
+    const otp = "بلو\nبفرمایید رمز پویا\nخرید\nازکي\nمبلغ: 4,871,050 ریال\nرمز: 806534\n22:26";
+    expect(looksLikeTransaction(otp)).toBe(false);
+    expect(parseBankSms(otp + "\n1405.07.01", NOW)).toBeNull();
     // Blu's login notice.
     expect(looksLikeTransaction("بلو\nعبدالرضا عزیز خوش آمدید.\n13:42:35\n1405.07.01")).toBe(false);
   });
