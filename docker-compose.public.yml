@@ -22,7 +22,10 @@ services:
       APP_DOMAIN: ${APP_DOMAIN:?set APP_DOMAIN in .env (e.g. 1-2-3-4.sslip.io)}
     ports:
       - "80:80"        # certificate issuance + renewal only — must stay open
-      - "8443:8443"    # the app
+      # The app. HTTPS_BIND=127.0.0.1 makes it reachable only through a VPN
+      # on this server that routes to 127.0.0.1:8443 (see docs/DEPLOY-PUBLIC.md,
+      # "Through the VPN") — the right choice when direct access is filtered.
+      - "${HTTPS_BIND:-0.0.0.0}:8443:8443"
     volumes:
       - ./deploy/proxy/Caddyfile.public:/etc/caddy/Caddyfile:ro
       - caddy-data:/data
