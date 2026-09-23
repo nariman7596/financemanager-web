@@ -287,6 +287,8 @@ export const en: Record<string, string> = {
   "accForm.currencyChangeNotice": "This currency change is only possible while the account has no transactions (it would need a market rate).",
   "accForm.err.currencyLocked": "This account has transactions: its currency can only change between rial and toman.",
   "accForm.err.transferCurrency": "It has transfers with “{name}”, which uses a different currency. Change that account first.",
+  "accForm.err.linked": "Transfers link this account to: {names}. They are in the same currency and must change with it — tick the box below and save again.",
+  "accForm.convertLinked": "Also convert {names} to {to} (their transactions and balances are restated the same way).",
   "accForm.addAccount": "Add account",
   // Plaid
   "plaid.sandboxHint": "Connects via Plaid Sandbox — use the test login {user} / {pass} at any institution.",
