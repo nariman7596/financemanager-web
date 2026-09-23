@@ -310,6 +310,29 @@ export function looksLikeTransaction(text: string): boolean {
 }
 
 /**
+ * What a purchase OTP says about the purchase it precedes. Blu's OTP names the
+ * merchant ("ازکی") while the debit that follows does not, so the two are
+ * paired by amount to give the debit a description worth learning from.
+ *
+ *   بلو / بفرمایید رمز پویا / خرید / ازکي / مبلغ: 4,871,050 ریال / رمز: 806534
+ */
+export function parseSmsOtp(text: string): { amountRial: number; merchant: string | null } | null {
+  const lines = normalizeSms(text).split("\n");
+  if (!isOtp(lines)) return null;
+  const amountLine = lines.find((l) => RIAL_IN_SENTENCE.test(l) || /مبلغ/.test(l));
+  const amount = amountLine?.match(new RegExp(NUMBER));
+  if (!amount) return null;
+  // The merchant is the first plain-text line after the purchase marker:
+  // no digits, not the bank, not the OTP prompt itself.
+  const buy = lines.findIndex((l) => l === "خرید" || /^خرید\s*[:：]?$/.test(l));
+  const merchant =
+    buy >= 0
+      ? (lines.slice(buy + 1).find((l) => !/\d/.test(l) && !hasAny(l, OTP_WORDS)) ?? null)
+      : null;
+  return { amountRial: toNumber(amount[0]), merchant };
+}
+
+/**
  * Pick the account an SMS belongs to, by what the account stores in `smsMatch`:
  *
  * - digits: the number its bank prints. Matches when the trailing digits agree
@@ -376,3 +399,5 @@ export function splitSmsBatch(body: string): string[] {
     .map((s) => s.trim())
     .filter((s) => s.length > 0);
 }
+
+export { suggestCategory, type SuggestHistoryItem, type SuggestTarget } from "./suggest";

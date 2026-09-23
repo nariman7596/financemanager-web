@@ -410,6 +410,7 @@ export const fa: Record<string, string> = {
   "review.setupLink": "راه‌اندازیِ ورودِ پیامک",
   "review.bankBalance": "مانده طبقِ بانک بعد از این: {amount}",
   "review.showSms": "نمایشِ پیامک",
+  "review.suggested": "پیشنهاد بر اساسِ انتخاب‌های قبلی‌ات",
   "review.confirm": "تأیید",
   "review.pickCategory": "بابتِ چه بود؟",
   "review.transferGroup": "انتقال بینِ حساب‌های خودم",

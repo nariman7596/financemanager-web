@@ -112,6 +112,11 @@ Reality's `handshake` is untouched; an HAProxy SNI router in front of it was
 tried, is unnecessary, and was removed. `HTTPS_BIND=127.0.0.1` keeps 8443 off
 the internet; port 80 stays open for certificate renewal. Details:
 `docs/DEPLOY-PUBLIC.md`. The server's proxy is **sing-box**, not Xray.
+**SSH also goes through the VPN:** direct SSH from Iran started being cut at
+the key exchange (`kex_exchange_identification: Connection closed`), so the
+router has a second rule, `AND,((IP-CIDR,<ip>/32,no-resolve),(DST-PORT,22)),PROXY`,
+above the DIRECT one. If the VPN is down, SSH needs that rule removed
+(backup at `/root/smartconnect.yaml.bak2` on the router).
 
 Backups: `deploy/backup.sh` nightly via cron, `deploy/restore.sh` to restore
 (restore has been tested end to end). Do **not** replace it with the usual
@@ -305,8 +310,18 @@ flushes with the next SMS at home. Messages in a batch are split on a
   other side's still-unreviewed SMS row (same amount, ±3 days) so own
   transfers are not counted as expense + income. Keys live in Settings (#sms);
   the SMS number per account on the Accounts cards.
-- Next ideas: learn a default category per `kind`/amount pattern; flag when
-  the bank-reported balance disagrees with the app's running balance.
+- **Category suggestions** (`packages/core/src/sms/suggest.ts`, pure, tested):
+  the review page preselects a category learned from already-filed
+  transactions — same description (bank note, OTP merchant) or exact amount
+  votes, same account breaks ties, recent choices count more, and nothing is
+  suggested unless one category clearly leads (a bare "خرید" does not pick
+  one). Still one tap to confirm; never auto-filed.
+- **OTP merchant pairing:** Blu names the merchant only in the purchase OTP
+  ("ازکي"); the debit says "برداشت پول". `merchantFromOtp` pairs a debit with
+  an IGNORED OTP of the exact same rial amount received ≤2 h earlier and uses
+  the merchant as the description, which is what suggestions learn from.
+- Next idea: flag when the bank-reported balance disagrees with the app's
+  running balance (e.g. a Paya fee the bank never SMSes).
 
 ## CSV import/export
 - Export: `GET /api/export/transactions` (session-authed) streams all the user's

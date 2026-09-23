@@ -6,6 +6,7 @@ import {
   matchSmsAccount,
   normalizeSms,
   parseBankSms,
+  parseSmsOtp,
   rialTo,
   splitSmsBatch,
 } from "@financemanager/core/sms";
@@ -101,6 +102,7 @@ async function processMessage(
     return "UNMATCHED";
   }
 
+  const merchant = parsed.direction === "OUT" ? await merchantFromOtp(scope, parsed.amountRial, message.receivedAt) : null;
   const { amount, currency } = rialTo(account.currency, parsed.amountRial);
   const balance =
     parsed.balanceRial === null ? null : rialTo(account.currency, parsed.balanceRial).amount;
@@ -115,8 +117,9 @@ async function processMessage(
         amount,
         currency,
         date: parsed.date,
-        // The bank's own note ("حقوق ماهانه") says more than the kind ("واریز").
-        description: parsed.note ?? parsed.kind,
+        // The bank's own note ("حقوق ماهانه") or the merchant from the OTP
+        // ("ازکی") says more than the kind ("واریز", "برداشت پول").
+        description: parsed.note ?? merchant ?? parsed.kind,
         origin: "SMS",
         needsReview: true,
         bankBalance: balance,
@@ -128,6 +131,34 @@ async function processMessage(
     });
   });
   return "BOOKED";
+}
+
+/**
+ * The merchant a debit went to, from the purchase OTP that preceded it. Some
+ * banks (Blu) name the merchant only in the OTP; the debit that follows says
+ * just "برداشت پول". Pair them by exact amount within a couple of hours.
+ */
+async function merchantFromOtp(
+  scope: SmsScope,
+  amountRial: number,
+  at: Date,
+): Promise<string | null> {
+  const HOUR = 60 * 60 * 1000;
+  const recent = await prisma.smsMessage.findMany({
+    where: {
+      householdId: scope.householdId,
+      status: "IGNORED",
+      receivedAt: { gte: new Date(at.getTime() - 2 * HOUR), lte: new Date(at.getTime() + 10 * 60 * 1000) },
+    },
+    orderBy: { receivedAt: "desc" },
+    take: 20,
+    select: { body: true },
+  });
+  for (const m of recent) {
+    const otp = parseSmsOtp(m.body);
+    if (otp?.merchant && otp.amountRial === amountRial) return otp.merchant;
+  }
+  return null;
 }
 
 /** Store and process one message. Re-delivering a message is a no-op. */

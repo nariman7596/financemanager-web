@@ -411,6 +411,7 @@ export const en: Record<string, string> = {
   "review.setupLink": "Set up SMS import",
   "review.bankBalance": "Bank balance after this: {amount}",
   "review.showSms": "Show SMS",
+  "review.suggested": "Suggested from your earlier choices",
   "review.confirm": "Confirm",
   "review.pickCategory": "What was it for?",
   "review.transferGroup": "Transfer between my accounts",
