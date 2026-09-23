@@ -452,4 +452,13 @@ export const fa: Record<string, string> = {
   "sms.err.notFound": "پیدا نشد",
   "sms.err.transferCurrency": "هر دو حساب باید یک ارز داشته باشند",
   "sms.err.pickCategory": "یک دسته انتخاب کن",
+
+  // Balance check against the bank
+  "reconcile.matches": "با بانک جور است (تا {date})",
+  "reconcile.gap": "با بانک {amount} اختلاف دارد",
+  "reconcile.detail": "در {date} بانک مانده را {bank} گفته؛ برنامه {app} داشت.",
+  "reconcile.bookExpense": "اختلاف را هزینه ثبت کن",
+  "reconcile.bookIncome": "اختلاف را درآمد ثبت کن",
+  "reconcile.fixOpening": "از موجودیِ اولیه بوده — اصلاحش کن",
+  "reconcile.adjustmentDescription": "اختلاف با مانده‌ی بانک",
 };

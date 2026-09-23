@@ -10,7 +10,7 @@ the phase plan.
 
 ```
 apps/web            Next.js app (routes, server actions, React components)
-packages/core       THE DOMAIN — pure TS, no framework. 83 tests.
+packages/core       THE DOMAIN — pure TS, no framework. 110 tests.
 packages/i18n       locale config + en/fa dictionaries + createT. 9 tests.
 packages/config     shared tsconfig / tailwind preset / eslint
 ```
@@ -20,7 +20,7 @@ in the browser, in Hermes and in tests. No `next/*`, no `react-native`, no Node
 built-ins, no Prisma. `packages/config/eslint/package.js` enforces this and the
 rule is verified to fire; `pnpm lint` fails the build if you reach for one.
 Subpaths: `@financemanager/core/{access,calendar,constants,csv,currency,
-date-range,money,reports,sms,validation}`.
+date-range,money,reconcile,reports,sms,validation}`.
 
 Both packages ship **TypeScript source, not a build artifact** — `apps/web`
 compiles them via `transpilePackages` in `next.config.mjs`. Adding a new
@@ -320,8 +320,15 @@ flushes with the next SMS at home. Messages in a batch are split on a
   ("ازکي"); the debit says "برداشت پول". `merchantFromOtp` pairs a debit with
   an IGNORED OTP of the exact same rial amount received ≤2 h earlier and uses
   the merchant as the description, which is what suggestions learn from.
-- Next idea: flag when the bank-reported balance disagrees with the app's
-  running balance (e.g. a Paya fee the bank never SMSes).
+- **Balance check against the bank** (`packages/core/src/reconcile`, pure;
+  `apps/web/src/lib/reconcile.ts`): for each account with SMS balances, the
+  latest `bankBalance` is compared with the app's running balance at that same
+  transaction (opening + everything ordered by date, then createdAt). A gap
+  shows on the account card with two fixes (`settleBalanceGap`, gap recomputed
+  server-side): book it as an income/expense dated at that SMS — created 1 ms
+  before it so the next comparison counts it, and `needsReview` so it gets a
+  category — or fold it into the opening balance. It caught the owner's real
+  700-toman Paya fee that Refah never SMSed.
 
 ## Editing accounts (`updateAccount` in `apps/web/src/app/actions/accounts.ts`)
 Pencil button on each account card → `AccountForm` in edit mode (name, type,
