@@ -3,6 +3,7 @@ import { RotateCcw, X } from "lucide-react";
 import { requireHousehold } from "@/lib/household";
 import { prisma } from "@/lib/prisma";
 import { formatMoney, formatDate, toNumber } from "@financemanager/core/money";
+import { suggestCategory } from "@financemanager/core/sms";
 import { Topbar } from "@/components/Topbar";
 import { DeleteButton } from "@/components/DeleteButton";
 import { SmsReviewForm } from "@/components/forms/SmsReviewForm";
@@ -23,7 +24,7 @@ export default async function ReviewPage() {
   const ctx = await requireHousehold();
   const canEdit = ctx.role !== "VIEWER";
 
-  const [pending, categories, accounts, failed] = await Promise.all([
+  const [pending, categories, accounts, failed, history] = await Promise.all([
     prisma.transaction.findMany({
       where: { householdId: ctx.householdId, needsReview: true },
       orderBy: [{ date: "desc" }, { createdAt: "desc" }],
@@ -43,7 +44,32 @@ export default async function ReviewPage() {
       where: { householdId: ctx.householdId, status: { in: ["UNPARSED", "UNMATCHED"] } },
       orderBy: { receivedAt: "desc" },
     }),
+    // What the household has already filed, to suggest categories from.
+    prisma.transaction.findMany({
+      where: { householdId: ctx.householdId, needsReview: false, categoryId: { not: null } },
+      orderBy: { date: "desc" },
+      take: 1000,
+      select: { type: true, accountId: true, amount: true, currency: true, description: true, date: true, categoryId: true },
+    }),
   ]);
+
+  const learned = history.map((h) => ({ ...h, amount: toNumber(h.amount), categoryId: h.categoryId! }));
+  const liveCategories = new Set(categories.map((c) => c.id));
+  const suggestionFor = (txn: (typeof pending)[number]) => {
+    const s = suggestCategory(
+      {
+        type: txn.type,
+        accountId: txn.accountId,
+        amount: toNumber(txn.amount),
+        currency: txn.currency,
+        description: txn.description,
+        date: txn.date,
+      },
+      learned,
+    );
+    // An archived category is not in the select; don't point at it.
+    return s && liveCategories.has(s.categoryId) ? s.categoryId : null;
+  };
 
   return (
     <>
@@ -100,6 +126,7 @@ export default async function ReviewPage() {
                   transferAccounts={accounts.filter(
                     (a) => a.id !== txn.accountId && a.currency === txn.currency,
                   )}
+                  suggestedId={suggestionFor(txn)}
                 />
               )}
 
