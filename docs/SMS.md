@@ -39,8 +39,14 @@
 | 1 | **Append to Text File** | متن: `Shortcut Input`، بعد یک خطِ جدید، بعد دقیقاً `~~~fm~~~` · فایل: `fm-sms.txt` · **Make New Line** روشن |
 | 2 | **Get File from Folder** | پوشه: `Shortcuts` · مسیر: `fm-sms.txt` |
 | 3 | **Get Contents of URL** | URL: آدرسِ بالا · **Method:** `POST` · **Headers:** `Authorization` = `Bearer <کلید>` · **Request Body:** `File` ← خروجیِ اکشنِ ۲ |
-| 4 | **If** | `Contents of URL` **contains** `"ok":true` |
-| 5 | **Delete Files** (داخلِ If) | فایل: خروجیِ اکشنِ ۲ · **Confirm Before Deleting** خاموش |
+| 4 | **Get Dictionary Value** | Key: `error` · از: `Contents of URL` |
+| 5 | **If** | `Dictionary Value` **does not have any value** |
+| 6 | **Delete Files** (داخلِ If) | فایل: خروجیِ اکشنِ ۲ · **Confirm Before Deleting** خاموش |
+
+چرا کلیدِ `error` و نه «contains ok»؟ خروجیِ Get Contents of URL یک Dictionary است،
+نه متن، و `contains` روی آن قابلِ اعتماد نیست. هر جوابِ ناموفقِ سرور (کلیدِ غلط، …)
+کلیدِ `error` دارد و موفق‌ها ندارند؛ قطعیِ شبکه هم کلِ شورتکات را قبل از این مرحله
+متوقف می‌کند — پس فایل فقط وقتی پاک می‌شود که سرور واقعاً پیامک‌ها را گرفته باشد.
 
 دفعه‌ی اول iOS برای دسترسی به فایل و آدرس اجازه می‌خواهد — **Always Allow**.
 
@@ -48,7 +54,7 @@
 
 ### (اختیاری) شورتکاتِ «فرستادنِ باقی‌مانده‌ها»
 
-همان اکشن‌های ۲ تا ۵، به‌عنوانِ یک شورتکاتِ معمولی روی Home Screen. وقتی بیرون بوده‌ای
+همان اکشن‌های ۲ تا ۶، به‌عنوانِ یک شورتکاتِ معمولی روی Home Screen. وقتی بیرون بوده‌ای
 و نمی‌خواهی تا پیامکِ بعدی صبر کنی، در خانه یک بار بزنش.
 
 ## ۳. آزمایش
