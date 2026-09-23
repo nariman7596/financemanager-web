@@ -100,6 +100,19 @@ so the usual `docker compose` commands include it. Being public, it pairs with
 in `registerAction`). Plain `http://IP:3000` was rejected: passwords and
 figures would cross the carrier network in clear text.
 
+**What actually works from Iran (live since 2026-09-23):** neither 8443 nor
+443 is reachable directly — non-standard ports to foreign IPs are blocked and
+`sslip.io` is filtered by SNI. The app is reached **through the owner's own VPN**:
+iPhone → OpenWrt router (Nikki/mihomo, rule `AND,((IP-CIDR,<ip>/32),(DST-PORT,443)),PROXY`
+above its `IP-CIDR,<ip>/32,DIRECT`) → VLESS Reality tunnel → sing-box on the server,
+whose first route rule overrides `<ip>:443` to `127.0.0.1:8443` (Caddy). Without
+that rule the request loops into sing-box's own :443, Reality rejects it as an
+invalid client and forwards it to its camouflage site (a Fastly cert error).
+Reality's `handshake` is untouched; an HAProxy SNI router in front of it was
+tried, is unnecessary, and was removed. `HTTPS_BIND=127.0.0.1` keeps 8443 off
+the internet; port 80 stays open for certificate renewal. Details:
+`docs/DEPLOY-PUBLIC.md`. The server's proxy is **sing-box**, not Xray.
+
 Backups: `deploy/backup.sh` nightly via cron, `deploy/restore.sh` to restore
 (restore has been tested end to end). Do **not** replace it with the usual
 `pg_dump | gzip && find -delete` one-liner — a failed dump still writes a valid
