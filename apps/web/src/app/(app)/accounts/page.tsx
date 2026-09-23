@@ -1,4 +1,4 @@
-import { Plus, Landmark } from "lucide-react";
+import { Plus, Landmark, Pencil } from "lucide-react";
 import { requireHousehold } from "@/lib/household";
 import { getAccountBalances, getBaseCurrency } from "@/lib/queries";
 import { formatMoney, formatDate } from "@financemanager/core/money";
@@ -8,7 +8,6 @@ import { Topbar } from "@/components/Topbar";
 import { Modal } from "@/components/Modal";
 import { StatCard } from "@/components/StatCard";
 import { AccountForm } from "@/components/forms/AccountForm";
-import { AccountSmsForm } from "@/components/forms/AccountSmsForm";
 import { DeleteButton } from "@/components/DeleteButton";
 import { UnlinkAccountButton } from "@/components/UnlinkAccountButton";
 import { PlaidLinkButton } from "@/components/PlaidLinkButton";
@@ -92,7 +91,32 @@ export default async function AccountsPage() {
                     <p className="font-medium">{a.name}</p>
                     <p className="text-xs text-slate-400">{t("enum.accountType." + a.type)} · {a.currency}</p>
                   </div>
-                  <DeleteButton action={deleteAccount} id={a.id} label={t("accounts.deleteAccount")} />
+                  <div className="flex items-center">
+                    <Modal
+                      title={t("accForm.editTitle", { name: a.name })}
+                      trigger={
+                        <button
+                          className="btn-ghost p-1.5 text-slate-400 hover:text-[var(--text)]"
+                          aria-label={t("accForm.edit")}
+                          title={t("accForm.edit")}
+                        >
+                          <Pencil size={16} />
+                        </button>
+                      }
+                    >
+                      <AccountForm
+                        account={{
+                          id: a.id,
+                          name: a.name,
+                          type: a.type,
+                          currency: a.currency,
+                          openingBalance: a.openingBalance,
+                          smsMatch: a.smsMatch,
+                        }}
+                      />
+                    </Modal>
+                    <DeleteButton action={deleteAccount} id={a.id} label={t("accounts.deleteAccount")} />
+                  </div>
                 </div>
                 <p className="text-2xl font-semibold mt-4 tabular-nums">
                   {formatMoney(a.balance, a.currency)}
@@ -101,16 +125,9 @@ export default async function AccountsPage() {
                   {t("accounts.opening", { amount: formatMoney(a.openingBalance, a.currency) })}
                 </p>
                 {(a.currency === "IRR" || a.currency === "IRT") && (
-                  <Modal
-                    title={t("sms.matchTitle", { name: a.name })}
-                    trigger={
-                      <button className="text-xs text-brand-600 hover:underline underline-offset-2 mt-1">
-                        {a.smsMatch ? t("sms.matchSet", { number: a.smsMatch }) : t("sms.matchUnset")}
-                      </button>
-                    }
-                  >
-                    <AccountSmsForm id={a.id} smsMatch={a.smsMatch} />
-                  </Modal>
+                  <p className="text-xs text-slate-400 mt-1">
+                    {a.smsMatch ? t("sms.matchSet", { number: a.smsMatch }) : t("sms.matchUnset")}
+                  </p>
                 )}
                 <div className="mt-3 pt-3 border-t border-[var(--border)] flex items-center justify-between gap-2">
                   {linked ? (

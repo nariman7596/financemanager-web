@@ -46,3 +46,19 @@ function invRate(rates: RateMap, key: string): number | undefined {
   const v = rates.get(key);
   return v != null && v !== 0 ? 1 / v : undefined;
 }
+
+/**
+ * How to restate amounts when an account moves between rial and toman — the
+ * one currency change that is a fixed, exact factor (1 toman = 10 rial), so an
+ * account's history can be rewritten in place without touching its balance.
+ * Null for any other pair: those would need a market rate, and rewriting past
+ * transactions at today's rate would silently change what they were worth.
+ */
+export function rialTomanRescale(
+  from: string,
+  to: string,
+): { op: "multiply" | "divide"; by: 10 } | null {
+  if (from === "IRR" && to === "IRT") return { op: "divide", by: 10 };
+  if (from === "IRT" && to === "IRR") return { op: "multiply", by: 10 };
+  return null;
+}
