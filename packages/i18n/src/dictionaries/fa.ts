@@ -85,6 +85,7 @@ export const fa: Record<string, string> = {
   "auth.err.emailExists": "حسابی با این ایمیل از قبل وجود دارد",
   "auth.err.invalidEmailPassword": "ایمیل و رمز عبور معتبر وارد کنید",
   "auth.err.invalidCredentials": "ایمیل یا رمز عبور نادرست است",
+  "auth.err.registrationClosed": "ثبت‌نام بسته است. اول از مدیر خانوار بخواهید این ایمیل را دعوت کند.",
   "auth.householdName": "خانوار {name}",
 
   // ---- Dashboard ----

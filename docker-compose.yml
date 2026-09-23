@@ -35,6 +35,10 @@ services:
       AUTH_SECRET: ${AUTH_SECRET:?set AUTH_SECRET in .env}
       CRON_SECRET: ${CRON_SECRET:?set CRON_SECRET in .env}
       STOCK_API_KEY: ${STOCK_API_KEY:-}
+      # Set ALLOW_REGISTRATION=false in .env once your own accounts exist, so a
+      # publicly reachable instance stops accepting strangers. Invited emails
+      # can still sign up.
+      ALLOW_REGISTRATION: ${ALLOW_REGISTRATION:-true}
     depends_on:
       db:
         condition: service_healthy

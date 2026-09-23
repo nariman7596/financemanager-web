@@ -7,7 +7,7 @@ import { hashPassword, verifyPassword } from "@/lib/auth";
 import { setSessionCookie, clearSessionCookie } from "@/lib/session";
 import { loginSchema, registerSchema } from "@financemanager/core/validation";
 import { createHousehold } from "@/lib/defaults";
-import { acceptInvitesForUser } from "@/lib/invites";
+import { acceptInvitesForUser, pendingInviteCount } from "@/lib/invites";
 import { LOCALE_COOKIE, isLocale, DEFAULT_LOCALE } from "@financemanager/i18n/config";
 import { getT } from "@/lib/i18n/server";
 
@@ -25,6 +25,11 @@ async function applyLocaleCookie(locale: string) {
   if (!isLocale(locale)) return;
   const store = await cookies();
   store.set(LOCALE_COOKIE, locale, { path: "/", maxAge: ONE_YEAR, sameSite: "lax" });
+}
+
+/** Open sign-up unless ALLOW_REGISTRATION=false (see docs/DEPLOY-PUBLIC.md). */
+function registrationOpen() {
+  return process.env.ALLOW_REGISTRATION !== "false";
 }
 
 export type ActionState = { error?: string } | undefined;
@@ -45,6 +50,12 @@ export async function registerAction(
     return { error: parsed.error.issues[0]?.message ?? t("auth.err.invalidInput") };
   }
   const { name, email, password, baseCurrency } = parsed.data;
+
+  // A publicly reachable instance closes open sign-up once its owners have
+  // registered. Invited emails still get in, so a household can add members.
+  if (!registrationOpen() && (await pendingInviteCount(email)) === 0) {
+    return { error: t("auth.err.registrationClosed") };
+  }
 
   const existing = await prisma.user.findUnique({ where: { email } });
   if (existing) return { error: t("auth.err.emailExists") };
