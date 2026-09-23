@@ -10,7 +10,7 @@ the phase plan.
 
 ```
 apps/web            Next.js app (routes, server actions, React components)
-packages/core       THE DOMAIN — pure TS, no framework. 70 tests.
+packages/core       THE DOMAIN — pure TS, no framework. 83 tests.
 packages/i18n       locale config + en/fa dictionaries + createT. 9 tests.
 packages/config     shared tsconfig / tailwind preset / eslint
 ```
@@ -20,7 +20,7 @@ in the browser, in Hermes and in tests. No `next/*`, no `react-native`, no Node
 built-ins, no Prisma. `packages/config/eslint/package.js` enforces this and the
 rule is verified to fire; `pnpm lint` fails the build if you reach for one.
 Subpaths: `@financemanager/core/{access,calendar,constants,csv,currency,
-date-range,money,reports,validation}`.
+date-range,money,reports,sms,validation}`.
 
 Both packages ship **TypeScript source, not a build artifact** — `apps/web`
 compiles them via `transpilePackages` in `next.config.mjs`. Adding a new
@@ -274,6 +274,34 @@ refresh**, **recurring auto-posting**, **CSV import/export**, **dark mode**,
 - `LanguageSwitcher` (`inline` pills on login/register, `menu` in sidebar + settings) →
   `setLocale` action (cookie + profile) → `router.refresh()`.
 - To translate a new string: add the SAME key to en.ts AND fa.ts, then `t("key")`.
+
+## Bank SMS import (`docs/SMS.md`)
+iOS lets no app read SMS, so an **iOS Shortcuts "When I receive a message"
+automation** posts each bank SMS to `POST /api/ingest/sms` (`Authorization:
+Bearer fm_…`, a per-device `ApiToken`, SHA-256 stored only). The shortcut first
+appends to `fm-sms.txt` and posts the whole file, deleting it only on
+`"ok":true` — away from home (the app is VPN-only) nothing is lost; the queue
+flushes with the next SMS at home. Messages in a batch are split on a
+`~~~fm~~~` line.
+- Parser: `packages/core/src/sms/` (pure, tested with a real Bank Refah SMS).
+  Reads by shape, not by bank: label glued to value, rial amounts with a
+  leading/trailing sign (or برداشت/واریز wording), مانده balance, Jalali
+  `MM/DD` with no year (current year unless that lands in the future). Returns
+  null rather than guess — no sign/direction word, or no date, is not booked.
+- `apps/web/src/lib/sms.ts`: every message is stored once in `SmsMessage`
+  (unique `householdId+hash` of normalised text → re-delivery is a no-op),
+  matched to an **IRR/IRT** account by `Account.smsMatch` (trailing ≥4 digits;
+  ambiguous = no match) and booked immediately as a Transaction with
+  `origin="SMS"`, `needsReview=true`, `bankBalance`, rial→toman for IRT.
+  Unreadable/unmatched messages stay (`UNPARSED`/`UNMATCHED`) and are retried
+  when re-sent or when an account's SMS number is set (`retryUnmatched`).
+- `/review` page (nav badge + a pill in the mobile header): pick a category, or
+  "transfer ↔ own account", which turns the row into a TRANSFER and deletes the
+  other side's still-unreviewed SMS row (same amount, ±3 days) so own
+  transfers are not counted as expense + income. Keys live in Settings (#sms);
+  the SMS number per account on the Accounts cards.
+- Next ideas: learn a default category per `kind`/amount pattern; flag when
+  the bank-reported balance disagrees with the app's running balance.
 
 ## CSV import/export
 - Export: `GET /api/export/transactions` (session-authed) streams all the user's

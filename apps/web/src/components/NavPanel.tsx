@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
   LayoutDashboard,
+  Inbox,
   ArrowLeftRight,
   Repeat,
   PiggyBank,
@@ -23,6 +24,7 @@ import { cn } from "@/lib/utils";
 
 export const NAV = [
   { href: "/dashboard", labelKey: "nav.dashboard", icon: LayoutDashboard },
+  { href: "/review", labelKey: "nav.review", icon: Inbox },
   { href: "/transactions", labelKey: "nav.transactions", icon: ArrowLeftRight },
   { href: "/recurring", labelKey: "nav.recurring", icon: Repeat },
   { href: "/budgets", labelKey: "nav.budgets", icon: PiggyBank },
@@ -47,6 +49,8 @@ export type NavProps = {
   activeHouseholdId: string;
   households: HouseholdOption[];
   pendingInvites?: number;
+  /** SMS transactions and messages waiting for the user (the /review badge). */
+  reviewCount?: number;
 };
 
 /**
@@ -62,6 +66,7 @@ export function NavPanel({
   activeHouseholdId,
   households,
   pendingInvites = 0,
+  reviewCount = 0,
   onNavigate,
 }: NavProps & { onNavigate?: () => void }) {
   const pathname = usePathname();
@@ -92,6 +97,9 @@ export function NavPanel({
               <span className="truncate">{t(labelKey)}</span>
               {href === "/household" && pendingInvites > 0 && (
                 <span className="ms-auto badge bg-brand-600 text-white">{pendingInvites}</span>
+              )}
+              {href === "/review" && reviewCount > 0 && (
+                <span className="ms-auto badge bg-brand-600 text-white">{reviewCount}</span>
               )}
             </Link>
           );

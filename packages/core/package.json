@@ -12,6 +12,7 @@
     "./date-range": "./src/date-range/index.ts",
     "./money": "./src/money/index.ts",
     "./reports": "./src/reports/index.ts",
+    "./sms": "./src/sms/index.ts",
     "./validation": "./src/validation/index.ts"
   },
   "scripts": {

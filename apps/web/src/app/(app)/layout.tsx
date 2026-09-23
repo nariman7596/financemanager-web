@@ -1,5 +1,6 @@
 import { requireHousehold, listUserHouseholds } from "@/lib/household";
 import { pendingInviteCount } from "@/lib/invites";
+import { reviewCount as countReview } from "@/lib/sms";
 import { Sidebar } from "@/components/Sidebar";
 import { MobileNav } from "@/components/MobileNav";
 
@@ -9,9 +10,10 @@ export default async function AppLayout({
   children: React.ReactNode;
 }) {
   const ctx = await requireHousehold();
-  const [households, pendingInvites] = await Promise.all([
+  const [households, pendingInvites, reviewCount] = await Promise.all([
     listUserHouseholds(ctx.userId),
     pendingInviteCount(ctx.email),
+    countReview(ctx.householdId),
   ]);
 
   const nav = {
@@ -20,6 +22,7 @@ export default async function AppLayout({
     activeHouseholdId: ctx.householdId,
     households,
     pendingInvites,
+    reviewCount,
   };
 
   return (

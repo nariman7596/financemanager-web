@@ -1,8 +1,9 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Menu, X } from "lucide-react";
+import { Inbox, Menu, X } from "lucide-react";
 import { NavPanel, NavBrand, type NavProps } from "@/components/NavPanel";
 import { useT } from "@/lib/i18n/client";
 
@@ -48,6 +49,16 @@ export function MobileNav(props: NavProps) {
           <Menu size={22} />
         </button>
         <NavBrand />
+        {/* SMS transactions waiting for a category: one tap from any page. */}
+        {(props.reviewCount ?? 0) > 0 && (
+          <Link
+            href="/review"
+            aria-label={t("nav.review")}
+            className="ms-auto flex items-center gap-1.5 rounded-full bg-brand-600 text-white text-sm font-medium px-3 py-1"
+          >
+            <Inbox size={16} /> {props.reviewCount}
+          </Link>
+        )}
       </header>
 
       {open && (

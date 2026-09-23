@@ -1,3 +1,4 @@
+import { headers } from "next/headers";
 import { Plus } from "lucide-react";
 import { requireHousehold } from "@/lib/household";
 import { prisma } from "@/lib/prisma";
@@ -8,21 +9,36 @@ import { CategoryForm } from "@/components/forms/CategoryForm";
 import { DeleteButton } from "@/components/DeleteButton";
 import { deleteCategory } from "@/app/actions/categories";
 import { LanguageSwitcher } from "@/components/LanguageSwitcher";
-import { getT } from "@/lib/i18n/server";
+import { SmsTokenForm } from "@/components/forms/SmsTokenForm";
+import { revokeSmsToken } from "@/app/actions/sms";
+import { formatDate } from "@financemanager/core/money";
+import { getT, getLocale } from "@/lib/i18n/server";
 import type { TFunc } from "@financemanager/i18n/translate";
 
 export const dynamic = "force-dynamic";
 
 export default async function SettingsPage() {
   const t = await getT();
+  const locale = await getLocale();
   const ctx = await requireHousehold();
-  const [user, categories] = await Promise.all([
+  const [user, categories, tokens] = await Promise.all([
     prisma.user.findUnique({ where: { id: ctx.userId } }),
     prisma.category.findMany({
       where: { householdId: ctx.householdId },
       orderBy: [{ type: "asc" }, { name: "asc" }],
     }),
+    prisma.apiToken.findMany({
+      where: { householdId: ctx.householdId },
+      orderBy: { createdAt: "desc" },
+      select: { id: true, name: true, prefix: true, createdAt: true, lastUsedAt: true },
+    }),
   ]);
+
+  // The address the phone posts to — as this browser reached the app.
+  const h = await headers();
+  const host = h.get("x-forwarded-host") ?? h.get("host") ?? "localhost:3000";
+  const proto = h.get("x-forwarded-proto") ?? (host.startsWith("localhost") ? "http" : "https");
+  const ingestUrl = `${proto}://${host}/api/ingest/sms`;
 
   const income = categories.filter((c) => c.type === "INCOME");
   const expense = categories.filter((c) => c.type === "EXPENSE");
@@ -46,6 +62,50 @@ export default async function SettingsPage() {
             <LanguageSwitcher />
           </div>
         </div>
+
+        {canEdit && (
+          <div id="sms" className="card p-6 space-y-4 scroll-mt-20">
+            <div>
+              <h2 className="font-semibold">{t("sms.title")}</h2>
+              <p className="text-xs text-slate-400">{t("sms.hint")}</p>
+            </div>
+
+            <ol className="text-sm space-y-1 list-decimal ps-5 text-[var(--muted)]">
+              <li>{t("sms.step1")}</li>
+              <li>{t("sms.step2")}</li>
+              <li>{t("sms.step3")}</li>
+            </ol>
+
+            <div>
+              <p className="label">{t("sms.address")}</p>
+              <code dir="ltr" className="block text-xs break-all select-all surface-subtle rounded px-2 py-1.5">{ingestUrl}</code>
+            </div>
+
+            <SmsTokenForm />
+
+            {tokens.length > 0 && (
+              <ul className="divide-y divide-[var(--border)] border-t border-[var(--border)]">
+                {tokens.map((k) => (
+                  <li key={k.id} className="flex items-center justify-between gap-2 py-2 text-sm">
+                    <span className="min-w-0">
+                      <span className="font-medium">{k.name}</span>{" "}
+                      <code dir="ltr" className="text-xs text-slate-400">{k.prefix}…</code>
+                      <span className="block text-xs text-slate-400">
+                        {k.lastUsedAt
+                          ? t("sms.lastUsed", { date: formatDate(k.lastUsedAt, locale) })
+                          : t("sms.neverUsed")}
+                      </span>
+                    </span>
+                    <form action={revokeSmsToken}>
+                      <input type="hidden" name="id" value={k.id} />
+                      <button type="submit" className="btn-ghost text-xs text-red-600">{t("sms.revoke")}</button>
+                    </form>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+        )}
 
         <div className="card p-6">
           <div className="flex items-center justify-between mb-4">
