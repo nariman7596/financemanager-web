@@ -91,6 +91,15 @@ const OUT_WORDS = ["برداشت", "خرید", "کسر", "انتقال از", "�
 const IN_WORDS = ["واریز", "انتقال به", "سود", "افزایش", "برگشت", "بستانکار", "نشست", "به حساب شما"];
 const BALANCE_WORDS = ["مانده", "موجودی"];
 const ACCOUNT_WORDS = ["حساب", "کارت", "سپرده", "شماره"];
+// A one-time password for a purchase that has not happened yet. Blu sends
+// "بفرمایید رمز پویا / خرید / … / مبلغ: 4,871,050 ریال / رمز: 806534" before the
+// purchase; the purchase itself arrives as its own message. Booking the OTP
+// would count every purchase twice.
+const OTP_WORDS = ["رمز پویا", "رمز یکبار", "رمز دوم", "کد تایید", "کد تأیید", "رمز:"];
+
+function isOtp(lines: string[]): boolean {
+  return lines.some((l) => hasAny(l, OTP_WORDS));
+}
 
 const NUMBER = String.raw`\d{1,3}(?:,\d{3})+|\d+`;
 
@@ -197,7 +206,7 @@ function parseDate(lines: string[], now: Date): { date: Date; time: string | nul
  */
 export function parseBankSms(text: string, now: Date = new Date()): ParsedSms | null {
   const lines = normalizeSms(text).split("\n");
-  if (lines.length === 0) return null;
+  if (lines.length === 0 || isOtp(lines)) return null;
 
   const bank = lines.find((l) => l.includes("بانک")) ?? lines[0] ?? null;
 
@@ -288,6 +297,7 @@ export function parseBankSms(text: string, now: Date = new Date()): ParsedSms | 
  */
 export function looksLikeTransaction(text: string): boolean {
   const lines = normalizeSms(text).split("\n");
+  if (isOtp(lines)) return false;
   return lines.some((line) => {
     if (isDateLine(line) || hasAny(line, BALANCE_WORDS)) return false;
     return (
