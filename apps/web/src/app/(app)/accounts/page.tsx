@@ -1,4 +1,4 @@
-import { Plus, Landmark, Pencil } from "lucide-react";
+import { Plus, Landmark, Pencil, AlertTriangle, CheckCircle2 } from "lucide-react";
 import { requireHousehold } from "@/lib/household";
 import { getAccountBalances, getBaseCurrency } from "@/lib/queries";
 import { formatMoney, formatDate } from "@financemanager/core/money";
@@ -12,7 +12,8 @@ import { DeleteButton } from "@/components/DeleteButton";
 import { UnlinkAccountButton } from "@/components/UnlinkAccountButton";
 import { PlaidLinkButton } from "@/components/PlaidLinkButton";
 import { BankSyncButton } from "@/components/BankSyncButton";
-import { deleteAccount } from "@/app/actions/accounts";
+import { deleteAccount, settleBalanceGap } from "@/app/actions/accounts";
+import { getReconciliations } from "@/lib/reconcile";
 import { sumInCurrency } from "@/lib/currency";
 import { getT, getLocale } from "@/lib/i18n/server";
 
@@ -23,7 +24,11 @@ export default async function AccountsPage() {
   const locale = await getLocale();
   const ctx = await requireHousehold();
   const base = await getBaseCurrency(ctx.householdId);
-  const accounts = await getAccountBalances(ctx.householdId);
+  const [accounts, reconciliations] = await Promise.all([
+    getAccountBalances(ctx.householdId),
+    getReconciliations(ctx.householdId),
+  ]);
+  const canEdit = ctx.role !== "VIEWER";
   const totalInBase = await sumInCurrency(
     accounts.map((a) => ({ amount: a.balance, currency: a.currency })),
     base,
@@ -124,6 +129,49 @@ export default async function AccountsPage() {
                 <p className="text-xs text-slate-400 mt-1">
                   {t("accounts.opening", { amount: formatMoney(a.openingBalance, a.currency) })}
                 </p>
+                {(() => {
+                  const r = reconciliations.get(a.id);
+                  if (!r) return null;
+                  if (r.gap === 0) {
+                    return (
+                      <p className="flex items-center gap-1 text-xs text-emerald-600 mt-2">
+                        <CheckCircle2 size={13} /> {t("reconcile.matches", { date: formatDate(r.date, locale) })}
+                      </p>
+                    );
+                  }
+                  return (
+                    <div className="mt-3 rounded-lg px-3 py-2 text-xs bg-amber-50 text-amber-900 dark:bg-amber-500/10 dark:text-amber-200 space-y-1.5">
+                      <p className="flex items-center gap-1 font-medium">
+                        <AlertTriangle size={13} /> {t("reconcile.gap", { amount: formatMoney(Math.abs(r.gap), a.currency) })}
+                      </p>
+                      <p>
+                        {t("reconcile.detail", {
+                          date: formatDate(r.date, locale),
+                          bank: formatMoney(r.bankBalance, a.currency),
+                          app: formatMoney(r.appBalance, a.currency),
+                        })}
+                      </p>
+                      {canEdit && (
+                        <div className="flex flex-wrap gap-2 pt-1">
+                          <form action={settleBalanceGap}>
+                            <input type="hidden" name="id" value={a.id} />
+                            <input type="hidden" name="mode" value="transaction" />
+                            <button type="submit" className="btn-ghost border border-amber-300 text-xs px-2 py-1">
+                              {r.gap < 0 ? t("reconcile.bookExpense") : t("reconcile.bookIncome")}
+                            </button>
+                          </form>
+                          <form action={settleBalanceGap}>
+                            <input type="hidden" name="id" value={a.id} />
+                            <input type="hidden" name="mode" value="opening" />
+                            <button type="submit" className="btn-ghost border border-amber-300 text-xs px-2 py-1">
+                              {t("reconcile.fixOpening")}
+                            </button>
+                          </form>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })()}
                 {(a.currency === "IRR" || a.currency === "IRT") && (
                   <p className="text-xs text-slate-400 mt-1">
                     {a.smsMatch ? t("sms.matchSet", { number: a.smsMatch }) : t("sms.matchUnset")}

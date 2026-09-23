@@ -8,6 +8,7 @@ import { rialTomanRescale } from "@financemanager/core/currency";
 import { normalizeSmsMatch } from "@financemanager/core/sms";
 import { retryUnmatched } from "@/lib/sms";
 import { getT } from "@/lib/i18n/server";
+import { getReconciliations } from "@/lib/reconcile";
 
 export async function createAccount(formData: FormData) {
   const { ctx, error } = await checkHousehold("MEMBER");
@@ -201,4 +202,51 @@ export async function archiveAccount(formData: FormData) {
   });
   revalidatePath("/accounts");
   return { ok: true };
+}
+
+/**
+ * Settle a gap between the app's balance and the bank's (see lib/reconcile).
+ * The gap is recomputed here, never taken from the form.
+ *
+ * - "opening": the gap was there from the start (a wrong opening balance), so
+ *   the opening balance absorbs it.
+ * - "transaction": something the bank did never reached the app (a fee it
+ *   charges without an SMS). It is booked as an income or expense at the date
+ *   of the balance compared, waiting in Review for its category.
+ */
+export async function settleBalanceGap(formData: FormData): Promise<void> {
+  const { ctx } = await checkHousehold("MEMBER");
+  if (!ctx) return;
+  const id = String(formData.get("id"));
+  const mode = String(formData.get("mode"));
+  const account = await prisma.account.findFirst({ where: { id, householdId: ctx.householdId } });
+  if (!account) return;
+  const r = (await getReconciliations(ctx.householdId, id)).get(id);
+  if (!r || r.gap === 0) return;
+  const t = await getT();
+
+  if (mode === "opening") {
+    await prisma.account.update({
+      where: { id },
+      data: { openingBalance: { increment: r.gap } },
+    });
+  } else if (mode === "transaction") {
+    await prisma.transaction.create({
+      data: {
+        householdId: ctx.householdId,
+        createdById: ctx.userId,
+        accountId: id,
+        type: r.gap > 0 ? "INCOME" : "EXPENSE",
+        amount: Math.abs(r.gap),
+        currency: account.currency,
+        date: r.date,
+        // Just before the SMS whose balance revealed the gap, so the next
+        // comparison counts it: dates carry no time, record order breaks ties.
+        createdAt: new Date(r.createdAt.getTime() - 1),
+        description: t("reconcile.adjustmentDescription"),
+        needsReview: true,
+      },
+    });
+  }
+  revalidatePath("/", "layout");
 }

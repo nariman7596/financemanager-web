@@ -453,4 +453,13 @@ export const en: Record<string, string> = {
   "sms.err.notFound": "Not found",
   "sms.err.transferCurrency": "Both accounts must use the same currency",
   "sms.err.pickCategory": "Pick a category",
+
+  // Balance check against the bank
+  "reconcile.matches": "Matches the bank (as of {date})",
+  "reconcile.gap": "Off from the bank by {amount}",
+  "reconcile.detail": "On {date} the bank reported {bank}; the app had {app}.",
+  "reconcile.bookExpense": "Record the difference as an expense",
+  "reconcile.bookIncome": "Record the difference as income",
+  "reconcile.fixOpening": "It was the opening balance — fix it",
+  "reconcile.adjustmentDescription": "Difference with the bank balance",
 };
