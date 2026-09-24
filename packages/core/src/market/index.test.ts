@@ -29,6 +29,25 @@ describe("exchange parsers", () => {
   });
 });
 
+// Trimmed from what each API returned to the production server, 2026-09-24.
+describe("real responses", () => {
+  it("reads all three", () => {
+    const nobitex = { status: "ok", stats: { "usdt-rls": { isClosed: false, bestSell: "2339810", bestBuy: "2339800", latest: "2339800", mark: "2339800" } } };
+    const wallex = {
+      result: { symbols: { USDTTMN: { symbol: "USDTTMN", quoteAsset: "TMN", stats: { bidPrice: "234156.0000000000000000", askPrice: "234159.0000000000000000", lastPrice: "234158.0000000000000000" } } } },
+    };
+    const tabdeal = [{ id: 198735330, price: "233800.0000000000000000", qty: "34.21214700", time: 1790253087775, isBuyerMaker: false }];
+    expect(parseNobitex(nobitex, "USDT")).toBe(233980);
+    expect(parseWallex(wallex, "USDT")).toBe(234158);
+    expect(parseTabdeal(tabdeal, "USDT")).toBe(233800);
+    expect(consensusPrice([
+      { source: "wallex", price: 234158 },
+      { source: "nobitex", price: 233980 },
+      { source: "tabdeal", price: 233800 },
+    ])?.price).toBe(233980);
+  });
+});
+
 describe("consensusPrice", () => {
   it("takes the median", () => {
     expect(consensusPrice([

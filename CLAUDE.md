@@ -10,7 +10,7 @@ the phase plan.
 
 ```
 apps/web            Next.js app (routes, server actions, React components)
-packages/core       THE DOMAIN — pure TS, no framework. 171 tests.
+packages/core       THE DOMAIN — pure TS, no framework. 172 tests.
 packages/i18n       locale config + en/fa dictionaries + createT. 9 tests.
 packages/config     shared tsconfig / tailwind preset / eslint
 ```
@@ -429,9 +429,11 @@ IRT/IRR are priced from Wallex, Nobitex and Tabdeal's public APIs (the median
 of the quotes, one far from the rest dropped; quotes older than a day are shown
 but not used). Every quote is stored in `MarketQuote` and shown on
 /investments, because the owner compares exchanges before trading. Runs with
-the hourly `/api/cron/refresh` and the Refresh button. Response shapes were
-written from the APIs' docs, not verified from here (sandbox blocks them): a
-parser returns null rather than guess, and URLs are env-overridable.
+the hourly `/api/cron/refresh` and the Refresh button. Endpoints were checked
+from the production server: Nobitex answers on `apiv2.nobitex.ir` (not
+`api.`, which times out from Germany), Tabdeal has no ticker so its last trade
+is used; the core tests carry their real responses. A parser returns null
+rather than guess; URLs are env-overridable.
 
 ## Loan accounts — account type `LOAN`
 Entered as the remaining debt (positive; `accountSchema` stores it negative

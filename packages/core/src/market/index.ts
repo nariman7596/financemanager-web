@@ -55,8 +55,9 @@ export function parseWallex(json: unknown, symbol: string): number | null {
 }
 
 /**
- * Tabdeal `GET /r/api/v1/ticker/price?symbol=USDTIRT` (Binance-style):
- * `{ symbol: "USDTIRT", price: "114350" }`, or a list of those. IRT is toman.
+ * Tabdeal `GET /r/api/v1/trades?symbol=USDTIRT&limit=1` (Binance-style):
+ * `[{ id, price: "233800.0000000000000000", qty, time }]` — the last trade.
+ * A `{ symbol, price }` ticker shape is read too. IRT is toman.
  */
 export function parseTabdeal(json: unknown, symbol: string): number | null {
   const want = `${symbol.toUpperCase()}IRT`;

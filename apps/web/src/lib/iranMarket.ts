@@ -17,9 +17,12 @@ import {
 // USD-priced ones keep CoinGecko (marketdata.ts). URLs are overridable.
 // ---------------------------------------------------------------------------
 
-const NOBITEX_URL = process.env.NOBITEX_API_URL ?? "https://api.nobitex.ir/market/stats";
+// Nobitex's api. host does not answer from the (German) server; apiv2. does.
+const NOBITEX_URL = process.env.NOBITEX_API_URL ?? "https://apiv2.nobitex.ir/market/stats";
 const WALLEX_URL = process.env.WALLEX_API_URL ?? "https://api.wallex.ir/v1/markets";
-const TABDEAL_URL = process.env.TABDEAL_API_URL ?? "https://api1.tabdeal.org/r/api/v1/ticker/price";
+// Tabdeal has no ticker endpoint; its last trade is the equivalent of the
+// others' last price.
+const TABDEAL_URL = process.env.TABDEAL_API_URL ?? "https://api1.tabdeal.org/r/api/v1/trades";
 
 /** Coins quoted even without a holding: the dollar rate everyone checks. */
 const ALWAYS = ["USDT"];
@@ -49,7 +52,7 @@ async function fromWallex(symbols: string[]): Promise<SourceResult> {
 async function fromTabdeal(symbols: string[]): Promise<SourceResult> {
   const prices: Record<string, number> = {};
   for (const s of symbols) {
-    const p = parseTabdeal(await getJson(`${TABDEAL_URL}?symbol=${s.toUpperCase()}IRT`), s);
+    const p = parseTabdeal(await getJson(`${TABDEAL_URL}?symbol=${s.toUpperCase()}IRT&limit=1`), s);
     if (p !== null) prices[s] = p;
   }
   return { source: "tabdeal", prices };
