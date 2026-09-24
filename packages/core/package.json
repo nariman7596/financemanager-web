@@ -5,6 +5,7 @@
   "exports": {
     ".": "./src/index.ts",
     "./access": "./src/access/index.ts",
+    "./budgets": "./src/budgets/index.ts",
     "./calendar": "./src/calendar/index.ts",
     "./constants": "./src/constants/index.ts",
     "./csv": "./src/csv/index.ts",

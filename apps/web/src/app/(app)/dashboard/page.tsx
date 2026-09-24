@@ -18,7 +18,7 @@ import { getT, getLocale } from "@/lib/i18n/server";
 import { monthNameIn, monthKeyToDate, startOfMonthIn, endOfMonthIn } from "@financemanager/core/calendar";
 import { defaultSummaryMonth } from "@/lib/monthSummary";
 import { prisma } from "@/lib/prisma";
-import { CalendarDays } from "lucide-react";
+import { AlertTriangle, CalendarDays } from "lucide-react";
 import type { TFunc } from "@financemanager/i18n/translate";
 import Link from "next/link";
 
@@ -40,6 +40,12 @@ export default async function DashboardPage() {
   ]);
 
   const monthName = monthNameIn(new Date(), locale);
+
+  // Budgets over, at 80%, or on pace to go over — worst first. The card below
+  // lists the fullest ones first for the same reason.
+  const rank = { over: 0, watch: 1, ok: 2 } as const;
+  budgets.sort((a, b) => rank[a.level] - rank[b.level] || b.pct - a.pct);
+  const alerts = budgets.filter((b) => b.level !== "ok");
 
   // For the first week of a month, point at the one that just ended — if
   // anything was recorded in it.
@@ -67,6 +73,32 @@ export default async function DashboardPage() {
           className="flex items-center gap-2 mb-6 rounded-lg px-4 py-3 text-sm font-medium bg-blue-50 text-blue-800 dark:bg-blue-500/10 dark:text-blue-200"
         >
           <CalendarDays size={16} /> {t("summary.ready", { month: monthNameIn(endedMonth, locale) })}
+        </Link>
+      )}
+
+      {alerts.length > 0 && (
+        <Link
+          href="/budgets"
+          className="block mb-6 rounded-lg px-4 py-3 text-sm bg-amber-50 text-amber-900 dark:bg-amber-500/10 dark:text-amber-200"
+        >
+          <p className="flex items-center gap-2 font-medium mb-1">
+            <AlertTriangle size={16} /> {t("budgets.alertTitle")}
+          </p>
+          <ul className="space-y-0.5 ps-6">
+            {alerts.map((b) => (
+              <li key={b.id} className={b.level === "over" ? "text-red-600 dark:text-red-300" : undefined}>
+                {/* The name is the user's own text, in any script: isolated so a
+                    Latin name does not reorder the Persian around it. */}
+                <bdi className="font-medium">{b.category}</bdi>
+                {": "}
+                {b.level === "over"
+                  ? t("budgets.alertOver", { pct: b.pct })
+                  : b.pct >= 80
+                    ? t("budgets.alertWatch", { pct: b.pct })
+                    : t("budgets.alertPace")}
+              </li>
+            ))}
+          </ul>
         </Link>
       )}
 

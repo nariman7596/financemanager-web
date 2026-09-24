@@ -10,7 +10,7 @@ the phase plan.
 
 ```
 apps/web            Next.js app (routes, server actions, React components)
-packages/core       THE DOMAIN — pure TS, no framework. 140 tests.
+packages/core       THE DOMAIN — pure TS, no framework. 151 tests.
 packages/i18n       locale config + en/fa dictionaries + createT. 9 tests.
 packages/config     shared tsconfig / tailwind preset / eslint
 ```
@@ -19,7 +19,7 @@ packages/config     shared tsconfig / tailwind preset / eslint
 in the browser, in Hermes and in tests. No `next/*`, no `react-native`, no Node
 built-ins, no Prisma. `packages/config/eslint/package.js` enforces this and the
 rule is verified to fire; `pnpm lint` fails the build if you reach for one.
-Subpaths: `@financemanager/core/{access,calendar,constants,csv,currency,
+Subpaths: `@financemanager/core/{access,budgets,calendar,constants,csv,currency,
 date-range,loans,money,reconcile,reports,sms,validation}`.
 
 Both packages ship **TypeScript source, not a build artifact** — `apps/web`
@@ -424,6 +424,18 @@ the row onto the sending account (`accountId` = from), but the SMS's
 `bankBalance` belongs to the receiving one, and reconciliation reads it on
 `accountId`. `transferLegs` (lib/sms.ts) therefore drops it on that path (or
 takes the sending side's own waiting SMS balance, if it was absorbed).
+
+## Budgets (`core/budgets`, `getBudgetProgress`)
+Each budget covers its **own period in the reader's calendar** (`budgetWindow`:
+a Persian week is Saturday–Friday, a Persian year starts at Nowruz) — until
+2026-09-24 every budget was measured by month whatever its period said.
+`budgetStatus` gives a level — `over` past the limit, `watch` at 80% or when the
+pace would run past it — plus what is left per day for the days remaining. Pace
+is not trusted before a fifth of the period has passed (two days of groceries
+"project" to a fortune). The dashboard lists budgets at watch/over, worst
+first, with the category name in `<bdi>` so a Latin name does not reorder the
+Persian line; the monthly summary shows that month's monthly budgets, read at
+the month's end.
 
 ## CSV import/export
 - Export: `GET /api/export/transactions` (session-authed) streams all the user's
