@@ -51,8 +51,10 @@ async function fromWallex(symbols: string[]): Promise<SourceResult> {
 
 async function fromTabdeal(symbols: string[]): Promise<SourceResult> {
   const prices: Record<string, number> = {};
+  // One request per coin; a coin Tabdeal does not list must not cost the rest.
   for (const s of symbols) {
-    const p = parseTabdeal(await getJson(`${TABDEAL_URL}?symbol=${s.toUpperCase()}IRT&limit=1`), s);
+    const json = await getJson(`${TABDEAL_URL}?symbol=${s.toUpperCase()}IRT&limit=1`).catch(() => null);
+    const p = parseTabdeal(json, s);
     if (p !== null) prices[s] = p;
   }
   return { source: "tabdeal", prices };
