@@ -44,17 +44,21 @@
 | 2 | **Get File from Folder** | پوشه: `Shortcuts` · مسیر: `fm-sms.txt` |
 | 3 | **Get Text from Input** | ورودی: خروجیِ اکشنِ ۲ (متنِ صف، همان‌طور که فرستاده می‌شود) |
 | 4 | **Get Contents of URL** | URL: آدرسِ بالا · **Method:** `POST` · **Headers:** `Authorization` = `Bearer <کلید>` · **Request Body:** `File` ← خروجیِ اکشنِ ۲ |
-| 5 | **Get Dictionary Value** | Key: `error` · از: `Contents of URL` |
-| 6 | **If** | `Dictionary Value` **does not have any value** |
+| 5 | **Get Dictionary Value** | Key: `received` · از: `Contents of URL` |
+| 6 | **If** | `Dictionary Value` **has any value** |
 | 7 | ↳ **Get File from Folder** | دوباره `fm-sms.txt` · **Error If Not Found** خاموش |
 | 8 | ↳ **Get Text from Input** | ورودی: خروجیِ اکشنِ ۷ |
 | 9 | ↳ **If** | متنِ اکشنِ ۸ **is** متنِ اکشنِ ۳ |
 | 10 | ↳↳ **Delete Files** | فایل: خروجیِ اکشنِ ۷ · **Confirm Before Deleting** خاموش |
 
-چرا کلیدِ `error` و نه «contains ok»؟ خروجیِ Get Contents of URL یک Dictionary است،
-نه متن، و `contains` روی آن قابلِ اعتماد نیست. هر جوابِ ناموفقِ سرور (کلیدِ غلط، …)
-کلیدِ `error` دارد و موفق‌ها ندارند؛ قطعیِ شبکه هم کلِ شورتکات را قبل از این مرحله
-متوقف می‌کند — پس فایل فقط وقتی پاک می‌شود که سرور واقعاً پیامک‌ها را گرفته باشد.
+چرا کلیدِ `received`؟ فقط جوابِ **موفقِ** سرور آن را دارد (تعدادِ پیامک‌های گرفته‌شده).
+قبلاً شرط «کلیدِ `error` ندارد» بود، و آن یک جوابِ خالی را هم موفق حساب می‌کرد: وقتی
+برنامه با `docker compose up -d` ری‌استارت می‌شود، Caddy چند ثانیه 502 با بدنه‌ی خالی
+می‌دهد — شورتکات فایل را پاک کرد و دو پیامک از دست رفت. حالا فقط وقتی پاک می‌شود که
+سرور صریحاً گفته گرفتم؛ هر جوابِ دیگری (خطا، صفحه‌ی خالی، قطعی) صف را نگه می‌دارد.
+(Caddy هم حالا در آن چند ثانیه JSON با `error` برمی‌گرداند، تا نسخه‌ی قدیمیِ شورتکات
+هم در امان باشد.) `contains` روی خروجیِ Get Contents of URL قابلِ اعتماد نیست چون
+Dictionary است، نه متن.
 
 چرا قبل از پاک کردن دوباره می‌خواند (۷–۹)؟ بلو برای هر خرید دو پیامک پشتِ‌سرِ هم
 می‌فرستد (رمزِ پویا، بعد برداشت). اگر دومی در حینِ فرستادنِ اولی به صف اضافه شود،

@@ -15,7 +15,10 @@ import { CashFlowChart, SpendingPieChart } from "@/components/Charts";
 import { BudgetBar } from "@/components/BudgetBar";
 import { MemberSpending } from "@/components/MemberSpending";
 import { getT, getLocale } from "@/lib/i18n/server";
-import { monthNameIn } from "@financemanager/core/calendar";
+import { monthNameIn, monthKeyToDate, startOfMonthIn, endOfMonthIn } from "@financemanager/core/calendar";
+import { defaultSummaryMonth } from "@/lib/monthSummary";
+import { prisma } from "@/lib/prisma";
+import { CalendarDays } from "lucide-react";
 import type { TFunc } from "@financemanager/i18n/translate";
 import Link from "next/link";
 
@@ -38,12 +41,34 @@ export default async function DashboardPage() {
 
   const monthName = monthNameIn(new Date(), locale);
 
+  // For the first week of a month, point at the one that just ended — if
+  // anything was recorded in it.
+  const summary = defaultSummaryMonth(new Date(), locale);
+  const endedMonth = monthKeyToDate(summary.key, locale);
+  const showSummary =
+    summary.justEnded &&
+    (await prisma.transaction.count({
+      where: {
+        householdId: ctx.householdId,
+        date: { gte: startOfMonthIn(endedMonth, locale), lte: endOfMonthIn(endedMonth, locale) },
+      },
+    })) > 0;
+
   return (
     <>
       <Topbar
         title={ctx.name ? t("dashboard.welcomeName", { name: ctx.name.split(" ")[0] }) : t("dashboard.welcome")}
         subtitle={t("dashboard.subtitle", { month: monthName })}
       />
+
+      {showSummary && (
+        <Link
+          href={`/reports/month?m=${summary.key}`}
+          className="flex items-center gap-2 mb-6 rounded-lg px-4 py-3 text-sm font-medium bg-blue-50 text-blue-800 dark:bg-blue-500/10 dark:text-blue-200"
+        >
+          <CalendarDays size={16} /> {t("summary.ready", { month: monthNameIn(endedMonth, locale) })}
+        </Link>
+      )}
 
       <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
         <StatCard label={t("dashboard.netWorth")} value={formatMoney(netWorth.total, base)} hint={t("common.inCurrency", { code: base })} />

@@ -50,3 +50,4 @@ export function buildReportCsv(d: ReportData): string {
 
   return serializeCsv(rows);
 }
+export * from "./compare";

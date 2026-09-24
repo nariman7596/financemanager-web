@@ -10,7 +10,7 @@ the phase plan.
 
 ```
 apps/web            Next.js app (routes, server actions, React components)
-packages/core       THE DOMAIN — pure TS, no framework. 115 tests.
+packages/core       THE DOMAIN — pure TS, no framework. 123 tests.
 packages/i18n       locale config + en/fa dictionaries + createT. 9 tests.
 packages/config     shared tsconfig / tailwind preset / eslint
 ```
@@ -291,7 +291,9 @@ iOS lets no app read SMS, so an **iOS Shortcuts "When I receive a message"
 automation** posts each bank SMS to `POST /api/ingest/sms` (`Authorization:
 Bearer fm_…`, a per-device `ApiToken`, SHA-256 stored only). The shortcut first
 appends to `fm-sms.txt` and posts the whole file, deleting it only on
-success *and* only if it is unchanged since it was read (Blu's OTP + debit
+positive success (the response has `received`; an empty 502 from Caddy during
+an app restart once passed the old "no `error` key" check and lost two SMS, so
+Caddy's `handle_errors` now answers JSON too) *and* only if it is unchanged since it was read (Blu's OTP + debit
 arrive a minute apart; deleting blindly once lost the debit) — away from home (the app is VPN-only) nothing is lost; the queue
 flushes with the next SMS at home. Messages in a batch are split on a
 `~~~fm~~~` line.
@@ -336,6 +338,24 @@ flushes with the next SMS at home. Messages in a batch are split on a
   before it so the next comparison counts it, and `needsReview` so it gets a
   category — or fold it into the opening balance. It caught the owner's real
   700-toman Paya fee that Refah never SMSed.
+
+## Monthly summary (`/reports/month?m=<monthKey>`)
+One month at a time in the reader's calendar (`monthKeyIn`, e.g. `1405-07`):
+income / expenses / net against the previous month, every category side by
+side with the change (spending up = red; categories that vanished still show),
+the five largest expenses, and a nudge to Review when rows still lack a
+category. A finished month is compared with the whole previous month; the month
+in progress with the **same number of days** of the previous one
+(`previousWindow` in `core/reports/compare.ts`) — ten days against a full month
+would always look like a saving. It opens on the month just ended during the
+first week of a new month, else the current one (`lib/monthSummary.ts`), and
+the dashboard shows "<month> is over — see its summary" in that week if the
+month had any transactions. Linked from the Reports header. Reached nowhere
+else, so there is no nav item.
+The reconcile gap buttons (`SettleGapButtons`) take two clicks: the first asks
+whether a transaction of that amount is simply missing, because folding a
+not-yet-entered purchase into the opening balance and then entering it counts
+it twice — which happened.
 
 ## Editing accounts (`updateAccount` in `apps/web/src/app/actions/accounts.ts`)
 Pencil button on each account card → `AccountForm` in edit mode (name, type,

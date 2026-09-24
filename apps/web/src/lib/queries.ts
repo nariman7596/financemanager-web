@@ -180,6 +180,38 @@ export async function getCategoryBreakdown(householdId: string, base: string, st
     .sort((a, b) => b.value - a.value);
 }
 
+/** The largest single expenses in a range, in the base currency. */
+export async function getTopExpenses(
+  householdId: string,
+  base: string,
+  start: Date,
+  end: Date,
+  limit = 5,
+) {
+  const rates = await loadRates();
+  const txns = await prisma.transaction.findMany({
+    where: { householdId, type: "EXPENSE", date: { gte: start, lte: end } },
+    select: {
+      id: true,
+      date: true,
+      description: true,
+      amount: true,
+      currency: true,
+      category: { select: { name: true } },
+    },
+  });
+  return txns
+    .map((t) => ({
+      id: t.id,
+      date: t.date,
+      description: t.description,
+      category: t.category?.name ?? null,
+      value: convert(toNumber(t.amount), t.currency, base, rates),
+    }))
+    .sort((a, b) => b.value - a.value)
+    .slice(0, limit);
+}
+
 /** Expense breakdown by category for the given month (dashboard helper). */
 export async function getSpendingByCategory(
   householdId: string,
