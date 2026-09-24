@@ -10,7 +10,7 @@ the phase plan.
 
 ```
 apps/web            Next.js app (routes, server actions, React components)
-packages/core       THE DOMAIN — pure TS, no framework. 110 tests.
+packages/core       THE DOMAIN — pure TS, no framework. 115 tests.
 packages/i18n       locale config + en/fa dictionaries + createT. 9 tests.
 packages/config     shared tsconfig / tailwind preset / eslint
 ```
@@ -550,10 +550,11 @@ a Mac in VS Code + Docker (see `docs/WORKFLOW.md`).
 - **Verify before pushing.** CI builds the image the server runs, so a red build
   means the server silently keeps the old one — that happened twice this
   session. Run `pnpm typecheck` *and* `pnpm build` locally first.
-- Dependency advisories: all cleared (2026-09-24; they were all in vitest/vite, test-only). Recurring-rule
-  scheduling still advances by Gregorian month — it runs from a background job
-  with no user to take a locale from, so making it calendar-aware needs a
-  decision about where that calendar is stored (probably on the rule itself).
+- Dependency advisories: all cleared (2026-09-24; they were all in vitest/vite, test-only). Recurring rules
+  step in the calendar frozen on the rule (`RecurringTransaction.calendar`, set
+  from the creator's locale), and months are counted from `startDate`
+  (`nextOccurrenceInCalendar`) so a rule for the 31st returns to the 31st after
+  a 30- or 29-day month instead of drifting down for good.
   A Jalali `from > to` in the Reports filter falls back to the preset silently,
   since selects cannot express the native input's min/max.
 - Bank sync (Plaid) just landed but is sandbox-only and unverified live — get

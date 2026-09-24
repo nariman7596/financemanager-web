@@ -1,6 +1,6 @@
 import "server-only";
 import { addDays, addWeeks } from "date-fns";
-import { addMonthsInCalendar, addYearsInCalendar } from "@financemanager/core/calendar";
+import { nextOccurrenceInCalendar } from "@financemanager/core/calendar";
 import { prisma } from "./prisma";
 
 // ---------------------------------------------------------------------------
@@ -17,19 +17,25 @@ const MAX_CATCHUP_PER_RULE = 366; // safety cap (≥ a year of daily posts)
 type Frequency = "DAILY" | "WEEKLY" | "MONTHLY" | "YEARLY";
 
 /**
- * Advance a date by `interval` units of `frequency`, in the rule's calendar.
+ * The occurrence after `date` of a rule that started on `anchor`, in the
+ * rule's calendar.
  *
  * Days and weeks are fixed spans, so the calendar is irrelevant to them. Months
  * and years are not: a Jalali month is 31, 30 or 29 days depending on where it
  * falls, so stepping a Persian owner's rule with Gregorian months lands on the
  * wrong day 67% of the time, by up to 3 days — 15 Mordad becomes 14 Shahrivar,
  * then 13 Mehr. `calendar` comes from the rule row, not from the reader.
+ *
+ * Months are counted from the anchor (the rule's start date), not chained from
+ * the last occurrence, so a rule for the 31st comes back to the 31st after
+ * Mehr's 30 days instead of staying on the 30th from then on.
  */
 export function advance(
   date: Date,
   frequency: string,
   interval: number,
   calendar: string = "GREGORIAN",
+  anchor: Date = date,
 ): Date {
   const n = Math.max(1, interval);
   switch (frequency as Frequency) {
@@ -37,12 +43,11 @@ export function advance(
       return addDays(date, n);
     case "WEEKLY":
       return addWeeks(date, n);
-    case "MONTHLY":
-      return addMonthsInCalendar(date, n, calendar);
     case "YEARLY":
-      return addYearsInCalendar(date, n, calendar);
+      return nextOccurrenceInCalendar(anchor, date, 12 * n, calendar);
+    case "MONTHLY":
     default:
-      return addMonthsInCalendar(date, n, calendar);
+      return nextOccurrenceInCalendar(anchor, date, n, calendar);
   }
 }
 
@@ -79,7 +84,7 @@ export async function postDueRecurring(
       count < MAX_CATCHUP_PER_RULE
     ) {
       created.push({ date: next });
-      next = advance(next, rule.frequency, rule.interval, rule.calendar);
+      next = advance(next, rule.frequency, rule.interval, rule.calendar, rule.startDate);
       count++;
     }
 

@@ -65,6 +65,27 @@ export function addMonthsInCalendar(date: Date, amount: number, calendar: string
   return fnsForCalendar(calendar).addMonths(date, amount);
 }
 
+/**
+ * The occurrence after `current` of a rule that repeats every `months` months
+ * from `anchor` (its first date), in the given calendar.
+ *
+ * Measured from the anchor, not chained from the previous occurrence: chaining
+ * clamps 31 Shahrivar to 30 Mehr and then steps from the 30th for good, so a
+ * rule for the 31st never gets back to it (and Esfand's 29 drags every rule
+ * for the 30th down the same way). From the anchor, a short month clamps only
+ * itself. A year is 12 months, so yearly rules go through here too.
+ */
+export function nextOccurrenceInCalendar(
+  anchor: Date,
+  current: Date,
+  months: number,
+  calendar: string,
+): Date {
+  const f = fnsForCalendar(calendar);
+  const elapsed = Math.max(0, f.differenceInCalendarMonths(current, anchor));
+  return f.addMonths(anchor, elapsed + months);
+}
+
 /** Add years in the given calendar. */
 export function addYearsInCalendar(date: Date, amount: number, calendar: string): Date {
   return fnsForCalendar(calendar).addYears(date, amount);

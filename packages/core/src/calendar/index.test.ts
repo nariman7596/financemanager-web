@@ -5,6 +5,7 @@ import {
   subMonthsIn,
   addMonthsInCalendar,
   addYearsInCalendar,
+  nextOccurrenceInCalendar,
   monthKeyIn,
   toJalaliParts,
   fromJalaliParts,
@@ -66,6 +67,59 @@ describe("addMonthsInCalendar", () => {
     const before = toJalaliParts("2026-08-12")!;
     const after = toJalaliParts(ymd(addYearsInCalendar(d("2026-08-12"), 1, "JALALI")))!;
     expect(after).toEqual({ ...before, year: before.year + 1 });
+  });
+});
+
+describe("nextOccurrenceInCalendar", () => {
+  // Walk a rule from its first date the way the engine does, returning each
+  // occurrence as Jalali "month/day" (or Gregorian yyyy-mm-dd).
+  function walk(start: Date, months: number, steps: number, calendar: string): Date[] {
+    const out = [start];
+    let cur = start;
+    for (let i = 0; i < steps; i++) {
+      cur = nextOccurrenceInCalendar(start, cur, months, calendar);
+      out.push(cur);
+    }
+    return out;
+  }
+  const md = (x: Date) => {
+    const p = toJalaliParts(ymd(x))!;
+    return `${p.month}/${p.day}`;
+  };
+
+  // The bug: chaining addMonths clamps 31 Shahrivar to 30 Mehr, and every
+  // later month then steps from the 30th — a rule for the 31st never gets
+  // back to it. Esfand's 29 drags it to the 29th the same way.
+  it("returns to the 31st after the shorter Jalali months", () => {
+    const start = fromJalaliParts({ year: 1405, month: 1, day: 31 })!; // 31 Farvardin
+    expect(walk(d(start), 1, 12, "JALALI").map(md)).toEqual([
+      "1/31", "2/31", "3/31", "4/31", "5/31", "6/31",
+      "7/30", "8/30", "9/30", "10/30", "11/30", "12/29",
+      "1/31",
+    ]);
+  });
+
+  it("returns to the 30th after a 29-day Esfand", () => {
+    const start = fromJalaliParts({ year: 1405, month: 7, day: 30 })!; // 30 Mehr
+    const got = walk(d(start), 1, 7, "JALALI").map(md);
+    expect(got.slice(5)).toEqual(["12/29", "1/30", "2/30"]);
+  });
+
+  it("does the same for Gregorian month ends", () => {
+    const got = walk(d("2027-01-31"), 1, 3, "GREGORIAN").map(ymd);
+    expect(got).toEqual(["2027-01-31", "2027-02-28", "2027-03-31", "2027-04-30"]);
+  });
+
+  it("keeps the anchor day across an interval of several months", () => {
+    const start = fromJalaliParts({ year: 1405, month: 6, day: 31 })!; // 31 Shahrivar
+    expect(walk(d(start), 3, 2, "JALALI").map(md)).toEqual(["6/31", "9/30", "12/29"]);
+    expect(walk(d(start), 3, 4, "JALALI").map(md).slice(3)).toEqual(["3/31", "6/31"]);
+  });
+
+  it("matches a plain month step for ordinary days", () => {
+    const start = d("2026-08-06"); // 15 Mordad
+    expect(nextOccurrenceInCalendar(start, start, 1, "JALALI"))
+      .toEqual(addMonthsInCalendar(start, 1, "JALALI"));
   });
 });
 
