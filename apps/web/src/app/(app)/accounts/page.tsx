@@ -12,7 +12,8 @@ import { DeleteButton } from "@/components/DeleteButton";
 import { UnlinkAccountButton } from "@/components/UnlinkAccountButton";
 import { PlaidLinkButton } from "@/components/PlaidLinkButton";
 import { BankSyncButton } from "@/components/BankSyncButton";
-import { deleteAccount, settleBalanceGap } from "@/app/actions/accounts";
+import { deleteAccount } from "@/app/actions/accounts";
+import { SettleGapButtons } from "@/components/SettleGapButtons";
 import { getReconciliations } from "@/lib/reconcile";
 import { sumInCurrency } from "@/lib/currency";
 import { getT, getLocale } from "@/lib/i18n/server";
@@ -193,22 +194,11 @@ export default async function AccountsPage() {
                         })}
                       </p>
                       {canEdit && (
-                        <div className="flex flex-wrap gap-2 pt-1">
-                          <form action={settleBalanceGap}>
-                            <input type="hidden" name="id" value={a.id} />
-                            <input type="hidden" name="mode" value="transaction" />
-                            <button type="submit" className="btn-ghost border border-amber-300 text-xs px-2 py-1">
-                              {r.gap < 0 ? t("reconcile.bookExpense") : t("reconcile.bookIncome")}
-                            </button>
-                          </form>
-                          <form action={settleBalanceGap}>
-                            <input type="hidden" name="id" value={a.id} />
-                            <input type="hidden" name="mode" value="opening" />
-                            <button type="submit" className="btn-ghost border border-amber-300 text-xs px-2 py-1">
-                              {t("reconcile.fixOpening")}
-                            </button>
-                          </form>
-                        </div>
+                        <SettleGapButtons
+                          accountId={a.id}
+                          amount={formatMoney(Math.abs(r.gap), a.currency)}
+                          shortfall={r.gap < 0}
+                        />
                       )}
                     </div>
                   );

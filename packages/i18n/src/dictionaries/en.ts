@@ -462,6 +462,8 @@ export const en: Record<string, string> = {
   "reconcile.bookExpense": "Record the difference as an expense",
   "reconcile.bookIncome": "Record the difference as income",
   "reconcile.fixOpening": "It was the opening balance — fix it",
+  "reconcile.confirmMissing": "First make sure no {amount} transaction is missing — say, a purchase whose SMS never arrived. If one is, add that instead of this; doing both counts it twice.",
+  "reconcile.confirmYes": "I'm sure — apply",
   "reconcile.adjustmentDescription": "Difference with the bank balance",
 
   // Person (settle-up) accounts

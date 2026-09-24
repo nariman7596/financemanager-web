@@ -461,6 +461,8 @@ export const fa: Record<string, string> = {
   "reconcile.bookExpense": "اختلاف را هزینه ثبت کن",
   "reconcile.bookIncome": "اختلاف را درآمد ثبت کن",
   "reconcile.fixOpening": "از موجودیِ اولیه بوده — اصلاحش کن",
+  "reconcile.confirmMissing": "اول مطمئن شو تراکنشی به مبلغِ {amount} جا نیفتاده باشد — مثلاً خریدی که پیامکش نیامده. اگر هست، همان را ثبت کن و این را نزن؛ وگرنه دو بار حساب می‌شود.",
+  "reconcile.confirmYes": "مطمئنم، اعمال کن",
   "reconcile.adjustmentDescription": "اختلاف با مانده‌ی بانک",
 
   // Person (settle-up) accounts
