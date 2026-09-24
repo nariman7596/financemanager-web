@@ -112,6 +112,9 @@ above its `IP-CIDR,<ip>/32,DIRECT`) → VLESS Reality tunnel → sing-box on the
 whose first route rule overrides `<ip>:443` to `127.0.0.1:8443` (Caddy). Without
 that rule the request loops into sing-box's own :443, Reality rejects it as an
 invalid client and forwards it to its camouflage site (a Fastly cert error).
+**Away from home** the owner's V2Box app on the iPhone (VLESS to the same server)
+already reaches the app with no extra rule (confirmed 2026-09-24), since it
+tunnels the server's own IP and sing-box applies the same override.
 Reality's `handshake` is untouched; an HAProxy SNI router in front of it was
 tried, is unnecessary, and was removed. `HTTPS_BIND=127.0.0.1` keeps 8443 off
 the internet; port 80 stays open for certificate renewal. Details:
