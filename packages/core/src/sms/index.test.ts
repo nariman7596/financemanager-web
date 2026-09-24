@@ -95,6 +95,27 @@ describe("parseBankSms", () => {
     expect(p).toMatchObject({ accountRef: null, amountRial: 70_000_000, direction: "IN" });
   });
 
+  // Real Blu messages: the "بابت …" purpose becomes the description. The loan
+  // instalment has no header line at all, so without it the row had none.
+  it("takes the purpose after بابت as the description", () => {
+    const bill = parseBankSms(
+      "بلو\nپرداخت قبض\nعبدالرضا عزیز، 578,000 ریال بابت پرداخت قبض تلفن همراه از حساب شما پرید.\nموجودی: 14,902,340,335 ریال\n۵:۰۹\n۱۴۰۵.۰۷.۰۲",
+      NOW,
+    );
+    expect(bill).toMatchObject({
+      direction: "OUT",
+      amountRial: 578_000,
+      kind: "پرداخت قبض",
+      note: "پرداخت قبض تلفن همراه",
+      balanceRial: 14_902_340_335,
+    });
+    const loan = parseBankSms(
+      "بلو\nعبدالرضا عزیز 23,158,626 ریال بابت بازپرداخت بدهی وام به‌جا، از حساب شما پرید.\nموجودی: 14,878,501,709 ریال\n۵:۴۲\n۱۴۰۵.۰۷.۰۲",
+      NOW,
+    );
+    expect(loan).toMatchObject({ direction: "OUT", amountRial: 23_158_626, note: "بازپرداخت بدهی وام به‌جا" });
+  });
+
   it("refuses a sentence that says both in and out", () => {
     expect(parseBankSms("بلو\n500,000 ریال از حساب شما به حساب شما\n1405.07.01", NOW)).toBeNull();
   });

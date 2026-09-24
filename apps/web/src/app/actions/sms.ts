@@ -3,8 +3,9 @@
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import { checkHousehold } from "@/lib/household";
-import { newApiToken, retrySmsMessage } from "@/lib/sms";
+import { ingestSmsBatch, newApiToken, retrySmsMessage, type BatchSummary } from "@/lib/sms";
 import { getT } from "@/lib/i18n/server";
+import { SMS_BATCH_SEPARATOR } from "@financemanager/core/sms";
 
 function revalidateReview() {
   // The nav badge counts review items, and it lives in the shared layout.
@@ -127,6 +128,44 @@ export async function confirmSmsTransaction(
   revalidatePath("/accounts");
   revalidateReview();
   return { ok: true };
+}
+
+// ---------------------------------------------------------------------------
+// Pasting a message by hand
+// ---------------------------------------------------------------------------
+
+/**
+ * Import bank SMS the shortcut never delivered — iOS sometimes simply does not
+ * run the automation. Same path as /api/ingest/sms: parsed, matched, stored
+ * once by hash (pasting one that did arrive is a harmless duplicate), and
+ * booked for review. Several messages can be pasted separated by a blank line
+ * or the shortcut's ~~~fm~~~ marker.
+ */
+export async function pasteSms(
+  formData: FormData,
+): Promise<{ summary?: BatchSummary; error?: string }> {
+  const { ctx, error } = await checkHousehold("MEMBER");
+  if (!ctx) return { error };
+  const text = String(formData.get("text") ?? "").trim().slice(0, 20_000);
+  if (!text) return { error: (await getT())("sms.paste.empty") };
+
+  const summary = await ingestSmsBatch(
+    { householdId: ctx.householdId, userId: ctx.userId },
+    splitPasted(text),
+  );
+  revalidatePath("/transactions");
+  revalidatePath("/accounts");
+  revalidateReview();
+  return { summary };
+}
+
+/**
+ * A paste of several messages, as a batch the ingest splitter understands.
+ * Bank SMS never contain a blank line, so one between blocks separates them.
+ */
+function splitPasted(text: string): string {
+  if (text.includes(SMS_BATCH_SEPARATOR)) return text;
+  return text.split(/\n\s*\n/).join(`\n${SMS_BATCH_SEPARATOR}\n`);
 }
 
 // ---------------------------------------------------------------------------

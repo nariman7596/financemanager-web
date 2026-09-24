@@ -260,6 +260,11 @@ export function parseBankSms(text: string, now: Date = new Date()): ParsedSms | 
         (l) => l !== bank && !/\d/.test(l) && (hasAny(l, OUT_WORDS) || hasAny(l, IN_WORDS)),
       );
       amount = { amount: toNumber(m[1]), sign: out ? "-" : "+", label: header ?? "" };
+      // "…ریال بابت پرداخت قبض تلفن همراه از حساب شما پرید" — the purpose says
+      // more than the header ("پرداخت قبض"), and for some messages it is the
+      // only description there is (a loan instalment has no header at all).
+      const purpose = text.match(/بابت\s+(.+?)[،,]?\s+(?:از|به)\s+حساب/);
+      if (purpose) note = purpose[1].trim();
       break;
     }
   }

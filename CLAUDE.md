@@ -318,6 +318,10 @@ flushes with the next SMS at home. Messages in a batch are split on a
   `IGNORED` and never surface; the bank's note line becomes the description.
   Unreadable/unmatched messages stay (`UNPARSED`/`UNMATCHED`) and are retried
   when re-sent or when an account's SMS number is set (`retryUnmatched`).
+- **Paste box** on `/review` (`pasteSms` → the same `ingestSmsBatch`): for SMS
+  the automation never delivered — iOS does skip runs. Blank line separates
+  several messages; re-pasting is a harmless duplicate. Blu's "…ریال بابت X از
+  حساب شما پرید" gives X as the description (a loan instalment has no header).
 - `/review` page (nav badge + a pill in the mobile header): pick a category, or
   "transfer ↔ own account", which turns the row into a TRANSFER and deletes the
   other side's still-unreviewed SMS row (same amount, ±3 days) so own
