@@ -9,6 +9,7 @@ import {
   parseBankSms,
   parseSmsOtp,
   rialTo,
+  smsRecordedAt,
   splitSmsBatch,
 } from "@financemanager/core/sms";
 
@@ -104,7 +105,8 @@ async function processMessage(
     return "UNMATCHED";
   }
 
-  const merchant = parsed.direction === "OUT" ? await merchantFromOtp(scope, parsed.amountRial, message.receivedAt) : null;
+  const recordedAt = smsRecordedAt(parsed, message.receivedAt);
+  const merchant = parsed.direction === "OUT" ? await merchantFromOtp(scope, parsed.amountRial, recordedAt) : null;
   const { amount, currency } = rialTo(account.currency, parsed.amountRial);
   const balance =
     parsed.balanceRial === null ? null : rialTo(account.currency, parsed.balanceRial).amount;
@@ -150,6 +152,9 @@ async function processMessage(
         amount,
         currency,
         date: parsed.date,
+        // Where the bank's clock puts it among the day's rows, even when it
+        // arrives late — the balance check reads rows in this order.
+        createdAt: recordedAt,
         description,
         categoryId: filed && !legs ? rule!.categoryId : null,
         origin: "SMS",
