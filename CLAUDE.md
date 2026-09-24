@@ -10,7 +10,7 @@ the phase plan.
 
 ```
 apps/web            Next.js app (routes, server actions, React components)
-packages/core       THE DOMAIN — pure TS, no framework. 150 tests.
+packages/core       THE DOMAIN — pure TS, no framework. 160 tests.
 packages/i18n       locale config + en/fa dictionaries + createT. 9 tests.
 packages/config     shared tsconfig / tailwind preset / eslint
 ```
@@ -436,6 +436,20 @@ is not trusted before a fifth of the period has passed (two days of groceries
 first, with the category name in `<bdi>` so a Latin name does not reorder the
 Persian line; the monthly summary shows that month's monthly budgets, read at
 the month's end.
+
+**Budget planner** (`/budgets/plan`, `core/budgets/plan.ts` — pure, runs live
+in the browser): income − savings share − fixed costs (rent + each loan's last
+instalment) = what the categories share. With history (average of up to three
+full months, never counting months before the household's first transaction)
+each category keeps its habit, scaled down if it does not fit — protected
+categories cut half as hard — and what is left over shows as extra savings.
+Without history a default split by category *kind* (matched by keyword on the
+name, fa or en) is used. Groceries, dining and transport get weekly budgets.
+Income is suggested from last month's actual income each time (the owner
+enters/adjusts it monthly); savings rate, rent, other fixed costs and
+protected categories persist in `Household.budgetPlan` (JSON, additive
+migration). Applying replaces each planned category's budget (period change
+deletes the other period's row); a 0 row removes it.
 
 ## CSV import/export
 - Export: `GET /api/export/transactions` (session-authed) streams all the user's

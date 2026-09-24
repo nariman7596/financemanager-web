@@ -1,4 +1,5 @@
-import { Plus } from "lucide-react";
+import Link from "next/link";
+import { Plus, Wand2 } from "lucide-react";
 import { requireHousehold } from "@/lib/household";
 import { prisma } from "@/lib/prisma";
 import { getBaseCurrency, getBudgetProgress } from "@/lib/queries";
@@ -37,12 +38,17 @@ export default async function BudgetsPage() {
         subtitle={t("budgets.subtitle", { month: monthName })}
         action={
           expenseCategories.length > 0 ? (
+            <div className="flex flex-wrap items-center gap-2">
+            <Link href="/budgets/plan" className="btn-ghost border border-[var(--border)]">
+              <Wand2 size={16} /> {t("planner.title")}
+            </Link>
             <Modal
               title={t("budgets.set")}
               trigger={<button className="btn-primary"><Plus size={18} /> {t("common.add")}</button>}
             >
               <BudgetForm categories={expenseCategories} defaultCurrency={base} />
             </Modal>
+            </div>
           ) : null
         }
       />

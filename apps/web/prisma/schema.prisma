@@ -46,6 +46,10 @@ model Household {
   id           String   @id @default(cuid())
   name         String
   baseCurrency String   @default("USD") // reporting currency for this household
+  /// Budget planner inputs kept between visits: savings rate, rent, other fixed
+  /// costs, protected category ids. Income is not kept — it is read from last
+  /// month's actual income each time. See core/budgets/plan.ts.
+  budgetPlan   Json?
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
