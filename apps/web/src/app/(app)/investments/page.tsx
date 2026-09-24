@@ -135,7 +135,8 @@ export default async function InvestmentsPage() {
                     </td>
                     <td className="px-4 py-3 tabular-nums text-[var(--muted)]">{h.quantity}</td>
                     <td className="px-4 py-3">
-                      <PriceForm id={h.id} currentPrice={h.currentPrice} currency={h.currency} />
+                      {/* Keyed by price: the input is uncontrolled, and a refresh must show the new one. */}
+                      <PriceForm key={h.currentPrice} id={h.id} currentPrice={h.currentPrice} currency={h.currency} />
                     </td>
                     {/* No price yet is not a 100% loss. */}
                     {h.currentPrice > 0 ? (
