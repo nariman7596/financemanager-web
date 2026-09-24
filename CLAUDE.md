@@ -291,7 +291,9 @@ iOS lets no app read SMS, so an **iOS Shortcuts "When I receive a message"
 automation** posts each bank SMS to `POST /api/ingest/sms` (`Authorization:
 Bearer fm_…`, a per-device `ApiToken`, SHA-256 stored only). The shortcut first
 appends to `fm-sms.txt` and posts the whole file, deleting it only on
-success *and* only if it is unchanged since it was read (Blu's OTP + debit
+positive success (the response has `received`; an empty 502 from Caddy during
+an app restart once passed the old "no `error` key" check and lost two SMS, so
+Caddy's `handle_errors` now answers JSON too) *and* only if it is unchanged since it was read (Blu's OTP + debit
 arrive a minute apart; deleting blindly once lost the debit) — away from home (the app is VPN-only) nothing is lost; the queue
 flushes with the next SMS at home. Messages in a batch are split on a
 `~~~fm~~~` line.

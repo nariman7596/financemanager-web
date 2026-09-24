@@ -8,4 +8,14 @@
 {$APP_DOMAIN}:8443 {
 	encode gzip
 	reverse_proxy app:3000
+
+	# While the app restarts (every `docker compose up -d`) Caddy answers 502
+	# with an empty body. The iOS SMS shortcut deletes its queue unless the
+	# response carries an "error" key, so an empty 502 made it throw bank SMS
+	# away — two were lost this way. Say it in JSON, and the queue is kept and
+	# re-sent with the next message.
+	handle_errors {
+		header Content-Type application/json
+		respond `{"ok":false,"error":"app unavailable ({err.status_code})"}` {err.status_code}
+	}
 }
