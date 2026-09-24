@@ -34,13 +34,16 @@
 - **Run Immediately** را انتخاب کن و **Notify When Run** را خاموش کن.
 - **Next → New Blank Automation** و این اکشن‌ها را به ترتیب اضافه کن:
 
-**آماده:** `deploy/ios/fm-sms.shortcut` همین اکشن‌ها را دارد. روی Mac امضایش کن
-(`shortcuts sign -m anyone -i fm-sms.shortcut -o FinanceManager-SMS.shortcut`)، با AirDrop
-به آیفون بفرست و در اکشنِ «Get Contents of URL» به‌جای `PASTE-KEY-HERE` کلید را بگذار.
+**آماده:** `deploy/ios/fin.shortcut` همین اکشن‌ها را دارد (به‌علاوه‌ی یک اکشنِ Text در اول
+که کلید را نگه می‌دارد). روی Mac امضایش کن
+(`shortcuts sign -m anyone -i fin.shortcut -o fin-signed.shortcut` — خطوطِ `ERROR: Unrecognized
+attribute` بی‌خطرند)، اسمِ فایلِ خروجی را `fin.shortcut` کن و با AirDrop به آیفون بفرست. موقعِ
+**Add Shortcut** خودش کلید (`fm_…`) را می‌پرسد. بعد در اتوماسیونِ پیام، به‌جای ساختنِ اکشن‌ها،
+شورتکاتِ **fin** را انتخاب کن — پیامک به‌عنوانِ ورودی به آن داده می‌شود.
 
 | # | اکشن | تنظیم |
 |---|---|---|
-| 1 | **Get Contents of URL** | URL: آدرسِ بالا · **Method:** `POST` · **Headers:** `Authorization` = `Bearer <کلید>` · **Request Body:** `File` ← `Shortcut Input` |
+| 1 | **Get Contents of URL** | URL: آدرسِ بالا · **Method:** `POST` · **Headers:** `Authorization` = `Bearer <کلید>` · **Request Body:** `JSON` با کلیدِ `text` = `Shortcut Input` |
 | 2 | **Get Dictionary Value** | Key: `received` · از: خروجیِ اکشنِ ۱ |
 | 3 | **If** | `Dictionary Value` **has any value** |
 | 4 | ↳ **Get File from Folder** | پوشه: `Shortcuts` · مسیر: `fm-sms.txt` · **Error If Not Found** خاموش |

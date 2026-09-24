@@ -294,7 +294,8 @@ refresh**, **recurring auto-posting**, **CSV import/export**, **dark mode**,
 iOS lets no app read SMS, so an **iOS Shortcuts "When I receive a message"
 automation** posts each bank SMS to `POST /api/ingest/sms` (`Authorization:
 Bearer fm_…`, a per-device `ApiToken`, SHA-256 stored only). The shortcut
-posts the message itself first and queues it in `fm-sms.txt` only if that
+(`deploy/ios/fin.shortcut`, signed on the Mac and AirDropped; it asks for the key on
+import) posts the message itself first and queues it in `fm-sms.txt` only if that
 fails: iOS keeps iCloud Drive files out of reach while the phone is locked, and
 the old append-first order silently lost every SMS that arrived while it was
 (two bills, a loan instalment and a deposit one morning). After a successful
