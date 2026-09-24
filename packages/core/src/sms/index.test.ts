@@ -187,6 +187,10 @@ describe("looksLikeTransaction", () => {
 });
 
 describe("normalizeSms", () => {
+  it("drops CR so a pasted (CRLF) message equals the delivered (LF) one", () => {
+    expect(normalizeSms("بلو\r\nبرداشت پول\r\n۵:۴۲")).toBe(normalizeSms("بلو\nبرداشت پول\n۵:۴۲"));
+  });
+
   it("makes the same message identical however it arrives", () => {
     const a = "بانک رفاه\r\nحساب۴۰۵۹۴۳۶۲۳  \n\nپایا70,000,000-";
     const b = "‏بانک رفاه\nحساب405943623\nپایا70,000,000-";
