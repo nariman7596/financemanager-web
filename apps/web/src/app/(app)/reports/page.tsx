@@ -1,4 +1,5 @@
-import { Download } from "lucide-react";
+import Link from "next/link";
+import { CalendarDays, Download } from "lucide-react";
 import { requireHousehold } from "@/lib/household";
 import {
   getBaseCurrency,
@@ -51,7 +52,10 @@ export default async function ReportsPage({
             : t(range.labelKey)
         }
         action={
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
+            <Link href="/reports/month" className="btn-primary">
+              <CalendarDays size={16} /> {t("summary.link")}
+            </Link>
             <a
               href={`/api/export/report?${rangeQuery}`}
               className="btn-ghost border border-[var(--border)]"
