@@ -4,14 +4,18 @@
 #
 #   ./deploy/allow-backup-pull.sh 'ssh-ed25519 AAAA… fm-backup-pull'
 #
-# The key is added to root's authorized_keys behind a forced command:
-# `rrsync -ro <backup dir>`. Whoever holds it can rsync files *out of* the
-# backup directory and cannot open a shell, run a command, write a file, read
-# anything outside that directory, or forward ports. That matters because the
-# key lives unencrypted on the machine that pulls (a scheduled job cannot type
-# a passphrase), and it is root that it logs in as.
+# The key is added to root's authorized_keys behind a forced command that
+# streams the finished backups as a tar archive — whatever the client asks to
+# run, that is all it gets. Whoever holds the key can download the backups and
+# cannot open a shell, run anything else, write a file, read any other file, or
+# forward ports. That matters because the key lives unencrypted on the machine
+# that pulls (a scheduled job cannot type a passphrase), and it logs in as root.
 #
-# Safe to re-run: the same key is not added twice. See docs/BACKUP.md.
+# (rrsync -ro was the first choice, but macOS now ships openrsync, whose server
+# invocation rrsync rejects. A fixed tar needs nothing from the client's tools.)
+#
+# Safe to re-run: an existing line for the same key is replaced, not duplicated.
+# See docs/BACKUP.md.
 
 set -euo pipefail
 
@@ -31,24 +35,6 @@ set -- $pubkey
 key_type="$1"; key_body="${2:-}"
 [ -n "$key_body" ] || die "public key is missing its key material"
 
-# rrsync ships with rsync (in /usr/bin on Debian 12+ / Ubuntu 22.04+; older
-# releases keep it among the docs, sometimes gzipped).
-if ! command -v rsync >/dev/null; then
-  echo "installing rsync…"
-  apt-get install -y -q rsync >/dev/null
-fi
-rrsync="$(command -v rrsync || true)"
-if [ -z "$rrsync" ]; then
-  for f in /usr/share/doc/rsync/scripts/rrsync /usr/share/doc/rsync/scripts/rrsync.gz; do
-    [ -f "$f" ] || continue
-    case "$f" in *.gz) zcat "$f" > /usr/local/bin/rrsync ;; *) cp "$f" /usr/local/bin/rrsync ;; esac
-    chmod 755 /usr/local/bin/rrsync
-    rrsync=/usr/local/bin/rrsync
-    break
-  done
-fi
-[ -n "$rrsync" ] || die "rrsync not found; install a newer rsync package"
-
 [ -d "$BACKUP_DIR" ] || die "no backup directory at $BACKUP_DIR — set up deploy/backup.sh first"
 BACKUP_DIR="$(cd "$BACKUP_DIR" && pwd)"
 
@@ -57,11 +43,13 @@ chmod 700 "$(dirname "$AUTH_KEYS")"
 touch "$AUTH_KEYS"
 chmod 600 "$AUTH_KEYS"
 
-if grep -qF "$key_body" "$AUTH_KEYS"; then
-  echo "that key is already in $AUTH_KEYS — nothing changed"
-  exit 0
-fi
+# Drop any earlier line for this key (e.g. the old rrsync form), then add it.
+tmp="$(mktemp)"
+grep -vF "$key_body" "$AUTH_KEYS" > "$tmp" || true
+cat "$tmp" > "$AUTH_KEYS"
+rm -f "$tmp"
 
-printf 'command="%s -ro %s/",restrict %s %s fm-backup-pull\n' \
-  "$rrsync" "$BACKUP_DIR" "$key_type" "$key_body" >> "$AUTH_KEYS"
-echo "ok: that key can now download $BACKUP_DIR/ (read-only, nothing else)"
+# Only finished backups: a dump in progress is fm-*.sql.gz.partial.
+printf 'command="cd %s && tar -cf - fm-*.sql.gz",restrict %s %s fm-backup-pull\n' \
+  "$BACKUP_DIR" "$key_type" "$key_body" >> "$AUTH_KEYS"
+echo "ok: that key can now download the backups in $BACKUP_DIR/ (read-only, nothing else)"

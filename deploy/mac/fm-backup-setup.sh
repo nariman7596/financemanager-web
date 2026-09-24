@@ -11,7 +11,7 @@
 # unreachable for three days, or its newest backup is stale or corrupt.
 #
 # It logs in with its own SSH key, which the server limits to reading the
-# backup folder (deploy/allow-backup-pull.sh). Safe to re-run.
+# backup files (deploy/allow-backup-pull.sh). Safe to re-run.
 #
 # Written for the stock macOS bash 3.2 — no bash 4 features.
 
@@ -67,17 +67,13 @@ notify() {
     >/dev/null 2>&1 || true
 }
 
-# Homebrew's rsync if there is one, else the system's.
-RSYNC=/usr/bin/rsync
-for r in /opt/homebrew/bin/rsync /usr/local/bin/rsync; do
-  if [ -x "$r" ]; then RSYNC="$r"; break; fi
-done
-
-# No --delete: the Mac keeps every backup, including the ones the server has
-# pruned after its 14 days.
-if ! out="$("$RSYNC" -rt \
-    -e "ssh -i $KEY -o IdentitiesOnly=yes -o BatchMode=yes -o ConnectTimeout=20 -o StrictHostKeyChecking=accept-new" \
-    "$HOST:./" "$DEST/server/" 2>&1)"; then
+# The server answers this key with a tar of its backups, whatever command is
+# asked for (deploy/allow-backup-pull.sh), so there is nothing to choose here.
+# Files already on the Mac are simply rewritten with the same content.
+# Nothing is ever deleted: the Mac keeps what the server prunes after 14 days.
+if ! out="$( { /usr/bin/ssh -i "$KEY" -o IdentitiesOnly=yes -o BatchMode=yes \
+      -o ConnectTimeout=20 -o StrictHostKeyChecking=accept-new "$HOST" backups \
+    | /usr/bin/tar -xf - -C "$DEST/server"; } 2>&1)"; then
   log "pull failed: $out"
   # A day or two away from home (the server is reached through the home VPN)
   # is normal. Only speak up once it has lasted.
