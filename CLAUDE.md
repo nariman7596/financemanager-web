@@ -10,7 +10,7 @@ the phase plan.
 
 ```
 apps/web            Next.js app (routes, server actions, React components)
-packages/core       THE DOMAIN — pure TS, no framework. 160 tests.
+packages/core       THE DOMAIN — pure TS, no framework. 171 tests.
 packages/i18n       locale config + en/fa dictionaries + createT. 9 tests.
 packages/config     shared tsconfig / tailwind preset / eslint
 ```
@@ -20,7 +20,7 @@ in the browser, in Hermes and in tests. No `next/*`, no `react-native`, no Node
 built-ins, no Prisma. `packages/config/eslint/package.js` enforces this and the
 rule is verified to fire; `pnpm lint` fails the build if you reach for one.
 Subpaths: `@financemanager/core/{access,budgets,calendar,constants,csv,currency,
-date-range,loans,money,reconcile,reports,sms,validation}`.
+date-range,loans,market,money,reconcile,reports,sms,validation}`.
 
 Both packages ship **TypeScript source, not a build artifact** — `apps/web`
 compiles them via `transpilePackages` in `next.config.mjs`. Adding a new
@@ -412,6 +412,26 @@ money I hold** (negative PERSON balances), plus what others owe — and PERSON
 cards say it in words ("this much of X's money is with you" / "X owes you
 this") instead of showing a sign. No schema change: `Account.type` is a
 string; the enum lives in `packages/core/src/constants`.
+
+## Holdings kept for others (`Investment.heldForId`)
+Money a family member gave him that he turned into a coin (someone's 114M
+toman → 498.95 USDT) is theirs, gains and losses included. A holding can
+name a PERSON account as its owner: it is then left out of net worth and
+the investments totals, shown as "kept for others", and the person's card
+counts it — what they have with you = their account balance (cash) less
+those holdings' value, with each holding and its gain listed. Buying and
+selling for them moves money through the usual SMS rows ("transfer ↔
+person"); the holding itself is edited or partly sold (`sellInvestment`
+cuts cost basis in proportion) on /investments.
+**Toman prices** (`core/market`, `lib/iranMarket.ts`): the official
+USD→IRR rate is far from the market's, so CRYPTO holdings priced in
+IRT/IRR are priced from Wallex, Nobitex and Tabdeal's public APIs (the median
+of the quotes, one far from the rest dropped; quotes older than a day are shown
+but not used). Every quote is stored in `MarketQuote` and shown on
+/investments, because the owner compares exchanges before trading. Runs with
+the hourly `/api/cron/refresh` and the Refresh button. Response shapes were
+written from the APIs' docs, not verified from here (sandbox blocks them): a
+parser returns null rather than guess, and URLs are env-overridable.
 
 ## Loan accounts — account type `LOAN`
 Entered as the remaining debt (positive; `accountSchema` stores it negative

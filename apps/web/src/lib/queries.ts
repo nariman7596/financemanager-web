@@ -70,14 +70,14 @@ export async function getNetWorth(householdId: string, base: string) {
   );
 
   const investments = await prisma.investment.findMany({ where: { householdId } });
-  const invValue = investments.reduce(
-    (s, i) =>
-      s +
-      convert(toNumber(i.quantity) * toNumber(i.currentPrice), i.currency, base, rates),
-    0,
-  );
+  const valueOf = (i: (typeof investments)[number]) =>
+    convert(toNumber(i.quantity) * toNumber(i.currentPrice), i.currency, base, rates);
+  // A holding kept for someone else is theirs, gains and all: it is not part
+  // of the household's worth. (What was paid for it sits on their account.)
+  const invValue = investments.filter((i) => !i.heldForId).reduce((s, i) => s + valueOf(i), 0);
+  const heldForOthers = investments.filter((i) => i.heldForId).reduce((s, i) => s + valueOf(i), 0);
 
-  return { cash, investments: invValue, total: cash + invValue };
+  return { cash, investments: invValue, heldForOthers, total: cash + invValue };
 }
 
 /** Income / expense totals (base currency) between two dates (inclusive). */
@@ -408,6 +408,7 @@ export async function getInvestments(householdId: string) {
   const items = await prisma.investment.findMany({
     where: { householdId },
     orderBy: { createdAt: "desc" },
+    include: { heldFor: { select: { id: true, name: true } } },
   });
   return items.map((i) => {
     const qty = toNumber(i.quantity);

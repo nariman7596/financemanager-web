@@ -28,13 +28,22 @@ export function RefreshButton({ asOf }: { asOf: string | null }) {
     try {
       const res = await refreshMarketData();
       const errs = [res.fx.error, res.prices.error].filter(Boolean);
+      // An exchange that did not answer is worth saying, but not an error
+      // while another one did.
+      const iran = res.iran
+        ? res.iran.sources.length > 0
+          ? t("inv.iranSources", { sources: res.iran.sources.map((s) => t("market." + s)).join("، ") }) +
+            (res.iran.error ? ` (${res.iran.error})` : "")
+          : res.iran.error ?? ""
+        : "";
       if (errs.length) {
         setIsError(true);
-        setMsg(errs.join(" · "));
+        setMsg([...errs, iran].filter(Boolean).join(" · "));
       } else {
         setMsg(
-          t("inv.refreshSummary", { rates: res.fx.updated, prices: res.prices.updated }) +
-            (res.prices.skipped ? t("inv.refreshSkipped", { skipped: res.prices.skipped }) : ""),
+          t("inv.refreshSummary", { rates: res.fx.updated, prices: res.prices.updated + (res.iran?.updated ?? 0) }) +
+            (res.prices.skipped ? t("inv.refreshSkipped", { skipped: res.prices.skipped }) : "") +
+            (iran ? " · " + iran : ""),
         );
       }
       startTransition(() => router.refresh());
