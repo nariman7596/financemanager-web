@@ -119,7 +119,12 @@ above the DIRECT one. If the VPN is down, SSH needs that rule removed
 (backup at `/root/smartconnect.yaml.bak2` on the router).
 
 Backups: `deploy/backup.sh` nightly via cron, `deploy/restore.sh` to restore
-(restore has been tested end to end). Do **not** replace it with the usual
+(restore has been tested end to end). An **off-server copy** is pulled daily
+by the owner's Mac (`deploy/mac/fm-backup-setup.sh`, launchd, keeps everything,
+notifies only when the server is unreachable for 3 days or its newest backup is
+stale/corrupt) with a key the server pins to `rrsync -ro ~/backups/`
+(`deploy/allow-backup-pull.sh`) — it is passphrase-less, so it must not be able
+to do anything but read backups. Do **not** replace it with the usual
 `pg_dump | gzip && find -delete` one-liner — a failed dump still writes a valid
 empty archive, so the prune step deletes the good backups. See `docs/BACKUP.md`.
 
