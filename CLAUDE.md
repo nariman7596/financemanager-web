@@ -293,8 +293,12 @@ refresh**, **recurring auto-posting**, **CSV import/export**, **dark mode**,
 ## Bank SMS import (`docs/SMS.md`)
 iOS lets no app read SMS, so an **iOS Shortcuts "When I receive a message"
 automation** posts each bank SMS to `POST /api/ingest/sms` (`Authorization:
-Bearer fm_…`, a per-device `ApiToken`, SHA-256 stored only). The shortcut first
-appends to `fm-sms.txt` and posts the whole file, deleting it only on
+Bearer fm_…`, a per-device `ApiToken`, SHA-256 stored only). The shortcut
+posts the message itself first and queues it in `fm-sms.txt` only if that
+fails: iOS keeps iCloud Drive files out of reach while the phone is locked, and
+the old append-first order silently lost every SMS that arrived while it was
+(two bills, a loan instalment and a deposit one morning). After a successful
+send it flushes the queue, posting the whole file and deleting it only on
 positive success (the response has `received`; an empty 502 from Caddy during
 an app restart once passed the old "no `error` key" check and lost two SMS, so
 Caddy's `handle_errors` now answers JSON too) *and* only if it is unchanged since it was read (Blu's OTP + debit
