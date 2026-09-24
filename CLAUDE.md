@@ -10,7 +10,7 @@ the phase plan.
 
 ```
 apps/web            Next.js app (routes, server actions, React components)
-packages/core       THE DOMAIN — pure TS, no framework. 133 tests.
+packages/core       THE DOMAIN — pure TS, no framework. 140 tests.
 packages/i18n       locale config + en/fa dictionaries + createT. 9 tests.
 packages/config     shared tsconfig / tailwind preset / eslint
 ```
@@ -20,7 +20,7 @@ in the browser, in Hermes and in tests. No `next/*`, no `react-native`, no Node
 built-ins, no Prisma. `packages/config/eslint/package.js` enforces this and the
 rule is verified to fire; `pnpm lint` fails the build if you reach for one.
 Subpaths: `@financemanager/core/{access,calendar,constants,csv,currency,
-date-range,money,reconcile,reports,sms,validation}`.
+date-range,loans,money,reconcile,reports,sms,validation}`.
 
 Both packages ship **TypeScript source, not a build artifact** — `apps/web`
 compiles them via `transpilePackages` in `next.config.mjs`. Adding a new
@@ -323,7 +323,10 @@ flushes with the next SMS at home. Messages in a batch are split on a
   description (normalised: Arabic letters, ZWNJ, spacing, trailing
   punctuation) → category, per type. `processMessage` applies an exact match
   at booking time (`needsReview=false`, outcome `FILED`), and saving a rule also
-  files rows with that description already waiting. Generic kinds
+  files rows with that description already waiting. A rule can instead
+  point at an account (`transferAccountId`): "record as transfer ↔ loan" —
+  only to accounts with no `smsMatch`, whose side never arrives as its own SMS.
+  Generic kinds
   ("برداشت پول", "خرید", "پرداخت قبض"…) can never be rules — they are on half
   the messages. Listed/deleted in Settings (#rules).
 - **Paste box** on `/review` (`pasteSms` → the same `ingestSmsBatch`): for SMS
@@ -406,6 +409,21 @@ money I hold** (negative PERSON balances), plus what others owe — and PERSON
 cards say it in words ("this much of X's money is with you" / "X owes you
 this") instead of showing a sign. No schema change: `Account.type` is a
 string; the enum lives in `packages/core/src/constants`.
+
+## Loan accounts — account type `LOAN`
+Entered as the remaining debt (positive; `accountSchema` stores it negative
+whatever sign was typed). Each instalment is a **transfer** into the loan, not
+spending — the spending happened when the loan was taken — so the balance
+counts down to zero; a transfer rule makes the monthly SMS ("بازپرداخت بدهی وام
+به‌جا") file itself. The card shows the debt in words and "about N more
+instalments of X" from the last instalment (`core/loans` `loanStatus`); the
+Accounts page shows **loans owed**, and **in my accounts** excludes LOAN like
+PERSON. No schema change beyond the rule's `transferAccountId`.
+**Transfer balance attribution:** turning a *deposit* SMS into a transfer moves
+the row onto the sending account (`accountId` = from), but the SMS's
+`bankBalance` belongs to the receiving one, and reconciliation reads it on
+`accountId`. `transferLegs` (lib/sms.ts) therefore drops it on that path (or
+takes the sending side's own waiting SMS balance, if it was absorbed).
 
 ## CSV import/export
 - Export: `GET /api/export/transactions` (session-authed) streams all the user's

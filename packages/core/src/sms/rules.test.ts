@@ -31,8 +31,8 @@ describe("canMakeRule", () => {
 
 describe("findRule", () => {
   const rules = [
-    { type: "EXPENSE", match: normalizeRuleMatch("ازکی"), categoryId: "food" },
-    { type: "INCOME", match: normalizeRuleMatch("حقوق ماهانه"), categoryId: "salary" },
+    { type: "EXPENSE", match: normalizeRuleMatch("ازکی"), categoryId: "food", transferAccountId: null },
+    { type: "INCOME", match: normalizeRuleMatch("حقوق ماهانه"), categoryId: "salary", transferAccountId: null },
   ];
 
   it("files a matching description of the same type", () => {
@@ -49,7 +49,7 @@ describe("findRule", () => {
   });
 
   it("ignores generic descriptions even if a rule somehow exists for one", () => {
-    const bad = [{ type: "EXPENSE", match: normalizeRuleMatch("برداشت پول"), categoryId: "x" }];
+    const bad = [{ type: "EXPENSE", match: normalizeRuleMatch("برداشت پول"), categoryId: "x", transferAccountId: null }];
     expect(findRule(bad, { type: "EXPENSE", description: "برداشت پول" })).toBeNull();
   });
 });

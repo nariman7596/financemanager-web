@@ -91,17 +91,27 @@ export function AccountForm({ account }: { account?: EditableAccount }) {
         </p>
       )}
       <div>
-        <label className="label">{type === "PERSON" ? t("accForm.personBalance") : t("accForm.openingBalance")}</label>
+        <label className="label">
+          {type === "PERSON"
+            ? t("accForm.personBalance")
+            : type === "LOAN"
+              ? t("accForm.loanBalance")
+              : t("accForm.openingBalance")}
+        </label>
         <input
           name="openingBalance"
           type="number"
           step="0.01"
-          defaultValue={account?.openingBalance ?? 0}
+          // A loan is typed as the debt, a positive number; it is stored negative.
+          defaultValue={
+            account ? (account.type === "LOAN" ? Math.abs(account.openingBalance) : account.openingBalance) : 0
+          }
           className="input"
         />
         {type === "PERSON" && <p className="text-xs text-slate-400 mt-1">{t("accForm.personHint")}</p>}
+        {type === "LOAN" && <p className="text-xs text-slate-400 mt-1">{t("accForm.loanHint")}</p>}
       </div>
-      {(smsCurrency || account?.smsMatch) && type !== "PERSON" && (
+      {(smsCurrency || account?.smsMatch) && type !== "PERSON" && type !== "LOAN" && (
         <div>
           <label className="label">{t("sms.matchLabel")}</label>
           <input name="smsMatch" dir="auto" className="input" defaultValue={account?.smsMatch ?? ""} placeholder="405943623" />

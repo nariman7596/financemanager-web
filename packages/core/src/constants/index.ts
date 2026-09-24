@@ -12,6 +12,10 @@ export const ACCOUNT_TYPES = [
   // them (negative balance) or lent to them (positive). Movements are
   // transfers, so they never count as your income or expense.
   "PERSON",
+  // Money you owe a lender. Entered as the remaining debt and stored negative;
+  // each instalment is a transfer into it, so it counts down to zero instead of
+  // appearing as spending every month.
+  "LOAN",
 ] as const;
 export type AccountType = (typeof ACCOUNT_TYPES)[number];
 

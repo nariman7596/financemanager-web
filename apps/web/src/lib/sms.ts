@@ -117,25 +117,44 @@ async function processMessage(
   // anything else waits in Review.
   const rules = await prisma.categoryRule.findMany({
     where: { householdId: scope.householdId, type },
-    select: { type: true, match: true, categoryId: true },
+    select: { type: true, match: true, categoryId: true, transferAccountId: true },
   });
   const rule = findRule(rules, { type, description });
+  // A transfer rule ("instalment → the loan") only to an account that is still
+  // there, in the same currency, and has no SMS of its own — otherwise the
+  // other side's SMS would book the same money again. Anything off, it waits
+  // in Review like any other row.
+  const target = rule?.transferAccountId
+    ? await prisma.account.findFirst({
+        where: {
+          id: rule.transferAccountId,
+          householdId: scope.householdId,
+          currency: account.currency,
+          smsMatch: null,
+          NOT: { id: account.id },
+        },
+        select: { id: true },
+      })
+    : null;
+  const filed = !!rule && (rule.categoryId !== null || target !== null);
+  const legs = target ? transferLegs({ type, accountId: account.id }, target.id) : null;
 
   await prisma.$transaction(async (tx) => {
     const txn = await tx.transaction.create({
       data: {
         householdId: scope.householdId,
         createdById: scope.userId,
-        accountId: account.id,
-        type,
+        accountId: legs?.accountId ?? account.id,
+        transferAccountId: legs?.transferAccountId ?? null,
+        type: legs ? "TRANSFER" : type,
         amount,
         currency,
         date: parsed.date,
         description,
-        categoryId: rule?.categoryId ?? null,
+        categoryId: filed && !legs ? rule!.categoryId : null,
         origin: "SMS",
-        needsReview: !rule,
-        bankBalance: balance,
+        needsReview: !filed,
+        bankBalance: legs && !legs.keepsBankBalance ? null : balance,
       },
     });
     await tx.smsMessage.update({
@@ -143,7 +162,25 @@ async function processMessage(
       data: { status: "BOOKED", transactionId: txn.id },
     });
   });
-  return rule ? "FILED" : "BOOKED";
+  return filed ? "FILED" : "BOOKED";
+}
+
+/**
+ * How an SMS transaction becomes a transfer to one of the household's own
+ * accounts. Money left the SMS account (EXPENSE) or arrived in it (INCOME).
+ *
+ * The bank balance the SMS printed belongs to the SMS account. The balance
+ * check reads it on the row's `accountId`, which for money arriving is the
+ * *other* account — so there the balance is dropped rather than compared
+ * against the wrong account. The next SMS on that account carries a new one.
+ */
+export function transferLegs(
+  txn: { type: string; accountId: string },
+  otherId: string,
+): { accountId: string; transferAccountId: string; keepsBankBalance: boolean } {
+  return txn.type === "EXPENSE"
+    ? { accountId: txn.accountId, transferAccountId: otherId, keepsBankBalance: true }
+    : { accountId: otherId, transferAccountId: txn.accountId, keepsBankBalance: false };
 }
 
 /**

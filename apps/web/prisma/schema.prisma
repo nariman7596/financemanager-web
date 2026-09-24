@@ -49,17 +49,17 @@ model Household {
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
-  members      Membership[]
-  invitations  Invitation[]
-  accounts     Account[]
-  categories   Category[]
-  transactions Transaction[]
-  budgets      Budget[]
-  investments  Investment[]
-  recurring    RecurringTransaction[]
-  plaidItems   PlaidItem[]
-  smsMessages  SmsMessage[]
-  apiTokens    ApiToken[]
+  members       Membership[]
+  invitations   Invitation[]
+  accounts      Account[]
+  categories    Category[]
+  transactions  Transaction[]
+  budgets       Budget[]
+  investments   Investment[]
+  recurring     RecurringTransaction[]
+  plaidItems    PlaidItem[]
+  smsMessages   SmsMessage[]
+  apiTokens     ApiToken[]
   categoryRules CategoryRule[]
 }
 
@@ -128,6 +128,7 @@ model Account {
   investments          Investment[]
   recurring            RecurringTransaction[] @relation("RecurringAccount")
   recurringTransfers   RecurringTransaction[] @relation("RecurringTransferAccount")
+  transferRules        CategoryRule[]
 
   @@unique([plaidItemId, plaidAccountId])
   @@index([householdId])
@@ -365,21 +366,25 @@ model ApiToken {
   @@index([householdId])
 }
 
-/// "Always file this description under that category." Created from the Review
-/// page; applied when an SMS is booked, so a known merchant never waits for a
-/// tap. `match` is the normalised description (see core/sms/rules.ts); `type`
-/// keeps an expense rule from ever filing an income.
+/// "Always file this description under that category" — or "always record it
+/// as a transfer to that account" (a loan instalment, money for a person).
+/// Created from the Review page; applied when an SMS is booked, so a known
+/// merchant never waits for a tap. `match` is the normalised description (see
+/// core/sms/rules.ts); `type` keeps an expense rule from ever filing an income.
+/// Exactly one of categoryId / transferAccountId is set.
 model CategoryRule {
-  id          String   @id @default(cuid())
-  householdId String
-  createdById String?
-  type        String // INCOME | EXPENSE
-  match       String
-  categoryId  String
-  createdAt   DateTime @default(now())
+  id                String   @id @default(cuid())
+  householdId       String
+  createdById       String?
+  type              String // INCOME | EXPENSE
+  match             String
+  categoryId        String?
+  transferAccountId String?
+  createdAt         DateTime @default(now())
 
-  household Household @relation(fields: [householdId], references: [id], onDelete: Cascade)
-  category  Category  @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  household       Household @relation(fields: [householdId], references: [id], onDelete: Cascade)
+  category        Category? @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  transferAccount Account?  @relation(fields: [transferAccountId], references: [id], onDelete: Cascade)
 
   @@unique([householdId, type, match])
   @@index([householdId])

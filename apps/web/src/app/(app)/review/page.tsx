@@ -39,7 +39,7 @@ export default async function ReviewPage() {
     prisma.account.findMany({
       where: { householdId: ctx.householdId, isArchived: false },
       orderBy: { createdAt: "asc" },
-      select: { id: true, name: true, currency: true },
+      select: { id: true, name: true, currency: true, smsMatch: true },
     }),
     prisma.smsMessage.findMany({
       where: { householdId: ctx.householdId, status: { in: ["UNPARSED", "UNMATCHED"] } },
@@ -126,9 +126,11 @@ export default async function ReviewPage() {
                   id={txn.id}
                   description={txn.description}
                   categories={categories.filter((c) => c.type === txn.type)}
-                  transferAccounts={accounts.filter(
-                    (a) => a.id !== txn.accountId && a.currency === txn.currency,
-                  )}
+                  transferAccounts={accounts
+                    .filter((a) => a.id !== txn.accountId && a.currency === txn.currency)
+                    // A rule may point at an account with no SMS of its own
+                    // (a loan, a person); see saveRule.
+                    .map((a) => ({ id: a.id, name: a.name, ruleable: !a.smsMatch }))}
                   suggestedId={suggestionFor(txn)}
                   ruleable={canMakeRule(txn.description)}
                 />

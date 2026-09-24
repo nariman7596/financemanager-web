@@ -24,12 +24,16 @@ export const loginSchema = z.object({
   password: z.string().min(1, "Password is required"),
 });
 
-export const accountSchema = z.object({
-  name: z.string().trim().min(1, "Name is required").max(80),
-  type: z.enum(ACCOUNT_TYPES),
-  currency,
-  openingBalance: z.coerce.number().default(0),
-});
+export const accountSchema = z
+  .object({
+    name: z.string().trim().min(1, "Name is required").max(80),
+    type: z.enum(ACCOUNT_TYPES),
+    currency,
+    openingBalance: z.coerce.number().default(0),
+  })
+  // A loan is typed as the debt ("500,000,000 left"), which is money owed:
+  // stored negative whichever sign was entered.
+  .transform((d) => (d.type === "LOAN" ? { ...d, openingBalance: -Math.abs(d.openingBalance) } : d));
 
 export const categorySchema = z.object({
   name: z.string().trim().min(1, "Name is required").max(60),

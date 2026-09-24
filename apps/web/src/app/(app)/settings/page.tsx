@@ -35,7 +35,13 @@ export default async function SettingsPage() {
     prisma.categoryRule.findMany({
       where: { householdId: ctx.householdId },
       orderBy: { createdAt: "desc" },
-      select: { id: true, match: true, type: true, category: { select: { name: true, color: true } } },
+      select: {
+        id: true,
+        match: true,
+        type: true,
+        category: { select: { name: true, color: true } },
+        transferAccount: { select: { name: true } },
+      },
     }),
   ]);
 
@@ -124,10 +130,14 @@ export default async function SettingsPage() {
                   <span className="min-w-0 flex flex-wrap items-center gap-x-2">
                     <span className="font-medium">{r.match}</span>
                     <span aria-hidden className="text-slate-400">←</span>
-                    <span className="inline-flex items-center gap-1.5">
-                      <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: r.category.color }} />
-                      {r.category.name}
-                    </span>
+                    {r.category ? (
+                      <span className="inline-flex items-center gap-1.5">
+                        <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: r.category.color }} />
+                        {r.category.name}
+                      </span>
+                    ) : (
+                      <span>{t("review.transferTo", { name: r.transferAccount?.name ?? "?" })}</span>
+                    )}
                     <span className="text-xs text-slate-400">{t("enum.txnType." + r.type)}</span>
                   </span>
                   {canEdit && (

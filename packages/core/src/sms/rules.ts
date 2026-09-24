@@ -16,7 +16,10 @@ import { normalizeSms } from "./index";
 export interface CategoryRuleLike {
   type: string;
   match: string;
-  categoryId: string;
+  /** File under this category… */
+  categoryId: string | null;
+  /** …or record as a transfer to this account (a loan, a person). */
+  transferAccountId: string | null;
 }
 
 /** The form a description is compared in: spelling, spacing and punctuation folded. */

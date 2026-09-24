@@ -32,7 +32,7 @@ export function SmsReviewForm({
   id: string;
   description: string | null;
   categories: { id: string; name: string }[];
-  transferAccounts: { id: string; name: string }[];
+  transferAccounts: { id: string; name: string; ruleable?: boolean }[];
   /** Preselected from earlier choices (see suggestCategory); still one tap to confirm. */
   suggestedId?: string | null;
   /** The description names something (a merchant, a purpose), so a rule can key on it. */
@@ -41,6 +41,19 @@ export function SmsReviewForm({
   const t = useT();
   const [error, setError] = useState<string | null>(null);
   const [choice, setChoice] = useState(suggestedId ?? "");
+
+  // What "from now on" would do with the current choice; nothing to offer for a
+  // transfer to an account that has SMS of its own (see saveRule).
+  const target = choice.startsWith("transfer:")
+    ? transferAccounts.find((a) => `transfer:${a.id}` === choice)
+    : null;
+  const rememberLabel = !choice
+    ? null
+    : target
+      ? target.ruleable
+        ? t("review.rememberTransfer", { description: description ?? "", name: target.name })
+        : null
+      : t("review.remember", { description: description ?? "" });
 
   async function action(formData: FormData) {
     setError(null);
@@ -79,10 +92,10 @@ export function SmsReviewForm({
         />
         <Submit />
       </div>
-      {ruleable && description && choice && !choice.startsWith("transfer:") && (
+      {ruleable && description && rememberLabel && (
         <label className="flex items-start gap-2 text-xs text-[var(--muted)]">
           <input type="checkbox" name="remember" value="1" className="mt-0.5" />
-          <span>{t("review.remember", { description })}</span>
+          <span>{rememberLabel}</span>
         </label>
       )}
       {suggestedId && (

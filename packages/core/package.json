@@ -10,6 +10,7 @@
     "./csv": "./src/csv/index.ts",
     "./currency": "./src/currency/index.ts",
     "./date-range": "./src/date-range/index.ts",
+    "./loans": "./src/loans/index.ts",
     "./money": "./src/money/index.ts",
     "./reconcile": "./src/reconcile/index.ts",
     "./reports": "./src/reports/index.ts",
