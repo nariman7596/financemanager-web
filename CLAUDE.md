@@ -544,7 +544,7 @@ a Mac in VS Code + Docker (see `docs/WORKFLOW.md`).
 - **Verify before pushing.** CI builds the image the server runs, so a red build
   means the server silently keeps the old one — that happened twice this
   session. Run `pnpm typecheck` *and* `pnpm build` locally first.
-- Open: 3 dependabot advisories (2 high) on the default branch. Recurring-rule
+- Dependency advisories: all cleared (2026-09-24; they were all in vitest/vite, test-only). Recurring-rule
   scheduling still advances by Gregorian month — it runs from a background job
   with no user to take a locale from, so making it calendar-aware needs a
   decision about where that calendar is stored (probably on the rule itself).
