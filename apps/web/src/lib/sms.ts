@@ -2,6 +2,7 @@ import { createHash, randomBytes } from "node:crypto";
 import { Prisma } from "@prisma/client";
 import { prisma } from "./prisma";
 import {
+  findRule,
   looksLikeTransaction,
   matchSmsAccount,
   normalizeSms,
@@ -60,7 +61,8 @@ export async function authenticateApiToken(header: string | null): Promise<SmsSc
 // Ingest
 // ---------------------------------------------------------------------------
 
-export type SmsOutcome = "BOOKED" | "DUPLICATE" | "UNPARSED" | "UNMATCHED" | "IGNORED";
+/** BOOKED waits in Review; FILED was booked and categorised by a rule. */
+export type SmsOutcome = "BOOKED" | "FILED" | "DUPLICATE" | "UNPARSED" | "UNMATCHED" | "IGNORED";
 
 function smsHash(text: string): string {
   return createHash("sha256").update(normalizeSms(text)).digest("hex");
@@ -107,21 +109,32 @@ async function processMessage(
   const balance =
     parsed.balanceRial === null ? null : rialTo(account.currency, parsed.balanceRial).amount;
 
+  const type = parsed.direction === "OUT" ? "EXPENSE" : "INCOME";
+  // The bank's own note ("حقوق ماهانه") or the merchant from the OTP ("ازکی")
+  // says more than the kind ("واریز", "برداشت پول").
+  const description = parsed.note ?? merchant ?? parsed.kind;
+  // A rule the user made ("always file ازکی as groceries") files it outright;
+  // anything else waits in Review.
+  const rules = await prisma.categoryRule.findMany({
+    where: { householdId: scope.householdId, type },
+    select: { type: true, match: true, categoryId: true },
+  });
+  const rule = findRule(rules, { type, description });
+
   await prisma.$transaction(async (tx) => {
     const txn = await tx.transaction.create({
       data: {
         householdId: scope.householdId,
         createdById: scope.userId,
         accountId: account.id,
-        type: parsed.direction === "OUT" ? "EXPENSE" : "INCOME",
+        type,
         amount,
         currency,
         date: parsed.date,
-        // The bank's own note ("حقوق ماهانه") or the merchant from the OTP
-        // ("ازکی") says more than the kind ("واریز", "برداشت پول").
-        description: parsed.note ?? merchant ?? parsed.kind,
+        description,
+        categoryId: rule?.categoryId ?? null,
         origin: "SMS",
-        needsReview: true,
+        needsReview: !rule,
         bankBalance: balance,
       },
     });
@@ -130,7 +143,7 @@ async function processMessage(
       data: { status: "BOOKED", transactionId: txn.id },
     });
   });
-  return "BOOKED";
+  return rule ? "FILED" : "BOOKED";
 }
 
 /**
@@ -176,7 +189,7 @@ export async function ingestSms(
     // a free retry — the user may have set up the account since.
     if (existing.status === "UNMATCHED" || existing.status === "UNPARSED") {
       const outcome = await processMessage(scope, existing);
-      return outcome === "BOOKED" ? "BOOKED" : "DUPLICATE";
+      return outcome === "BOOKED" || outcome === "FILED" ? outcome : "DUPLICATE";
     }
     return "DUPLICATE";
   }
@@ -208,6 +221,7 @@ export async function ingestSmsBatch(scope: SmsScope, body: string): Promise<Bat
   const summary: BatchSummary = {
     received: 0,
     booked: 0,
+    filed: 0,
     duplicate: 0,
     unparsed: 0,
     unmatched: 0,
@@ -238,7 +252,8 @@ export async function retryUnmatched(scope: SmsScope): Promise<number> {
   });
   let booked = 0;
   for (const m of waiting) {
-    if ((await processMessage(scope, m)) === "BOOKED") booked++;
+    const outcome = await processMessage(scope, m);
+    if (outcome === "BOOKED" || outcome === "FILED") booked++;
   }
   return booked;
 }

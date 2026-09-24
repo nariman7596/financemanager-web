@@ -10,7 +10,7 @@ the phase plan.
 
 ```
 apps/web            Next.js app (routes, server actions, React components)
-packages/core       THE DOMAIN — pure TS, no framework. 123 tests.
+packages/core       THE DOMAIN — pure TS, no framework. 133 tests.
 packages/i18n       locale config + en/fa dictionaries + createT. 9 tests.
 packages/config     shared tsconfig / tailwind preset / eslint
 ```
@@ -318,6 +318,14 @@ flushes with the next SMS at home. Messages in a batch are split on a
   `IGNORED` and never surface; the bank's note line becomes the description.
   Unreadable/unmatched messages stay (`UNPARSED`/`UNMATCHED`) and are retried
   when re-sent or when an account's SMS number is set (`retryUnmatched`).
+- **Category rules** (`CategoryRule`, `core/sms/rules.ts`): the Review form's
+  "from now on, file X under this category" tick stores the SMS's own
+  description (normalised: Arabic letters, ZWNJ, spacing, trailing
+  punctuation) → category, per type. `processMessage` applies an exact match
+  at booking time (`needsReview=false`, outcome `FILED`), and saving a rule also
+  files rows with that description already waiting. Generic kinds
+  ("برداشت پول", "خرید", "پرداخت قبض"…) can never be rules — they are on half
+  the messages. Listed/deleted in Settings (#rules).
 - **Paste box** on `/review` (`pasteSms` → the same `ingestSmsBatch`): for SMS
   the automation never delivered — iOS does skip runs. Blank line separates
   several messages; re-pasting is a harmless duplicate. Blu's "…ریال بابت X از

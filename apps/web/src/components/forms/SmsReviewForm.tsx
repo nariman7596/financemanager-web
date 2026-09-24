@@ -27,6 +27,7 @@ export function SmsReviewForm({
   categories,
   transferAccounts,
   suggestedId,
+  ruleable = false,
 }: {
   id: string;
   description: string | null;
@@ -34,9 +35,12 @@ export function SmsReviewForm({
   transferAccounts: { id: string; name: string }[];
   /** Preselected from earlier choices (see suggestCategory); still one tap to confirm. */
   suggestedId?: string | null;
+  /** The description names something (a merchant, a purpose), so a rule can key on it. */
+  ruleable?: boolean;
 }) {
   const t = useT();
   const [error, setError] = useState<string | null>(null);
+  const [choice, setChoice] = useState(suggestedId ?? "");
 
   async function action(formData: FormData) {
     setError(null);
@@ -48,7 +52,13 @@ export function SmsReviewForm({
     <form action={action} className="space-y-2">
       <input type="hidden" name="id" value={id} />
       <div className="flex flex-col sm:flex-row gap-2">
-        <select name="choice" required className="input flex-1" defaultValue={suggestedId ?? ""}>
+        <select
+          name="choice"
+          required
+          className="input flex-1"
+          defaultValue={suggestedId ?? ""}
+          onChange={(e) => setChoice(e.target.value)}
+        >
           <option value="" disabled>{t("review.pickCategory")}</option>
           {categories.map((c) => (
             <option key={c.id} value={c.id}>{c.name}</option>
@@ -69,6 +79,12 @@ export function SmsReviewForm({
         />
         <Submit />
       </div>
+      {ruleable && description && choice && !choice.startsWith("transfer:") && (
+        <label className="flex items-start gap-2 text-xs text-[var(--muted)]">
+          <input type="checkbox" name="remember" value="1" className="mt-0.5" />
+          <span>{t("review.remember", { description })}</span>
+        </label>
+      )}
       {suggestedId && (
         <p className="flex items-center gap-1 text-xs text-brand-600">
           <Sparkles size={12} /> {t("review.suggested")}

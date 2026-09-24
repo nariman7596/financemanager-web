@@ -5,7 +5,7 @@ import { prisma } from "@/lib/prisma";
 import { checkHousehold } from "@/lib/household";
 import { ingestSmsBatch, newApiToken, retrySmsMessage, type BatchSummary } from "@/lib/sms";
 import { getT } from "@/lib/i18n/server";
-import { SMS_BATCH_SEPARATOR } from "@financemanager/core/sms";
+import { SMS_BATCH_SEPARATOR, canMakeRule, normalizeRuleMatch } from "@financemanager/core/sms";
 
 function revalidateReview() {
   // The nav badge counts review items, and it lives in the shared layout.
@@ -120,6 +120,32 @@ export async function confirmSmsTransaction(
       where: { id: txn.id },
       data: { categoryId: category.id, description, needsReview: false },
     });
+
+    // "Always file this as that": keyed on the description the SMS produced,
+    // not the one just typed — the next SMS from this merchant will carry the
+    // bank's wording again.
+    if (formData.get("remember") === "1" && canMakeRule(txn.description)) {
+      const match = normalizeRuleMatch(txn.description!);
+      await prisma.categoryRule.upsert({
+        where: { householdId_type_match: { householdId: ctx.householdId, type: txn.type, match } },
+        create: { householdId: ctx.householdId, createdById: ctx.userId, type: txn.type, match, categoryId: category.id },
+        update: { categoryId: category.id },
+      });
+      // Rows from the same merchant already waiting here are filed too.
+      const waiting = await prisma.transaction.findMany({
+        where: { householdId: ctx.householdId, needsReview: true, type: txn.type, origin: "SMS" },
+        select: { id: true, description: true },
+      });
+      const same = waiting
+        .filter((w) => w.description && normalizeRuleMatch(w.description) === match)
+        .map((w) => w.id);
+      if (same.length > 0) {
+        await prisma.transaction.updateMany({
+          where: { id: { in: same }, householdId: ctx.householdId },
+          data: { categoryId: category.id, needsReview: false },
+        });
+      }
+    }
   }
 
   revalidatePath("/transactions");
@@ -128,6 +154,16 @@ export async function confirmSmsTransaction(
   revalidatePath("/accounts");
   revalidateReview();
   return { ok: true };
+}
+
+/** Forget a category rule; later SMS from that merchant wait in Review again. */
+export async function deleteCategoryRule(formData: FormData): Promise<void> {
+  const { ctx } = await checkHousehold("MEMBER");
+  if (!ctx) return;
+  await prisma.categoryRule.deleteMany({
+    where: { id: String(formData.get("id")), householdId: ctx.householdId },
+  });
+  revalidatePath("/settings");
 }
 
 // ---------------------------------------------------------------------------

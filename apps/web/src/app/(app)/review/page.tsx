@@ -3,7 +3,7 @@ import { RotateCcw, X } from "lucide-react";
 import { requireHousehold } from "@/lib/household";
 import { prisma } from "@/lib/prisma";
 import { formatMoney, formatDate, toNumber } from "@financemanager/core/money";
-import { suggestCategory } from "@financemanager/core/sms";
+import { canMakeRule, suggestCategory } from "@financemanager/core/sms";
 import { Topbar } from "@/components/Topbar";
 import { DeleteButton } from "@/components/DeleteButton";
 import { SmsReviewForm } from "@/components/forms/SmsReviewForm";
@@ -130,6 +130,7 @@ export default async function ReviewPage() {
                     (a) => a.id !== txn.accountId && a.currency === txn.currency,
                   )}
                   suggestedId={suggestionFor(txn)}
+                  ruleable={canMakeRule(txn.description)}
                 />
               )}
 

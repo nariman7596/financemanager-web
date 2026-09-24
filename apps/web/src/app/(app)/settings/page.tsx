@@ -10,7 +10,7 @@ import { DeleteButton } from "@/components/DeleteButton";
 import { deleteCategory } from "@/app/actions/categories";
 import { LanguageSwitcher } from "@/components/LanguageSwitcher";
 import { SmsTokenForm } from "@/components/forms/SmsTokenForm";
-import { revokeSmsToken } from "@/app/actions/sms";
+import { deleteCategoryRule, revokeSmsToken } from "@/app/actions/sms";
 import { formatDate } from "@financemanager/core/money";
 import { getT, getLocale } from "@/lib/i18n/server";
 import type { TFunc } from "@financemanager/i18n/translate";
@@ -21,7 +21,7 @@ export default async function SettingsPage() {
   const t = await getT();
   const locale = await getLocale();
   const ctx = await requireHousehold();
-  const [user, categories, tokens] = await Promise.all([
+  const [user, categories, tokens, rules] = await Promise.all([
     prisma.user.findUnique({ where: { id: ctx.userId } }),
     prisma.category.findMany({
       where: { householdId: ctx.householdId },
@@ -31,6 +31,11 @@ export default async function SettingsPage() {
       where: { householdId: ctx.householdId },
       orderBy: { createdAt: "desc" },
       select: { id: true, name: true, prefix: true, createdAt: true, lastUsedAt: true },
+    }),
+    prisma.categoryRule.findMany({
+      where: { householdId: ctx.householdId },
+      orderBy: { createdAt: "desc" },
+      select: { id: true, match: true, type: true, category: { select: { name: true, color: true } } },
     }),
   ]);
 
@@ -106,6 +111,36 @@ export default async function SettingsPage() {
             )}
           </div>
         )}
+
+        <div id="rules" className="card p-6 scroll-mt-20">
+          <h2 className="font-semibold mb-1">{t("rules.title")}</h2>
+          <p className="text-xs text-slate-400 mb-3">{t("rules.hint")}</p>
+          {rules.length === 0 ? (
+            <p className="text-sm text-slate-400">{t("rules.empty")}</p>
+          ) : (
+            <ul className="divide-y divide-[var(--border)] border-t border-[var(--border)]">
+              {rules.map((r) => (
+                <li key={r.id} className="flex items-center justify-between gap-2 py-2 text-sm">
+                  <span className="min-w-0 flex flex-wrap items-center gap-x-2">
+                    <span className="font-medium">{r.match}</span>
+                    <span aria-hidden className="text-slate-400">←</span>
+                    <span className="inline-flex items-center gap-1.5">
+                      <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: r.category.color }} />
+                      {r.category.name}
+                    </span>
+                    <span className="text-xs text-slate-400">{t("enum.txnType." + r.type)}</span>
+                  </span>
+                  {canEdit && (
+                    <form action={deleteCategoryRule}>
+                      <input type="hidden" name="id" value={r.id} />
+                      <button type="submit" className="btn-ghost text-xs text-red-600">{t("common.delete")}</button>
+                    </form>
+                  )}
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
 
         <div className="card p-6">
           <div className="flex items-center justify-between mb-4">

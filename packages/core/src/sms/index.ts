@@ -409,3 +409,4 @@ export function splitSmsBatch(body: string): string[] {
 }
 
 export { suggestCategory, type SuggestHistoryItem, type SuggestTarget } from "./suggest";
+export { canMakeRule, findRule, normalizeRuleMatch, type CategoryRuleLike } from "./rules";
