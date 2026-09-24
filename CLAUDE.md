@@ -285,7 +285,8 @@ iOS lets no app read SMS, so an **iOS Shortcuts "When I receive a message"
 automation** posts each bank SMS to `POST /api/ingest/sms` (`Authorization:
 Bearer fm_…`, a per-device `ApiToken`, SHA-256 stored only). The shortcut first
 appends to `fm-sms.txt` and posts the whole file, deleting it only on
-`"ok":true` — away from home (the app is VPN-only) nothing is lost; the queue
+success *and* only if it is unchanged since it was read (Blu's OTP + debit
+arrive a minute apart; deleting blindly once lost the debit) — away from home (the app is VPN-only) nothing is lost; the queue
 flushes with the next SMS at home. Messages in a batch are split on a
 `~~~fm~~~` line.
 - Parser: `packages/core/src/sms/` (pure, tested with a real Bank Refah SMS).

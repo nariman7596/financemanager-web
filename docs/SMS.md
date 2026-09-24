@@ -34,19 +34,33 @@
 - **Run Immediately** را انتخاب کن و **Notify When Run** را خاموش کن.
 - **Next → New Blank Automation** و این اکشن‌ها را به ترتیب اضافه کن:
 
+**آماده:** `deploy/ios/fm-sms.shortcut` همین اکشن‌ها را دارد. روی Mac امضایش کن
+(`shortcuts sign -m anyone -i fm-sms.shortcut -o FinanceManager-SMS.shortcut`)، با AirDrop
+به آیفون بفرست و در اکشنِ «Get Contents of URL» به‌جای `PASTE-KEY-HERE` کلید را بگذار.
+
 | # | اکشن | تنظیم |
 |---|---|---|
 | 1 | **Append to Text File** | متن: `Shortcut Input`، بعد یک خطِ جدید، بعد دقیقاً `~~~fm~~~` · فایل: `fm-sms.txt` · **Make New Line** روشن |
 | 2 | **Get File from Folder** | پوشه: `Shortcuts` · مسیر: `fm-sms.txt` |
-| 3 | **Get Contents of URL** | URL: آدرسِ بالا · **Method:** `POST` · **Headers:** `Authorization` = `Bearer <کلید>` · **Request Body:** `File` ← خروجیِ اکشنِ ۲ |
-| 4 | **Get Dictionary Value** | Key: `error` · از: `Contents of URL` |
-| 5 | **If** | `Dictionary Value` **does not have any value** |
-| 6 | **Delete Files** (داخلِ If) | فایل: خروجیِ اکشنِ ۲ · **Confirm Before Deleting** خاموش |
+| 3 | **Get Text from Input** | ورودی: خروجیِ اکشنِ ۲ (متنِ صف، همان‌طور که فرستاده می‌شود) |
+| 4 | **Get Contents of URL** | URL: آدرسِ بالا · **Method:** `POST` · **Headers:** `Authorization` = `Bearer <کلید>` · **Request Body:** `File` ← خروجیِ اکشنِ ۲ |
+| 5 | **Get Dictionary Value** | Key: `error` · از: `Contents of URL` |
+| 6 | **If** | `Dictionary Value` **does not have any value** |
+| 7 | ↳ **Get File from Folder** | دوباره `fm-sms.txt` · **Error If Not Found** خاموش |
+| 8 | ↳ **Get Text from Input** | ورودی: خروجیِ اکشنِ ۷ |
+| 9 | ↳ **If** | متنِ اکشنِ ۸ **is** متنِ اکشنِ ۳ |
+| 10 | ↳↳ **Delete Files** | فایل: خروجیِ اکشنِ ۷ · **Confirm Before Deleting** خاموش |
 
 چرا کلیدِ `error` و نه «contains ok»؟ خروجیِ Get Contents of URL یک Dictionary است،
 نه متن، و `contains` روی آن قابلِ اعتماد نیست. هر جوابِ ناموفقِ سرور (کلیدِ غلط، …)
 کلیدِ `error` دارد و موفق‌ها ندارند؛ قطعیِ شبکه هم کلِ شورتکات را قبل از این مرحله
 متوقف می‌کند — پس فایل فقط وقتی پاک می‌شود که سرور واقعاً پیامک‌ها را گرفته باشد.
+
+چرا قبل از پاک کردن دوباره می‌خواند (۷–۹)؟ بلو برای هر خرید دو پیامک پشتِ‌سرِ هم
+می‌فرستد (رمزِ پویا، بعد برداشت). اگر دومی در حینِ فرستادنِ اولی به صف اضافه شود،
+پاک کردنِ کلِ فایل آن را هم می‌برد — دقیقاً همین‌طور یک برداشت گم شد. حالا فایل فقط
+وقتی پاک می‌شود که از لحظه‌ی فرستادن تغییری نکرده باشد؛ وگرنه می‌ماند و اجرای بعدی
+همه را دوباره می‌فرستد (تکراری‌ها را سرور نادیده می‌گیرد).
 
 دفعه‌ی اول iOS برای دسترسی به فایل و آدرس اجازه می‌خواهد — **Always Allow**.
 
@@ -54,7 +68,7 @@
 
 ### (اختیاری) شورتکاتِ «فرستادنِ باقی‌مانده‌ها»
 
-همان اکشن‌های ۲ تا ۶، به‌عنوانِ یک شورتکاتِ معمولی روی Home Screen. وقتی بیرون بوده‌ای
+همان اکشن‌های ۲ تا ۱۰، به‌عنوانِ یک شورتکاتِ معمولی روی Home Screen. وقتی بیرون بوده‌ای
 و نمی‌خواهی تا پیامکِ بعدی صبر کنی، در خانه یک بار بزنش.
 
 ## ۳. آزمایش
