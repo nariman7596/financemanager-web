@@ -16,7 +16,8 @@ import { BankSyncButton } from "@/components/BankSyncButton";
 import { deleteAccount } from "@/app/actions/accounts";
 import { SettleGapButtons } from "@/components/SettleGapButtons";
 import { getReconciliations } from "@/lib/reconcile";
-import { sumInCurrency } from "@/lib/currency";
+import { loadRates, sumInCurrency } from "@/lib/currency";
+import { convert } from "@financemanager/core/currency";
 import { getT, getLocale } from "@/lib/i18n/server";
 
 export const dynamic = "force-dynamic";
@@ -26,10 +27,37 @@ export default async function AccountsPage() {
   const locale = await getLocale();
   const ctx = await requireHousehold();
   const base = await getBaseCurrency(ctx.householdId);
-  const [accounts, reconciliations] = await Promise.all([
+  const [accounts, reconciliations, heldRows, rates] = await Promise.all([
     getAccountBalances(ctx.householdId),
     getReconciliations(ctx.householdId),
+    prisma.investment.findMany({
+      where: { householdId: ctx.householdId, heldForId: { not: null } },
+      select: { heldForId: true, symbol: true, quantity: true, costBasis: true, currentPrice: true, currency: true },
+    }),
+    loadRates(),
   ]);
+  // Holdings kept for a person are theirs too: what they have with you is
+  // their account (cash) less those holdings' value, in the account's currency.
+  const held = new Map<string, { symbol: string; quantity: number; value: number; gain: number }[]>();
+  for (const a of accounts.filter((x) => x.type === "PERSON")) {
+    const rows = heldRows.filter((h) => h.heldForId === a.id);
+    if (rows.length === 0) continue;
+    held.set(
+      a.id,
+      rows.map((h) => {
+        const quantity = toNumber(h.quantity);
+        const value = quantity * toNumber(h.currentPrice);
+        return {
+          symbol: h.symbol,
+          quantity,
+          value: convert(value, h.currency, a.currency, rates),
+          gain: convert(value - toNumber(h.costBasis), h.currency, a.currency, rates),
+        };
+      }),
+    );
+  }
+  const heldTotal = (id: string) => (held.get(id) ?? []).reduce((s, h) => s + h.value, 0);
+  const position = (a: (typeof accounts)[number]) => (a.type === "PERSON" ? a.balance - heldTotal(a.id) : a.balance);
   const canEdit = ctx.role !== "VIEWER";
   // People you settle with are not places money is kept: split them out so
   // the page tells your own money apart from money you hold for others.
@@ -41,8 +69,8 @@ export default async function AccountsPage() {
   const [totalInBase, inAccounts, heldForOthers, owedToMe, loanBalance] = await Promise.all([
     inBase(accounts),
     inBase(accounts.filter((a) => a.type !== "PERSON" && a.type !== "LOAN")),
-    inBase(people.filter((a) => a.balance < 0)),
-    inBase(people.filter((a) => a.balance > 0)),
+    sumInCurrency(people.filter((a) => position(a) < 0).map((a) => ({ amount: position(a), currency: a.currency })), base),
+    inBase(people.filter((a) => position(a) > 0).map((a) => ({ ...a, balance: position(a) }))),
     inBase(loans),
   ]);
   // The last instalment into each loan, to estimate how many are left.
@@ -175,7 +203,7 @@ export default async function AccountsPage() {
                 </div>
                 <p className="text-2xl font-semibold mt-4 tabular-nums">
                   {a.type === "PERSON" || a.type === "LOAN"
-                    ? formatMoney(Math.abs(a.balance), a.currency)
+                    ? formatMoney(Math.abs(position(a)), a.currency)
                     : formatMoney(a.balance, a.currency)}
                 </p>
                 {a.type === "LOAN" ? (
@@ -198,23 +226,45 @@ export default async function AccountsPage() {
                     );
                   })()
                 ) : a.type === "PERSON" ? (
-                  // Say what the number means instead of leaving a sign to decode.
-                  <p
-                    className={
-                      "text-sm mt-1 " +
-                      (a.balance < 0
-                        ? "text-amber-700 dark:text-amber-300"
-                        : a.balance > 0
-                          ? "text-emerald-600"
-                          : "text-slate-400")
-                    }
-                  >
-                    {a.balance < 0
-                      ? t("person.holding", { name: a.name })
-                      : a.balance > 0
-                        ? t("person.owes", { name: a.name })
-                        : t("person.settled")}
-                  </p>
+                  <div className="mt-1 space-y-0.5">
+                    {/* Say what the number means instead of leaving a sign to decode. */}
+                    <p
+                      className={
+                        "text-sm " +
+                        (position(a) < 0
+                          ? "text-amber-700 dark:text-amber-300"
+                          : position(a) > 0
+                            ? "text-emerald-600"
+                            : "text-slate-400")
+                      }
+                    >
+                      {position(a) < 0
+                        ? t("person.holding", { name: a.name })
+                        : position(a) > 0
+                          ? t("person.owes", { name: a.name })
+                          : t("person.settled")}
+                    </p>
+                    {held.has(a.id) && (
+                      <>
+                        {held.get(a.id)!.map((h, i) => (
+                          <p key={i} className="text-xs text-slate-400 tabular-nums">
+                            {/* A Latin symbol and number inside a Persian line: isolate them. */}
+                            <bdi>{h.quantity} {h.symbol}</bdi> ≈ <bdi>{formatMoney(h.value, a.currency)}</bdi>{" "}
+                            <span className={h.gain >= 0 ? "text-emerald-600" : "text-red-600"}>
+                              ({t(h.gain >= 0 ? "person.heldGain" : "person.heldLoss", { amount: formatMoney(Math.abs(h.gain), a.currency) })})
+                            </span>
+                          </p>
+                        ))}
+                        {Math.abs(a.balance) >= 1 && (
+                          <p className="text-xs text-slate-400 tabular-nums">
+                            {a.balance < 0
+                              ? t("person.cashHeld", { amount: formatMoney(-a.balance, a.currency) })
+                              : t("person.cashOwed", { amount: formatMoney(a.balance, a.currency) })}
+                          </p>
+                        )}
+                      </>
+                    )}
+                  </div>
                 ) : (
                   <p className="text-xs text-slate-400 mt-1">
                     {t("accounts.opening", { amount: formatMoney(a.openingBalance, a.currency) })}

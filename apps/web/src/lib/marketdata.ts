@@ -2,6 +2,7 @@ import "server-only";
 import { prisma } from "./prisma";
 import { CURRENCY_CODES } from "@financemanager/core/constants";
 import { toNumber } from "@financemanager/core/money";
+import { refreshIranPrices, type IranRefreshSummary } from "./iranMarket";
 
 // ---------------------------------------------------------------------------
 // Live market data: FX rates + investment prices.
@@ -26,6 +27,8 @@ const FINNHUB_URL = "https://finnhub.io/api/v1/quote";
 export type RefreshSummary = {
   fx: { updated: number; error?: string };
   prices: { updated: number; skipped: number; error?: string };
+  /** Toman prices from Iranian exchanges; absent where not run. */
+  iran?: IranRefreshSummary;
   at: string;
 };
 
@@ -202,11 +205,14 @@ export async function refreshInvestmentPrices(
 /** Full refresh: FX + prices. `householdId` scopes the price refresh. */
 export async function refreshAll(householdId?: string): Promise<RefreshSummary> {
   const now = new Date();
-  const [fx, prices] = await Promise.all([
+  const [fx, prices, iran] = await Promise.all([
     refreshFxRates(now),
     refreshInvestmentPrices(householdId),
+    refreshIranPrices(householdId).catch(
+      (e): IranRefreshSummary => ({ updated: 0, sources: [], error: e instanceof Error ? e.message : "failed" }),
+    ),
   ]);
-  return { fx, prices, at: now.toISOString() };
+  return { fx, prices, iran, at: now.toISOString() };
 }
 
 /** Timestamp of the most recently updated FX rate, or null if none. */

@@ -132,6 +132,12 @@ export default async function DashboardPage() {
           <div className="space-y-3 text-sm">
             <Row t={t} label={t("dashboard.cashAccounts")} value={formatMoney(netWorth.cash, base)} />
             <Row t={t} label={t("dashboard.investments")} value={formatMoney(netWorth.investments, base)} />
+            {netWorth.heldForOthers > 0 && (
+              <p className="flex justify-between text-xs text-slate-400">
+                <span>{t("dashboard.heldForOthers")}</span>
+                <span className="tabular-nums">{formatMoney(netWorth.heldForOthers, base)}</span>
+              </p>
+            )}
             <div className="border-t border-[var(--border)] pt-3">
               <Row t={t} label={t("dashboard.totalNetWorth")} value={formatMoney(netWorth.total, base)} bold />
             </div>

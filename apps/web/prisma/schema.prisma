@@ -129,7 +129,9 @@ model Account {
   plaidItem            PlaidItem?             @relation(fields: [plaidItemId], references: [id], onDelete: SetNull)
   transactions         Transaction[]          @relation("AccountTransactions")
   transferTransactions Transaction[]          @relation("TransferAccount")
-  investments          Investment[]
+  investments          Investment[] @relation("InvestmentAccount")
+  // Holdings bought and kept for this person (a PERSON account).
+  heldInvestments      Investment[] @relation("HeldFor")
   recurring            RecurringTransaction[] @relation("RecurringAccount")
   recurringTransfers   RecurringTransaction[] @relation("RecurringTransferAccount")
   transferRules        CategoryRule[]
@@ -289,8 +291,13 @@ model Investment {
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
+  // Kept for someone else (a PERSON account): its value and its gains are
+  // theirs, so it counts as their money you hold rather than your own.
+  heldForId    String?
+
   household Household @relation(fields: [householdId], references: [id], onDelete: Cascade)
-  account   Account?  @relation(fields: [accountId], references: [id])
+  account   Account?  @relation("InvestmentAccount", fields: [accountId], references: [id])
+  heldFor   Account?  @relation("HeldFor", fields: [heldForId], references: [id], onDelete: SetNull)
 
   @@index([householdId])
 }
@@ -327,6 +334,19 @@ model ExchangeRate {
   asOf  DateTime @default(now())
 
   @@unique([base, quote])
+}
+
+// What an Iranian exchange last quoted for a coin, in toman. The official
+// USD->IRR rate is far from what anyone pays, so holdings priced in toman take
+// their price from the market itself — from each exchange the owner trades on.
+model MarketQuote {
+  id     String   @id @default(cuid())
+  symbol String // "USDT"
+  source String // wallex | nobitex | tabdeal
+  price  Decimal // toman per unit
+  asOf   DateTime @default(now())
+
+  @@unique([symbol, source])
 }
 
 // Every bank SMS the phone forwarded, whether or not it became a transaction.
