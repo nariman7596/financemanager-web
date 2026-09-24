@@ -32,6 +32,21 @@ docker compose logs -f caddy      # منتظرِ "certificate obtained successfu
 با `COMPOSE_FILE` در `.env`، از این به بعد `docker compose …` بدونِ `-f` هر دو فایل را
 با هم اجرا می‌کند.
 
+### آپدیت (هر بار)
+
+```bash
+cd ~/financemanager-web && git pull && docker compose pull && docker compose up -d && docker compose restart caddy && docker image prune -f
+```
+
+- `docker image prune -f` نسخه‌ی قبلیِ ایمیج را پاک می‌کند. بدونِ آن هر آپدیت یک نسخه‌ی
+  کامل روی دیسک باقی می‌گذارد؛ روی دیسکِ ۲۴ گیگی بعد از یک روزِ پرآپدیت ۱۶ گیگ از این
+  نسخه‌های مرده جمع شد و `pull` با `no space left on device` شکست خورد. به کانتینرهای
+  در حالِ اجرا، دیتابیس و بکاپ‌ها دست نمی‌زند.
+- `restart caddy` فقط وقتی لازم است که `Caddyfile.public` عوض شده باشد (فایلِ mount‌شده؛
+  `up -d` آن را دوباره نمی‌خواند) — زدنش ضرری ندارد.
+- پیامک‌هایی که در همان چند ثانیه‌ی ری‌استارت می‌رسند گم نمی‌شوند: Caddy در آن فاصله
+  JSON ِ خطا برمی‌گرداند و شورتکات صف را نگه می‌دارد.
+
 اگر سرور فایروال دارد (`ufw status` فعال است): `sudo ufw allow 80,8443/tcp`. داکر معمولاً
 خودش از ufw رد می‌شود، ولی فایروالِ پنلِ ارائه‌دهنده‌ی سرور را هم چک کن.
 

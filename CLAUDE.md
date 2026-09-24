@@ -75,7 +75,11 @@ build needs several GB — it thrashed for an hour and the OOM killer took down
 sshd. So `.github/workflows/build-image.yml` builds on GitHub's runners and
 publishes to `ghcr.io/nariman7596/financemanager-web:latest`, and the server
 only pulls. Deploy is `docker compose -f docker-compose.ghcr.yml pull && … up -d`,
-about 30 seconds. **Never suggest building on that server.** (2 GB swap was
+about 30 seconds. **Never suggest building on that server.** The full update
+line is in `docs/DEPLOY-PUBLIC.md` and ends in `docker image prune -f`: every
+pull left the previous image behind, and after one busy day 16 GB of them
+filled the 24 GB disk (`no space left on device`). The image no longer
+carries `.next/cache` (~0.5 GB of webpack cache `next start` never reads). (2 GB swap was
 added as a runtime safety net; running the app costs ~250 MB.)
 
 **443 is taken by an Xray/Reality VPN, and the app is deliberately private.**
@@ -314,6 +318,10 @@ flushes with the next SMS at home. Messages in a batch are split on a
   `IGNORED` and never surface; the bank's note line becomes the description.
   Unreadable/unmatched messages stay (`UNPARSED`/`UNMATCHED`) and are retried
   when re-sent or when an account's SMS number is set (`retryUnmatched`).
+- **Paste box** on `/review` (`pasteSms` → the same `ingestSmsBatch`): for SMS
+  the automation never delivered — iOS does skip runs. Blank line separates
+  several messages; re-pasting is a harmless duplicate. Blu's "…ریال بابت X از
+  حساب شما پرید" gives X as the description (a loan instalment has no header).
 - `/review` page (nav badge + a pill in the mobile header): pick a category, or
   "transfer ↔ own account", which turns the row into a TRANSFER and deletes the
   other side's still-unreviewed SMS row (same amount, ±3 days) so own

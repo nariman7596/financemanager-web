@@ -43,7 +43,13 @@ COPY . .
 # confirmed up front. Verified by rehearsing these exact commands outside
 # Docker, where the same abort reproduces.
 RUN pnpm install --frozen-lockfile --offline --config.confirmModulesPurge=false
-RUN pnpm --filter @financemanager/web build
+# The build cache (webpack's persistent cache, ~0.5 GB) only speeds up the
+# *next* build; `next start` never reads it and recreates the folder if it wants
+# one. Copied into the runner it was about 40% of every image, and the 24 GB
+# server filled up with old versions of it. Dropped in the same RUN so it never
+# lands in a layer at all.
+RUN pnpm --filter @financemanager/web build \
+  && rm -rf apps/web/.next/cache
 
 # --- runner: the image that actually runs in production ---
 FROM base AS runner

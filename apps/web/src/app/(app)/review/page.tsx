@@ -7,6 +7,7 @@ import { suggestCategory } from "@financemanager/core/sms";
 import { Topbar } from "@/components/Topbar";
 import { DeleteButton } from "@/components/DeleteButton";
 import { SmsReviewForm } from "@/components/forms/SmsReviewForm";
+import { PasteSmsForm } from "@/components/forms/PasteSmsForm";
 import { deleteTransaction } from "@/app/actions/transactions";
 import { retrySms, dismissSms } from "@/app/actions/sms";
 import { getT, getLocale } from "@/lib/i18n/server";
@@ -74,6 +75,8 @@ export default async function ReviewPage() {
   return (
     <>
       <Topbar title={t("review.title")} subtitle={t("review.subtitle")} />
+
+      {canEdit && <PasteSmsForm />}
 
       {pending.length === 0 && failed.length === 0 && (
         <div className="card p-10 text-center text-slate-400 space-y-2">
