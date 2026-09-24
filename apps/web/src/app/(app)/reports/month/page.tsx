@@ -7,6 +7,7 @@ import {
   getFlowInRange,
   getCategoryBreakdown,
   getTopExpenses,
+  getBudgetProgress,
 } from "@/lib/queries";
 import {
   startOfMonthIn,
@@ -20,6 +21,7 @@ import { compareCategories, pctChange, previousWindow } from "@financemanager/co
 import { formatDate, formatMoney } from "@financemanager/core/money";
 import { Topbar } from "@/components/Topbar";
 import { StatCard } from "@/components/StatCard";
+import { BudgetBar } from "@/components/BudgetBar";
 import { getT, getLocale } from "@/lib/i18n/server";
 import type { TFunc } from "@financemanager/i18n/translate";
 import type { Locale } from "@financemanager/i18n/config";
@@ -73,7 +75,7 @@ export default async function MonthSummaryPage({
   const window = previousWindow(start, end, prevStart, prevEnd, now);
   const rangeEnd = window.partial ? now : end;
 
-  const [flow, prevFlow, categories, prevCategories, top, unreviewed] = await Promise.all([
+  const [flow, prevFlow, categories, prevCategories, top, unreviewed, allBudgets] = await Promise.all([
     getFlowInRange(ctx.householdId, base, start, rangeEnd),
     getFlowInRange(ctx.householdId, base, window.start, window.end),
     getCategoryBreakdown(ctx.householdId, base, start, rangeEnd),
@@ -82,7 +84,10 @@ export default async function MonthSummaryPage({
     prisma.transaction.count({
       where: { householdId: ctx.householdId, needsReview: true, date: { gte: start, lte: rangeEnd } },
     }),
+    // Monthly budgets measured over this month (a date inside it picks it).
+    getBudgetProgress(ctx.householdId, window.partial ? now : end, locale),
   ]);
+  const budgets = allBudgets.filter((b) => b.period === "MONTHLY");
 
   // Uncategorized rows come back under a fixed English name from the query.
   const label = (name: string) => (name === "Uncategorized" ? t("txnForm.uncategorized") : name);
@@ -140,6 +145,17 @@ export default async function MonthSummaryPage({
         >
           <Inbox size={16} /> {t("summary.needsReview", { count: unreviewed })}
         </Link>
+      )}
+
+      {budgets.length > 0 && (
+        <section className="card p-5 mb-6">
+          <h2 className="font-semibold mb-4">{t("summary.budgets")}</h2>
+          <div className="grid gap-4 sm:grid-cols-2">
+            {budgets.map((b) => (
+              <BudgetBar key={b.id} budget={b} t={t} showPace={window.partial} />
+            ))}
+          </div>
+        </section>
       )}
 
       <section className="grid grid-cols-1 lg:grid-cols-3 gap-4">

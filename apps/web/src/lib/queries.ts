@@ -12,6 +12,7 @@ import {
 import { DEFAULT_LOCALE, type Locale } from "@financemanager/i18n/config";
 import { prisma } from "./prisma";
 import { toNumber } from "@financemanager/core/money";
+import { budgetStatus, budgetWindow } from "@financemanager/core/budgets";
 import { loadRates } from "./currency";
 import { convert } from "@financemanager/core/currency";
 
@@ -271,7 +272,7 @@ export async function getSeriesInRange(
 /** Budgets with actual spend this month (in each budget's currency). */
 export async function getBudgetProgress(
   householdId: string,
-  month = new Date(),
+  at = new Date(),
   locale: Locale = DEFAULT_LOCALE,
 ) {
   const rates = await loadRates();
@@ -279,30 +280,50 @@ export async function getBudgetProgress(
     where: { householdId },
     include: { category: true },
   });
+  if (budgets.length === 0) return [];
 
+  // Each budget covers its own period (week / month / year) in the reader's
+  // calendar; fetch once across the widest of them.
+  const windows = budgets.map((b) => budgetWindow(b.period, at, locale));
+  const from = new Date(Math.min(...windows.map((w) => w.start.getTime())));
+  const to = new Date(Math.max(...windows.map((w) => w.end.getTime())));
   const spendTxns = await prisma.transaction.findMany({
-    where: {
-      householdId,
-      type: "EXPENSE",
-      date: { gte: startOfMonthIn(month, locale), lte: endOfMonthIn(month, locale) },
-    },
-    select: { amount: true, currency: true, categoryId: true },
+    where: { householdId, type: "EXPENSE", date: { gte: from, lte: to } },
+    select: { amount: true, currency: true, categoryId: true, date: true },
   });
+  // For a period already over (a past month's summary) the status is read at
+  // its end, not "today".
+  const now = new Date();
 
-  return budgets.map((b) => {
+  return budgets.map((b, i) => {
+    const w = windows[i];
     const spent = spendTxns
-      .filter((t) => t.categoryId === b.categoryId)
+      .filter((t) => t.categoryId === b.categoryId && t.date >= w.start && t.date <= w.end)
       .reduce((s, t) => s + convert(toNumber(t.amount), t.currency, b.currency, rates), 0);
     const limit = toNumber(b.amount);
+    const status = budgetStatus({
+      limit,
+      spent,
+      start: w.start,
+      end: w.end,
+      now: now > w.end ? w.end : now,
+    });
     return {
       id: b.id,
+      categoryId: b.categoryId,
       category: b.category.name,
       color: b.category.color,
       currency: b.currency,
       period: b.period,
       limit,
       spent: Math.round(spent * 100) / 100,
-      pct: limit > 0 ? Math.min(999, Math.round((spent / limit) * 100)) : 0,
+      pct: Math.min(999, status.pct),
+      level: status.level,
+      remaining: status.remaining,
+      projected: status.projected,
+      paceWarning: status.paceWarning,
+      perDayLeft: status.perDayLeft,
+      daysLeft: status.daysLeft,
     };
   });
 }

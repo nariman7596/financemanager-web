@@ -10,7 +10,7 @@ the phase plan.
 
 ```
 apps/web            Next.js app (routes, server actions, React components)
-packages/core       THE DOMAIN — pure TS, no framework. 123 tests.
+packages/core       THE DOMAIN — pure TS, no framework. 160 tests.
 packages/i18n       locale config + en/fa dictionaries + createT. 9 tests.
 packages/config     shared tsconfig / tailwind preset / eslint
 ```
@@ -19,8 +19,8 @@ packages/config     shared tsconfig / tailwind preset / eslint
 in the browser, in Hermes and in tests. No `next/*`, no `react-native`, no Node
 built-ins, no Prisma. `packages/config/eslint/package.js` enforces this and the
 rule is verified to fire; `pnpm lint` fails the build if you reach for one.
-Subpaths: `@financemanager/core/{access,calendar,constants,csv,currency,
-date-range,money,reconcile,reports,sms,validation}`.
+Subpaths: `@financemanager/core/{access,budgets,calendar,constants,csv,currency,
+date-range,loans,money,reconcile,reports,sms,validation}`.
 
 Both packages ship **TypeScript source, not a build artifact** — `apps/web`
 compiles them via `transpilePackages` in `next.config.mjs`. Adding a new
@@ -318,6 +318,17 @@ flushes with the next SMS at home. Messages in a batch are split on a
   `IGNORED` and never surface; the bank's note line becomes the description.
   Unreadable/unmatched messages stay (`UNPARSED`/`UNMATCHED`) and are retried
   when re-sent or when an account's SMS number is set (`retryUnmatched`).
+- **Category rules** (`CategoryRule`, `core/sms/rules.ts`): the Review form's
+  "from now on, file X under this category" tick stores the SMS's own
+  description (normalised: Arabic letters, ZWNJ, spacing, trailing
+  punctuation) → category, per type. `processMessage` applies an exact match
+  at booking time (`needsReview=false`, outcome `FILED`), and saving a rule also
+  files rows with that description already waiting. A rule can instead
+  point at an account (`transferAccountId`): "record as transfer ↔ loan" —
+  only to accounts with no `smsMatch`, whose side never arrives as its own SMS.
+  Generic kinds
+  ("برداشت پول", "خرید", "پرداخت قبض"…) can never be rules — they are on half
+  the messages. Listed/deleted in Settings (#rules).
 - **Paste box** on `/review` (`pasteSms` → the same `ingestSmsBatch`): for SMS
   the automation never delivered — iOS does skip runs. Blank line separates
   several messages; re-pasting is a harmless duplicate. Blu's "…ریال بابت X از
@@ -398,6 +409,47 @@ money I hold** (negative PERSON balances), plus what others owe — and PERSON
 cards say it in words ("this much of X's money is with you" / "X owes you
 this") instead of showing a sign. No schema change: `Account.type` is a
 string; the enum lives in `packages/core/src/constants`.
+
+## Loan accounts — account type `LOAN`
+Entered as the remaining debt (positive; `accountSchema` stores it negative
+whatever sign was typed). Each instalment is a **transfer** into the loan, not
+spending — the spending happened when the loan was taken — so the balance
+counts down to zero; a transfer rule makes the monthly SMS ("بازپرداخت بدهی وام
+به‌جا") file itself. The card shows the debt in words and "about N more
+instalments of X" from the last instalment (`core/loans` `loanStatus`); the
+Accounts page shows **loans owed**, and **in my accounts** excludes LOAN like
+PERSON. No schema change beyond the rule's `transferAccountId`.
+**Transfer balance attribution:** turning a *deposit* SMS into a transfer moves
+the row onto the sending account (`accountId` = from), but the SMS's
+`bankBalance` belongs to the receiving one, and reconciliation reads it on
+`accountId`. `transferLegs` (lib/sms.ts) therefore drops it on that path (or
+takes the sending side's own waiting SMS balance, if it was absorbed).
+
+## Budgets (`core/budgets`, `getBudgetProgress`)
+Each budget covers its **own period in the reader's calendar** (`budgetWindow`:
+a Persian week is Saturday–Friday, a Persian year starts at Nowruz) — until
+2026-09-24 every budget was measured by month whatever its period said.
+`budgetStatus` gives a level — `over` past the limit, `watch` at 80% or when the
+pace would run past it — plus what is left per day for the days remaining. Pace
+is not trusted before a fifth of the period has passed (two days of groceries
+"project" to a fortune). The dashboard lists budgets at watch/over, worst
+first, with the category name in `<bdi>` so a Latin name does not reorder the
+Persian line; the monthly summary shows that month's monthly budgets, read at
+the month's end.
+
+**Budget planner** (`/budgets/plan`, `core/budgets/plan.ts` — pure, runs live
+in the browser): income − savings share − fixed costs (rent + each loan's last
+instalment) = what the categories share. With history (average of up to three
+full months, never counting months before the household's first transaction)
+each category keeps its habit, scaled down if it does not fit — protected
+categories cut half as hard — and what is left over shows as extra savings.
+Without history a default split by category *kind* (matched by keyword on the
+name, fa or en) is used. Groceries, dining and transport get weekly budgets.
+Income is suggested from last month's actual income each time (the owner
+enters/adjusts it monthly); savings rate, rent, other fixed costs and
+protected categories persist in `Household.budgetPlan` (JSON, additive
+migration). Applying replaces each planned category's budget (period change
+deletes the other period's row); a 0 row removes it.
 
 ## CSV import/export
 - Export: `GET /api/export/transactions` (session-authed) streams all the user's

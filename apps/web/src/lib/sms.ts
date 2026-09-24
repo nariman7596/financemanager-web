@@ -2,6 +2,7 @@ import { createHash, randomBytes } from "node:crypto";
 import { Prisma } from "@prisma/client";
 import { prisma } from "./prisma";
 import {
+  findRule,
   looksLikeTransaction,
   matchSmsAccount,
   normalizeSms,
@@ -60,7 +61,8 @@ export async function authenticateApiToken(header: string | null): Promise<SmsSc
 // Ingest
 // ---------------------------------------------------------------------------
 
-export type SmsOutcome = "BOOKED" | "DUPLICATE" | "UNPARSED" | "UNMATCHED" | "IGNORED";
+/** BOOKED waits in Review; FILED was booked and categorised by a rule. */
+export type SmsOutcome = "BOOKED" | "FILED" | "DUPLICATE" | "UNPARSED" | "UNMATCHED" | "IGNORED";
 
 function smsHash(text: string): string {
   return createHash("sha256").update(normalizeSms(text)).digest("hex");
@@ -107,22 +109,52 @@ async function processMessage(
   const balance =
     parsed.balanceRial === null ? null : rialTo(account.currency, parsed.balanceRial).amount;
 
+  const type = parsed.direction === "OUT" ? "EXPENSE" : "INCOME";
+  // The bank's own note ("حقوق ماهانه") or the merchant from the OTP ("ازکی")
+  // says more than the kind ("واریز", "برداشت پول").
+  const description = parsed.note ?? merchant ?? parsed.kind;
+  // A rule the user made ("always file ازکی as groceries") files it outright;
+  // anything else waits in Review.
+  const rules = await prisma.categoryRule.findMany({
+    where: { householdId: scope.householdId, type },
+    select: { type: true, match: true, categoryId: true, transferAccountId: true },
+  });
+  const rule = findRule(rules, { type, description });
+  // A transfer rule ("instalment → the loan") only to an account that is still
+  // there, in the same currency, and has no SMS of its own — otherwise the
+  // other side's SMS would book the same money again. Anything off, it waits
+  // in Review like any other row.
+  const target = rule?.transferAccountId
+    ? await prisma.account.findFirst({
+        where: {
+          id: rule.transferAccountId,
+          householdId: scope.householdId,
+          currency: account.currency,
+          smsMatch: null,
+          NOT: { id: account.id },
+        },
+        select: { id: true },
+      })
+    : null;
+  const filed = !!rule && (rule.categoryId !== null || target !== null);
+  const legs = target ? transferLegs({ type, accountId: account.id }, target.id) : null;
+
   await prisma.$transaction(async (tx) => {
     const txn = await tx.transaction.create({
       data: {
         householdId: scope.householdId,
         createdById: scope.userId,
-        accountId: account.id,
-        type: parsed.direction === "OUT" ? "EXPENSE" : "INCOME",
+        accountId: legs?.accountId ?? account.id,
+        transferAccountId: legs?.transferAccountId ?? null,
+        type: legs ? "TRANSFER" : type,
         amount,
         currency,
         date: parsed.date,
-        // The bank's own note ("حقوق ماهانه") or the merchant from the OTP
-        // ("ازکی") says more than the kind ("واریز", "برداشت پول").
-        description: parsed.note ?? merchant ?? parsed.kind,
+        description,
+        categoryId: filed && !legs ? rule!.categoryId : null,
         origin: "SMS",
-        needsReview: true,
-        bankBalance: balance,
+        needsReview: !filed,
+        bankBalance: legs && !legs.keepsBankBalance ? null : balance,
       },
     });
     await tx.smsMessage.update({
@@ -130,7 +162,25 @@ async function processMessage(
       data: { status: "BOOKED", transactionId: txn.id },
     });
   });
-  return "BOOKED";
+  return filed ? "FILED" : "BOOKED";
+}
+
+/**
+ * How an SMS transaction becomes a transfer to one of the household's own
+ * accounts. Money left the SMS account (EXPENSE) or arrived in it (INCOME).
+ *
+ * The bank balance the SMS printed belongs to the SMS account. The balance
+ * check reads it on the row's `accountId`, which for money arriving is the
+ * *other* account — so there the balance is dropped rather than compared
+ * against the wrong account. The next SMS on that account carries a new one.
+ */
+export function transferLegs(
+  txn: { type: string; accountId: string },
+  otherId: string,
+): { accountId: string; transferAccountId: string; keepsBankBalance: boolean } {
+  return txn.type === "EXPENSE"
+    ? { accountId: txn.accountId, transferAccountId: otherId, keepsBankBalance: true }
+    : { accountId: otherId, transferAccountId: txn.accountId, keepsBankBalance: false };
 }
 
 /**
@@ -176,7 +226,7 @@ export async function ingestSms(
     // a free retry — the user may have set up the account since.
     if (existing.status === "UNMATCHED" || existing.status === "UNPARSED") {
       const outcome = await processMessage(scope, existing);
-      return outcome === "BOOKED" ? "BOOKED" : "DUPLICATE";
+      return outcome === "BOOKED" || outcome === "FILED" ? outcome : "DUPLICATE";
     }
     return "DUPLICATE";
   }
@@ -208,6 +258,7 @@ export async function ingestSmsBatch(scope: SmsScope, body: string): Promise<Bat
   const summary: BatchSummary = {
     received: 0,
     booked: 0,
+    filed: 0,
     duplicate: 0,
     unparsed: 0,
     unmatched: 0,
@@ -238,7 +289,8 @@ export async function retryUnmatched(scope: SmsScope): Promise<number> {
   });
   let booked = 0;
   for (const m of waiting) {
-    if ((await processMessage(scope, m)) === "BOOKED") booked++;
+    const outcome = await processMessage(scope, m);
+    if (outcome === "BOOKED" || outcome === "FILED") booked++;
   }
   return booked;
 }

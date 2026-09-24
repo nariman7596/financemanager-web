@@ -42,6 +42,21 @@ export function startOfYearIn(date: Date, locale: Locale): Date {
   return fns(locale).startOfYear(date);
 }
 
+export function endOfYearIn(date: Date, locale: Locale): Date {
+  return fns(locale).endOfYear(date);
+}
+
+// The Iranian week starts on Saturday (شنبه) and ends on Friday (جمعه).
+const weekStartsOn = (locale: Locale) => (locale === "fa" ? 6 : 1) as 0 | 1 | 6;
+
+export function startOfWeekIn(date: Date, locale: Locale): Date {
+  return fns(locale).startOfWeek(date, { weekStartsOn: weekStartsOn(locale) });
+}
+
+export function endOfWeekIn(date: Date, locale: Locale): Date {
+  return fns(locale).endOfWeek(date, { weekStartsOn: weekStartsOn(locale) });
+}
+
 // ---------------------------------------------------------------------------
 // Calendar as stored data
 //

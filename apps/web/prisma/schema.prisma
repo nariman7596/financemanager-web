@@ -46,20 +46,25 @@ model Household {
   id           String   @id @default(cuid())
   name         String
   baseCurrency String   @default("USD") // reporting currency for this household
+  /// Budget planner inputs kept between visits: savings rate, rent, other fixed
+  /// costs, protected category ids. Income is not kept — it is read from last
+  /// month's actual income each time. See core/budgets/plan.ts.
+  budgetPlan   Json?
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
-  members      Membership[]
-  invitations  Invitation[]
-  accounts     Account[]
-  categories   Category[]
-  transactions Transaction[]
-  budgets      Budget[]
-  investments  Investment[]
-  recurring    RecurringTransaction[]
-  plaidItems   PlaidItem[]
-  smsMessages  SmsMessage[]
-  apiTokens    ApiToken[]
+  members       Membership[]
+  invitations   Invitation[]
+  accounts      Account[]
+  categories    Category[]
+  transactions  Transaction[]
+  budgets       Budget[]
+  investments   Investment[]
+  recurring     RecurringTransaction[]
+  plaidItems    PlaidItem[]
+  smsMessages   SmsMessage[]
+  apiTokens     ApiToken[]
+  categoryRules CategoryRule[]
 }
 
 // Links a user to a household with a role.
@@ -127,6 +132,7 @@ model Account {
   investments          Investment[]
   recurring            RecurringTransaction[] @relation("RecurringAccount")
   recurringTransfers   RecurringTransaction[] @relation("RecurringTransferAccount")
+  transferRules        CategoryRule[]
 
   @@unique([plaidItemId, plaidAccountId])
   @@index([householdId])
@@ -148,6 +154,7 @@ model Category {
   transactions Transaction[]
   budgets      Budget[]
   recurring    RecurringTransaction[]
+  rules        CategoryRule[]
 
   @@unique([householdId, name, type])
   @@index([householdId])
@@ -360,5 +367,29 @@ model ApiToken {
   household Household @relation(fields: [householdId], references: [id], onDelete: Cascade)
   user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
 
+  @@index([householdId])
+}
+
+/// "Always file this description under that category" — or "always record it
+/// as a transfer to that account" (a loan instalment, money for a person).
+/// Created from the Review page; applied when an SMS is booked, so a known
+/// merchant never waits for a tap. `match` is the normalised description (see
+/// core/sms/rules.ts); `type` keeps an expense rule from ever filing an income.
+/// Exactly one of categoryId / transferAccountId is set.
+model CategoryRule {
+  id                String   @id @default(cuid())
+  householdId       String
+  createdById       String?
+  type              String // INCOME | EXPENSE
+  match             String
+  categoryId        String?
+  transferAccountId String?
+  createdAt         DateTime @default(now())
+
+  household       Household @relation(fields: [householdId], references: [id], onDelete: Cascade)
+  category        Category? @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  transferAccount Account?  @relation(fields: [transferAccountId], references: [id], onDelete: Cascade)
+
+  @@unique([householdId, type, match])
   @@index([householdId])
 }

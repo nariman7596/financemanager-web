@@ -23,13 +23,13 @@ export function PasteSmsForm({ open = false }: { open?: boolean }) {
     startTransition(async () => {
       const res = await pasteSms(data);
       setResult(res);
-      if (res.summary && res.summary.booked > 0) form.current?.reset();
+      if (res.summary && res.summary.booked + res.summary.filed > 0) form.current?.reset();
     });
   }
 
   // One line per outcome that happened, in the order a reader cares about.
   const lines = result?.summary
-    ? (["booked", "duplicate", "unmatched", "unparsed", "ignored"] as const)
+    ? (["booked", "filed", "duplicate", "unmatched", "unparsed", "ignored"] as const)
         .filter((k) => result.summary![k] > 0)
         .map((k) => t(`sms.paste.${k}`, { count: result.summary![k] }))
     : [];

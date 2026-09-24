@@ -1,7 +1,8 @@
 import { Plus, Landmark, Pencil, AlertTriangle, CheckCircle2 } from "lucide-react";
 import { requireHousehold } from "@/lib/household";
 import { getAccountBalances, getBaseCurrency } from "@/lib/queries";
-import { formatMoney, formatDate } from "@financemanager/core/money";
+import { formatMoney, formatDate, toNumber } from "@financemanager/core/money";
+import { loanStatus } from "@financemanager/core/loans";
 import { prisma } from "@/lib/prisma";
 import { plaidConfigured } from "@/lib/plaid";
 import { Topbar } from "@/components/Topbar";
@@ -35,12 +36,29 @@ export default async function AccountsPage() {
   const inBase = (list: typeof accounts) =>
     sumInCurrency(list.map((a) => ({ amount: a.balance, currency: a.currency })), base);
   const people = accounts.filter((a) => a.type === "PERSON");
-  const [totalInBase, inAccounts, heldForOthers, owedToMe] = await Promise.all([
+  // Loans are debts, not places money is kept either.
+  const loans = accounts.filter((a) => a.type === "LOAN");
+  const [totalInBase, inAccounts, heldForOthers, owedToMe, loanBalance] = await Promise.all([
     inBase(accounts),
-    inBase(accounts.filter((a) => a.type !== "PERSON")),
+    inBase(accounts.filter((a) => a.type !== "PERSON" && a.type !== "LOAN")),
     inBase(people.filter((a) => a.balance < 0)),
     inBase(people.filter((a) => a.balance > 0)),
+    inBase(loans),
   ]);
+  // The last instalment into each loan, to estimate how many are left.
+  const lastPayment = new Map<string, number>();
+  if (loans.length > 0) {
+    const paid = await prisma.transaction.findMany({
+      where: { householdId: ctx.householdId, type: "TRANSFER", transferAccountId: { in: loans.map((l) => l.id) } },
+      orderBy: [{ date: "desc" }, { createdAt: "desc" }],
+      select: { transferAccountId: true, amount: true },
+    });
+    for (const p of paid) {
+      if (p.transferAccountId && !lastPayment.has(p.transferAccountId)) {
+        lastPayment.set(p.transferAccountId, toNumber(p.amount));
+      }
+    }
+  }
 
   const bankSyncEnabled = plaidConfigured();
   const plaidItems = bankSyncEnabled
@@ -84,8 +102,13 @@ export default async function AccountsPage() {
         }
       />
 
-      <div className="grid sm:grid-cols-3 gap-4 mb-6">
-        {people.length === 0 ? (
+      <div
+        className={
+          "grid gap-4 mb-6 " +
+          (people.length > 0 && loans.length > 0 ? "sm:grid-cols-2 lg:grid-cols-4" : "sm:grid-cols-3")
+        }
+      >
+        {people.length === 0 && loans.length === 0 ? (
           <>
             <StatCard label={t("accounts.totalBalance")} value={formatMoney(totalInBase, base)} hint={t("common.inCurrency", { code: base })} />
             <StatCard label={t("accounts.count")} value={String(accounts.length)} />
@@ -94,11 +117,16 @@ export default async function AccountsPage() {
           <>
             <StatCard label={t("accounts.ownMoney")} value={formatMoney(totalInBase, base)} hint={t("accounts.ownMoneyHint")} />
             <StatCard label={t("accounts.inAccounts")} value={formatMoney(inAccounts, base)} hint={t("accounts.inAccountsHint")} />
-            <StatCard
-              label={t("accounts.othersMoney")}
-              value={formatMoney(-heldForOthers, base)}
-              hint={owedToMe > 0 ? t("accounts.owedToMeHint", { amount: formatMoney(owedToMe, base) }) : t("accounts.othersMoneyHint")}
-            />
+            {people.length > 0 && (
+              <StatCard
+                label={t("accounts.othersMoney")}
+                value={formatMoney(-heldForOthers, base)}
+                hint={owedToMe > 0 ? t("accounts.owedToMeHint", { amount: formatMoney(owedToMe, base) }) : t("accounts.othersMoneyHint")}
+              />
+            )}
+            {loans.length > 0 && (
+              <StatCard label={t("accounts.loanDebt")} value={formatMoney(Math.max(0, -loanBalance), base)} hint={t("accounts.loanDebtHint")} />
+            )}
           </>
         )}
       </div>
@@ -146,9 +174,30 @@ export default async function AccountsPage() {
                   </div>
                 </div>
                 <p className="text-2xl font-semibold mt-4 tabular-nums">
-                  {a.type === "PERSON" ? formatMoney(Math.abs(a.balance), a.currency) : formatMoney(a.balance, a.currency)}
+                  {a.type === "PERSON" || a.type === "LOAN"
+                    ? formatMoney(Math.abs(a.balance), a.currency)
+                    : formatMoney(a.balance, a.currency)}
                 </p>
-                {a.type === "PERSON" ? (
+                {a.type === "LOAN" ? (
+                  (() => {
+                    const st = loanStatus(a.balance, lastPayment.get(a.id) ?? null);
+                    return st.debt === 0 ? (
+                      <p className="text-sm mt-1 text-emerald-600">{t("loan.paidOff")}</p>
+                    ) : (
+                      <div className="mt-1 space-y-0.5">
+                        <p className="text-sm text-amber-700 dark:text-amber-300">{t("loan.debt")}</p>
+                        {st.paymentsLeft !== null && (
+                          <p className="text-xs text-slate-400">
+                            {t("loan.paymentsLeft", {
+                              count: st.paymentsLeft,
+                              amount: formatMoney(lastPayment.get(a.id)!, a.currency),
+                            })}
+                          </p>
+                        )}
+                      </div>
+                    );
+                  })()
+                ) : a.type === "PERSON" ? (
                   // Say what the number means instead of leaving a sign to decode.
                   <p
                     className={
@@ -203,7 +252,7 @@ export default async function AccountsPage() {
                     </div>
                   );
                 })()}
-                {(a.currency === "IRR" || a.currency === "IRT") && a.type !== "PERSON" && (
+                {(a.currency === "IRR" || a.currency === "IRT") && a.type !== "PERSON" && a.type !== "LOAN" && (
                   <p className="text-xs text-slate-400 mt-1">
                     {a.smsMatch ? t("sms.matchSet", { number: a.smsMatch }) : t("sms.matchUnset")}
                   </p>

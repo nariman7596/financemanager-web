@@ -3,7 +3,7 @@ import { RotateCcw, X } from "lucide-react";
 import { requireHousehold } from "@/lib/household";
 import { prisma } from "@/lib/prisma";
 import { formatMoney, formatDate, toNumber } from "@financemanager/core/money";
-import { suggestCategory } from "@financemanager/core/sms";
+import { canMakeRule, suggestCategory } from "@financemanager/core/sms";
 import { Topbar } from "@/components/Topbar";
 import { DeleteButton } from "@/components/DeleteButton";
 import { SmsReviewForm } from "@/components/forms/SmsReviewForm";
@@ -39,7 +39,7 @@ export default async function ReviewPage() {
     prisma.account.findMany({
       where: { householdId: ctx.householdId, isArchived: false },
       orderBy: { createdAt: "asc" },
-      select: { id: true, name: true, currency: true },
+      select: { id: true, name: true, currency: true, smsMatch: true },
     }),
     prisma.smsMessage.findMany({
       where: { householdId: ctx.householdId, status: { in: ["UNPARSED", "UNMATCHED"] } },
@@ -126,10 +126,13 @@ export default async function ReviewPage() {
                   id={txn.id}
                   description={txn.description}
                   categories={categories.filter((c) => c.type === txn.type)}
-                  transferAccounts={accounts.filter(
-                    (a) => a.id !== txn.accountId && a.currency === txn.currency,
-                  )}
+                  transferAccounts={accounts
+                    .filter((a) => a.id !== txn.accountId && a.currency === txn.currency)
+                    // A rule may point at an account with no SMS of its own
+                    // (a loan, a person); see saveRule.
+                    .map((a) => ({ id: a.id, name: a.name, ruleable: !a.smsMatch }))}
                   suggestedId={suggestionFor(txn)}
+                  ruleable={canMakeRule(txn.description)}
                 />
               )}
 
