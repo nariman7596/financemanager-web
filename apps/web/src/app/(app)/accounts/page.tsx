@@ -249,10 +249,17 @@ export default async function AccountsPage() {
                         {held.get(a.id)!.map((h, i) => (
                           <p key={i} className="text-xs text-slate-400 tabular-nums">
                             {/* A Latin symbol and number inside a Persian line: isolate them. */}
-                            <bdi>{h.quantity} {h.symbol}</bdi> ≈ <bdi>{formatMoney(h.value, a.currency)}</bdi>{" "}
-                            <span className={h.gain >= 0 ? "text-emerald-600" : "text-red-600"}>
-                              ({t(h.gain >= 0 ? "person.heldGain" : "person.heldLoss", { amount: formatMoney(Math.abs(h.gain), a.currency) })})
-                            </span>
+                            <bdi>{h.quantity} {h.symbol}</bdi>{" "}
+                            {h.value > 0 ? (
+                              <>
+                                ≈ <bdi>{formatMoney(h.value, a.currency)}</bdi>{" "}
+                                <span className={h.gain >= 0 ? "text-emerald-600" : "text-red-600"}>
+                                  ({t(h.gain >= 0 ? "person.heldGain" : "person.heldLoss", { amount: formatMoney(Math.abs(h.gain), a.currency) })})
+                                </span>
+                              </>
+                            ) : (
+                              <>· {t("inv.noPrice")}</>
+                            )}
                           </p>
                         ))}
                         {Math.abs(a.balance) >= 1 && (

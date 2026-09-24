@@ -286,6 +286,7 @@ export const fa: Record<string, string> = {
   "inv.refreshFailed": "به‌روزرسانی ناموفق بود",
   "inv.refreshSummary": "{rates} نرخ و {prices} قیمت به‌روزرسانی شد",
   "inv.refreshSkipped": " ({skipped} نادیده گرفته شد)",
+  "inv.noPrice": "هنوز قیمت ندارد — «به‌روزرسانی» را بزن",
   "inv.heldForOthers": "امانتِ دیگران",
   "inv.heldForOthersHint": "مالِ خودشان، با سود و زیانش — جزوِ جمعِ تو نیست",
   "inv.heldBadge": "امانتِ {name}",

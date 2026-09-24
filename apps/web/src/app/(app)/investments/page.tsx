@@ -135,20 +135,28 @@ export default async function InvestmentsPage() {
                     </td>
                     <td className="px-4 py-3 tabular-nums text-[var(--muted)]">{h.quantity}</td>
                     <td className="px-4 py-3">
-                      <PriceForm id={h.id} currentPrice={h.currentPrice} currency={h.currency} />
+                      {/* Keyed by price: the input is uncontrolled, and a refresh must show the new one. */}
+                      <PriceForm key={h.currentPrice} id={h.id} currentPrice={h.currentPrice} currency={h.currency} />
                     </td>
-                    <td className="px-4 py-3 text-end tabular-nums font-medium">
-                      {formatMoney(h.value, h.currency)}
-                    </td>
-                    <td className={cn(
-                      "px-4 py-3 text-end tabular-nums font-medium",
-                      h.gain >= 0 ? "text-green-600" : "text-red-600",
-                    )}>
-                      {formatMoney(h.gain, h.currency)}
-                      <span className="block text-xs font-normal">
-                        {h.gainPct.toFixed(1)}%{h.heldFor && " · " + t("inv.gainIsTheirs", { name: h.heldFor.name })}
-                      </span>
-                    </td>
+                    {/* No price yet is not a 100% loss. */}
+                    {h.currentPrice > 0 ? (
+                      <>
+                        <td className="px-4 py-3 text-end tabular-nums font-medium">
+                          {formatMoney(h.value, h.currency)}
+                        </td>
+                        <td className={cn(
+                          "px-4 py-3 text-end tabular-nums font-medium",
+                          h.gain >= 0 ? "text-green-600" : "text-red-600",
+                        )}>
+                          {formatMoney(h.gain, h.currency)}
+                          <span className="block text-xs font-normal">
+                            {h.gainPct.toFixed(1)}%{h.heldFor && " · " + t("inv.gainIsTheirs", { name: h.heldFor.name })}
+                          </span>
+                        </td>
+                      </>
+                    ) : (
+                      <td colSpan={2} className="px-4 py-3 text-end text-xs text-slate-400">{t("inv.noPrice")}</td>
+                    )}
                     <td className="px-2 py-3 text-end whitespace-nowrap">
                       <Modal
                         title={t("sell.title", { symbol: h.symbol })}

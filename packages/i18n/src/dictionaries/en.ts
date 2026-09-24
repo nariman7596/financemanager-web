@@ -287,6 +287,7 @@ export const en: Record<string, string> = {
   "inv.refreshFailed": "Refresh failed",
   "inv.refreshSummary": "Updated {rates} rates, {prices} prices",
   "inv.refreshSkipped": " ({skipped} skipped)",
+  "inv.noPrice": "no price yet — press Refresh",
   "inv.heldForOthers": "Kept for others",
   "inv.heldForOthersHint": "Theirs, gains and all — not in your totals",
   "inv.heldBadge": "Kept for {name}",
