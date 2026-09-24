@@ -53,19 +53,20 @@ model Household {
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
-  members       Membership[]
-  invitations   Invitation[]
-  accounts      Account[]
-  categories    Category[]
-  transactions  Transaction[]
-  budgets       Budget[]
-  investments   Investment[]
-  recurring     RecurringTransaction[]
-  plaidItems    PlaidItem[]
-  smsMessages   SmsMessage[]
-  apiTokens     ApiToken[]
-  categoryRules CategoryRule[]
-  goals         Goal[]
+  members           Membership[]
+  invitations       Invitation[]
+  accounts          Account[]
+  categories        Category[]
+  transactions      Transaction[]
+  budgets           Budget[]
+  investments       Investment[]
+  recurring         RecurringTransaction[]
+  plaidItems        PlaidItem[]
+  smsMessages       SmsMessage[]
+  apiTokens         ApiToken[]
+  categoryRules     CategoryRule[]
+  goals             Goal[]
+  netWorthSnapshots NetWorthSnapshot[]
 }
 
 // Links a user to a household with a role.
@@ -451,4 +452,25 @@ model GoalContribution {
   goal Goal @relation(fields: [goalId], references: [id], onDelete: Cascade)
 
   @@index([goalId])
+}
+
+// The household's worth on one day, written by the hourly refresh (the last
+// write of the day stands). Cash can be rebuilt from transactions for any day,
+// but what holdings were worth on a past day cannot — this keeps it, and the
+// dollar rate of that day so worth can also be read in dollars.
+model NetWorthSnapshot {
+  id          String   @id @default(cuid())
+  householdId String
+  day         DateTime // midnight UTC of the day
+  currency    String // the household's base currency at the time
+  cash        Decimal
+  investments Decimal
+  // Toman per USDT that day (Iranian exchanges), when known.
+  usdRate     Decimal?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  household Household @relation(fields: [householdId], references: [id], onDelete: Cascade)
+
+  @@unique([householdId, day])
 }
