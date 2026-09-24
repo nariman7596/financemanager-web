@@ -75,7 +75,11 @@ build needs several GB — it thrashed for an hour and the OOM killer took down
 sshd. So `.github/workflows/build-image.yml` builds on GitHub's runners and
 publishes to `ghcr.io/nariman7596/financemanager-web:latest`, and the server
 only pulls. Deploy is `docker compose -f docker-compose.ghcr.yml pull && … up -d`,
-about 30 seconds. **Never suggest building on that server.** (2 GB swap was
+about 30 seconds. **Never suggest building on that server.** The full update
+line is in `docs/DEPLOY-PUBLIC.md` and ends in `docker image prune -f`: every
+pull left the previous image behind, and after one busy day 16 GB of them
+filled the 24 GB disk (`no space left on device`). The image no longer
+carries `.next/cache` (~0.5 GB of webpack cache `next start` never reads). (2 GB swap was
 added as a runtime safety net; running the app costs ~250 MB.)
 
 **443 is taken by an Xray/Reality VPN, and the app is deliberately private.**
