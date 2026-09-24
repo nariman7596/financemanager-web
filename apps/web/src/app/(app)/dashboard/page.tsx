@@ -17,6 +17,7 @@ import { MemberSpending } from "@/components/MemberSpending";
 import { getT, getLocale } from "@/lib/i18n/server";
 import { monthNameIn, monthKeyToDate, startOfMonthIn, endOfMonthIn } from "@financemanager/core/calendar";
 import { defaultSummaryMonth } from "@/lib/monthSummary";
+import { getGoals } from "@/lib/goals";
 import { prisma } from "@/lib/prisma";
 import { AlertTriangle, CalendarDays } from "lucide-react";
 import type { TFunc } from "@financemanager/i18n/translate";
@@ -30,13 +31,14 @@ export default async function DashboardPage() {
   const locale = await getLocale();
   const base = await getBaseCurrency(ctx.householdId);
 
-  const [netWorth, flow, series, spending, budgets, byMember] = await Promise.all([
+  const [netWorth, flow, series, spending, budgets, byMember, goals] = await Promise.all([
     getNetWorth(ctx.householdId, base),
     getMonthlyFlow(ctx.householdId, base, new Date(), locale),
     getCashFlowSeries(ctx.householdId, base, 6, locale),
     getSpendingByCategory(ctx.householdId, base, new Date(), locale),
     getBudgetProgress(ctx.householdId, new Date(), locale),
     getSpendingByMember(ctx.householdId, base, new Date(), locale),
+    getGoals(ctx.householdId, startOfMonthIn(new Date(), locale)),
   ]);
 
   const monthName = monthNameIn(new Date(), locale);
@@ -141,6 +143,25 @@ export default async function DashboardPage() {
             <div className="border-t border-[var(--border)] pt-3">
               <Row t={t} label={t("dashboard.totalNetWorth")} value={formatMoney(netWorth.total, base)} bold />
             </div>
+            {goals.length > 0 && (
+              <div className="border-t border-[var(--border)] pt-3 space-y-2">
+                <Link href="/goals" className="text-xs font-medium text-slate-400 hover:underline">{t("dashboard.goals")}</Link>
+                {goals.slice(0, 3).map((g) => (
+                  <div key={g.id}>
+                    <div className="flex justify-between text-xs mb-1">
+                      <bdi>{g.name}</bdi>
+                      <span className="tabular-nums">{Math.round(g.progress.share * 100)}%</span>
+                    </div>
+                    <div className="h-1.5 rounded-full surface-subtle overflow-hidden">
+                      <div
+                        className={g.progress.status === "behind" || g.progress.status === "overdue" ? "h-full bg-amber-500" : "h-full bg-emerald-500"}
+                        style={{ width: `${Math.round(g.progress.share * 100)}%` }}
+                      />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         </div>
 

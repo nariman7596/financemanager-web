@@ -11,6 +11,7 @@
     "./csv": "./src/csv/index.ts",
     "./currency": "./src/currency/index.ts",
     "./date-range": "./src/date-range/index.ts",
+    "./goals": "./src/goals/index.ts",
     "./loans": "./src/loans/index.ts",
     "./market": "./src/market/index.ts",
     "./money": "./src/money/index.ts",

@@ -65,6 +65,7 @@ model Household {
   smsMessages   SmsMessage[]
   apiTokens     ApiToken[]
   categoryRules CategoryRule[]
+  goals         Goal[]
 }
 
 // Links a user to a household with a role.
@@ -129,9 +130,9 @@ model Account {
   plaidItem            PlaidItem?             @relation(fields: [plaidItemId], references: [id], onDelete: SetNull)
   transactions         Transaction[]          @relation("AccountTransactions")
   transferTransactions Transaction[]          @relation("TransferAccount")
-  investments          Investment[] @relation("InvestmentAccount")
+  investments          Investment[]           @relation("InvestmentAccount")
   // Holdings bought and kept for this person (a PERSON account).
-  heldInvestments      Investment[] @relation("HeldFor")
+  heldInvestments      Investment[]           @relation("HeldFor")
   recurring            RecurringTransaction[] @relation("RecurringAccount")
   recurringTransfers   RecurringTransaction[] @relation("RecurringTransferAccount")
   transferRules        CategoryRule[]
@@ -293,7 +294,7 @@ model Investment {
 
   // Kept for someone else (a PERSON account): its value and its gains are
   // theirs, so it counts as their money you hold rather than your own.
-  heldForId    String?
+  heldForId String?
 
   household Household @relation(fields: [householdId], references: [id], onDelete: Cascade)
   account   Account?  @relation("InvestmentAccount", fields: [accountId], references: [id])
@@ -412,4 +413,42 @@ model CategoryRule {
 
   @@unique([householdId, type, match])
   @@index([householdId])
+}
+
+// A savings goal ("a car by Nowruz", "monthly investing"). Its progress is
+// either what is in the accounts and holdings it is linked to (LINKED — the
+// money sits somewhere of its own) or the sum of what was set aside for it by
+// hand (MANUAL — the money stays mixed with the rest, the goal only labels it).
+model Goal {
+  id            String    @id @default(cuid())
+  householdId   String
+  createdById   String?
+  name          String
+  targetAmount  Decimal
+  currency      String
+  targetDate    DateTime?
+  source        String    @default("MANUAL") // MANUAL | LINKED
+  accountIds    String[]  @default([])
+  investmentIds String[]  @default([])
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  household     Household          @relation(fields: [householdId], references: [id], onDelete: Cascade)
+  contributions GoalContribution[]
+
+  @@index([householdId])
+}
+
+// Money set aside for a MANUAL goal (negative: taken back out).
+model GoalContribution {
+  id        String   @id @default(cuid())
+  goalId    String
+  amount    Decimal
+  date      DateTime @default(now())
+  note      String?
+  createdAt DateTime @default(now())
+
+  goal Goal @relation(fields: [goalId], references: [id], onDelete: Cascade)
+
+  @@index([goalId])
 }

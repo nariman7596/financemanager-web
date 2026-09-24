@@ -10,7 +10,7 @@ the phase plan.
 
 ```
 apps/web            Next.js app (routes, server actions, React components)
-packages/core       THE DOMAIN — pure TS, no framework. 172 tests.
+packages/core       THE DOMAIN — pure TS, no framework. 182 tests.
 packages/i18n       locale config + en/fa dictionaries + createT. 9 tests.
 packages/config     shared tsconfig / tailwind preset / eslint
 ```
@@ -20,7 +20,7 @@ in the browser, in Hermes and in tests. No `next/*`, no `react-native`, no Node
 built-ins, no Prisma. `packages/config/eslint/package.js` enforces this and the
 rule is verified to fire; `pnpm lint` fails the build if you reach for one.
 Subpaths: `@financemanager/core/{access,budgets,calendar,constants,csv,currency,
-date-range,loans,market,money,reconcile,reports,sms,validation}`.
+date-range,goals,loans,market,money,reconcile,reports,sms,validation}`.
 
 Both packages ship **TypeScript source, not a build artifact** — `apps/web`
 compiles them via `transpilePackages` in `next.config.mjs`. Adding a new
@@ -483,6 +483,21 @@ enters/adjusts it monthly); savings rate, rent, other fixed costs and
 protected categories persist in `Household.budgetPlan` (JSON, additive
 migration). Applying replaces each planned category's budget (period change
 deletes the other period's row); a 0 row removes it.
+
+## Savings goals (`/goals`, `core/goals`, `lib/goals.ts`)
+The owner's stated aims (a big purchase, monthly investing) as `Goal` rows:
+target, currency, optional date, and how progress is counted — **MANUAL**
+(sum of `GoalContribution` rows set aside/taken out from the card; the money
+stays mixed with the rest) or **LINKED** (the balances of chosen accounts and
+values of own holdings; PERSON/LOAN accounts and holdings kept for others are
+refused). `goalProgress` gives share, remaining, months left, per-month need
+and a status (`behind` = money share trails the time share since creation by
+>5 points). `splitSavings` shares the planner's monthly savings (suggested
+income × saved savings rate) between goals: dated goals get remaining ÷ months
+left, nearest date first when short; undated ones split the rest evenly, never
+past what they lack; shortfall and spare are reported. Shown on /goals, live in
+the budget planner (follows the savings % as it changes), and as small bars in
+the dashboard's assets card. Additive migration `20260924140000_goals`.
 
 ## CSV import/export
 - Export: `GET /api/export/transactions` (session-authed) streams all the user's

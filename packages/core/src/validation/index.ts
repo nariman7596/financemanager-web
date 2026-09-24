@@ -113,3 +113,23 @@ export const recurringSchema = z
     message: "End date must be after the start date",
     path: ["endDate"],
   });
+
+export const GOAL_SOURCES = ["MANUAL", "LINKED"] as const;
+
+export const goalSchema = z.object({
+  name: z.string().trim().min(1, "Name is required").max(80),
+  targetAmount: positiveAmount,
+  currency,
+  // Optional: a goal without a date has no pace, only progress.
+  targetDate: z.preprocess((v) => (v === "" || v == null ? null : v), z.coerce.date().nullable()),
+  source: z.enum(GOAL_SOURCES),
+  accountIds: z.array(z.string()).default([]),
+  investmentIds: z.array(z.string()).default([]),
+});
+
+export const goalContributionSchema = z.object({
+  // Negative takes money back out of the goal.
+  amount: z.coerce.number().refine((n) => Number.isFinite(n) && n !== 0, "Amount can't be zero"),
+  date: z.coerce.date(),
+  note: z.string().trim().max(120).optional().or(z.literal("").transform(() => undefined)),
+});
