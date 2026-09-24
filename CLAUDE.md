@@ -10,7 +10,7 @@ the phase plan.
 
 ```
 apps/web            Next.js app (routes, server actions, React components)
-packages/core       THE DOMAIN — pure TS, no framework. 172 tests.
+packages/core       THE DOMAIN — pure TS, no framework. 182 tests.
 packages/i18n       locale config + en/fa dictionaries + createT. 9 tests.
 packages/config     shared tsconfig / tailwind preset / eslint
 ```
@@ -20,7 +20,7 @@ in the browser, in Hermes and in tests. No `next/*`, no `react-native`, no Node
 built-ins, no Prisma. `packages/config/eslint/package.js` enforces this and the
 rule is verified to fire; `pnpm lint` fails the build if you reach for one.
 Subpaths: `@financemanager/core/{access,budgets,calendar,constants,csv,currency,
-date-range,loans,market,money,reconcile,reports,sms,validation}`.
+date-range,goals,loans,market,money,reconcile,reports,sms,validation}`.
 
 Both packages ship **TypeScript source, not a build artifact** — `apps/web`
 compiles them via `transpilePackages` in `next.config.mjs`. Adding a new
@@ -112,6 +112,9 @@ above its `IP-CIDR,<ip>/32,DIRECT`) → VLESS Reality tunnel → sing-box on the
 whose first route rule overrides `<ip>:443` to `127.0.0.1:8443` (Caddy). Without
 that rule the request loops into sing-box's own :443, Reality rejects it as an
 invalid client and forwards it to its camouflage site (a Fastly cert error).
+**Away from home** the owner's V2Box app on the iPhone (VLESS to the same server)
+already reaches the app with no extra rule (confirmed 2026-09-24), since it
+tunnels the server's own IP and sing-box applies the same override.
 Reality's `handshake` is untouched; an HAProxy SNI router in front of it was
 tried, is unnecessary, and was removed. `HTTPS_BIND=127.0.0.1` keeps 8443 off
 the internet; port 80 stays open for certificate renewal. Details:
@@ -293,8 +296,13 @@ refresh**, **recurring auto-posting**, **CSV import/export**, **dark mode**,
 ## Bank SMS import (`docs/SMS.md`)
 iOS lets no app read SMS, so an **iOS Shortcuts "When I receive a message"
 automation** posts each bank SMS to `POST /api/ingest/sms` (`Authorization:
-Bearer fm_…`, a per-device `ApiToken`, SHA-256 stored only). The shortcut first
-appends to `fm-sms.txt` and posts the whole file, deleting it only on
+Bearer fm_…`, a per-device `ApiToken`, SHA-256 stored only). The shortcut
+(`deploy/ios/fin.shortcut`, signed on the Mac and AirDropped; it asks for the key on
+import) posts the message itself first and queues it in `fm-sms.txt` only if that
+fails: iOS keeps iCloud Drive files out of reach while the phone is locked, and
+the old append-first order silently lost every SMS that arrived while it was
+(two bills, a loan instalment and a deposit one morning). After a successful
+send it flushes the queue, posting the whole file and deleting it only on
 positive success (the response has `received`; an empty 502 from Caddy during
 an app restart once passed the old "no `error` key" check and lost two SMS, so
 Caddy's `handle_errors` now answers JSON too) *and* only if it is unchanged since it was read (Blu's OTP + debit
@@ -475,6 +483,21 @@ enters/adjusts it monthly); savings rate, rent, other fixed costs and
 protected categories persist in `Household.budgetPlan` (JSON, additive
 migration). Applying replaces each planned category's budget (period change
 deletes the other period's row); a 0 row removes it.
+
+## Savings goals (`/goals`, `core/goals`, `lib/goals.ts`)
+The owner's stated aims (a big purchase, monthly investing) as `Goal` rows:
+target, currency, optional date, and how progress is counted — **MANUAL**
+(sum of `GoalContribution` rows set aside/taken out from the card; the money
+stays mixed with the rest) or **LINKED** (the balances of chosen accounts and
+values of own holdings; PERSON/LOAN accounts and holdings kept for others are
+refused). `goalProgress` gives share, remaining, months left, per-month need
+and a status (`behind` = money share trails the time share since creation by
+>5 points). `splitSavings` shares the planner's monthly savings (suggested
+income × saved savings rate) between goals: dated goals get remaining ÷ months
+left, nearest date first when short; undated ones split the rest evenly, never
+past what they lack; shortfall and spare are reported. Shown on /goals, live in
+the budget planner (follows the savings % as it changes), and as small bars in
+the dashboard's assets card. Additive migration `20260924140000_goals`.
 
 ## CSV import/export
 - Export: `GET /api/export/transactions` (session-authed) streams all the user's

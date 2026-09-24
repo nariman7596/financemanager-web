@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { Check, Plus, RotateCcw, Shield } from "lucide-react";
 import { categoryKind, planBudgets, type PlanPeriod } from "@financemanager/core/budgets";
 import { formatMoney } from "@financemanager/core/money";
+import { splitSavings } from "@financemanager/core/goals";
 import { applyBudgetPlan } from "@/app/actions/budgets";
 import { createCategory } from "@/app/actions/categories";
 import { useT } from "@/lib/i18n/client";
@@ -27,6 +28,7 @@ export function BudgetPlanner({
   incomeSource,
   loanInstalments,
   saved,
+  goals = [],
 }: {
   currency: string;
   categories: Category[];
@@ -35,6 +37,8 @@ export function BudgetPlanner({
   incomeSource: "lastMonth" | "thisMonth" | "none";
   loanInstalments: number;
   saved: { savingsRate: number; rent: number; otherFixed: number | null; protectedIds: string[] } | null;
+  /** Unfinished goals: what each still needs (in `currency`) and its months left. */
+  goals?: { id: string; name: string; remaining: number; monthsLeft: number | null }[];
 }) {
   const t = useT();
   const router = useRouter();
@@ -73,6 +77,8 @@ export function BudgetPlanner({
     return { ...r, period, amount: e?.amount ?? proposed, edited: !!e };
   });
   const hasTravel = categories.some((c) => categoryKind(c.name) === "travel");
+  // What is set aside, shared between the goals — live, like the rest.
+  const goalSplit = goals.length > 0 ? splitSavings(plan.savings, goals) : null;
 
   // A travel category created from here was asked for as a priority: protect
   // it as soon as it arrives with the refreshed categories.
@@ -224,6 +230,28 @@ export function BudgetPlanner({
           {plan.shortfall > 0 && <p className="text-xs text-red-600">{t("planner.shortfall", { amount: money(plan.shortfall) })}</p>}
         </div>
       </section>
+
+      {goalSplit && (
+        <section className="card p-5">
+          <h2 className="font-semibold mb-3">
+            <Link href="/goals" className="hover:underline">{t("planner.goalsTitle")}</Link>
+          </h2>
+          <ul className="space-y-1 text-sm">
+            {goals.map((g) => (
+              <li key={g.id} className="flex justify-between gap-3">
+                <bdi>{g.name}</bdi>
+                <span className="tabular-nums">{money(Math.round(goalSplit.amounts[g.id] ?? 0))}</span>
+              </li>
+            ))}
+          </ul>
+          {goalSplit.shortfall > 0 && (
+            <p className="text-sm text-red-600 mt-3">{t("planner.goalsShort", { amount: money(Math.round(goalSplit.shortfall)) })}</p>
+          )}
+          {goalSplit.spare > 0 && (
+            <p className="text-sm text-emerald-600 mt-3">{t("planner.goalsSpare", { amount: money(Math.round(goalSplit.spare)) })}</p>
+          )}
+        </section>
+      )}
 
       <section className="card p-5">
         <div className="flex items-center justify-between gap-2 mb-1">
