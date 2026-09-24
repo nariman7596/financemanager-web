@@ -10,7 +10,7 @@ the phase plan.
 
 ```
 apps/web            Next.js app (routes, server actions, React components)
-packages/core       THE DOMAIN — pure TS, no framework. 182 tests.
+packages/core       THE DOMAIN — pure TS, no framework. 188 tests.
 packages/i18n       locale config + en/fa dictionaries + createT. 9 tests.
 packages/config     shared tsconfig / tailwind preset / eslint
 ```
@@ -20,7 +20,7 @@ in the browser, in Hermes and in tests. No `next/*`, no `react-native`, no Node
 built-ins, no Prisma. `packages/config/eslint/package.js` enforces this and the
 rule is verified to fire; `pnpm lint` fails the build if you reach for one.
 Subpaths: `@financemanager/core/{access,budgets,calendar,constants,csv,currency,
-date-range,goals,loans,market,money,reconcile,reports,sms,validation}`.
+date-range,goals,loans,market,money,networth,reconcile,reports,sms,validation}`.
 
 Both packages ship **TypeScript source, not a build artifact** — `apps/web`
 compiles them via `transpilePackages` in `next.config.mjs`. Adding a new
@@ -498,6 +498,19 @@ left, nearest date first when short; undated ones split the rest evenly, never
 past what they lack; shortfall and spare are reported. Shown on /goals, live in
 the budget planner (follows the savings % as it changes), and as small bars in
 the dashboard's assets card. Additive migration `20260924140000_goals`.
+
+## Net worth over time (dashboard, `core/networth`, `lib/networth.ts`)
+Cash is rebuilt exactly for any day: opening balances + income − expense up to
+that day (transfers, persons' and loans' included, net to zero). Holdings'
+past value cannot be rebuilt, so `NetWorthSnapshot` stores each day's
+holdings value and the day's USDT rate, written by `refreshAll` (hourly cron
+and the Refresh button; the day's last write stands). Before the first
+snapshot a holding counts at cost from its purchase date; afterwards at the
+snapshot value, carried over days without one. The dashboard chart has
+30/90/365/all ranges and a toman ↔ dollar switch (dollars only from the first
+recorded rate — never two scales on one axis). Axis ticks are bare numbers
+(compact only ≥ 1M) because "1.8B تومان" wrapped. Additive migration
+`20260924160000_net_worth_snapshots`.
 
 ## CSV import/export
 - Export: `GET /api/export/transactions` (session-authed) streams all the user's

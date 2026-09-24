@@ -3,6 +3,7 @@ import { prisma } from "./prisma";
 import { CURRENCY_CODES } from "@financemanager/core/constants";
 import { toNumber } from "@financemanager/core/money";
 import { refreshIranPrices, type IranRefreshSummary } from "./iranMarket";
+import { takeNetWorthSnapshots } from "./networth";
 
 // ---------------------------------------------------------------------------
 // Live market data: FX rates + investment prices.
@@ -212,6 +213,8 @@ export async function refreshAll(householdId?: string): Promise<RefreshSummary> 
       (e): IranRefreshSummary => ({ updated: 0, sources: [], error: e instanceof Error ? e.message : "failed" }),
     ),
   ]);
+  // Today's worth, on the prices just fetched (the chart's source for holdings).
+  await takeNetWorthSnapshots(householdId, now).catch(() => 0);
   return { fx, prices, iran, at: now.toISOString() };
 }
 
