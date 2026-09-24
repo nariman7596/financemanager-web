@@ -76,6 +76,9 @@ export function normalizeSms(text: string): string {
     else if (ch === "ك") out += "ک";
     else if (ch === "ي" || ch === "ى") out += "ی";
     else if (/[\u200e\u200f\u202a-\u202e\u2066-\u2069\ufeff]/.test(ch)) continue;
+    // A browser textarea submits line breaks as CRLF; the shortcut sends LF.
+    // Without this the same SMS pasted and delivered hashed differently.
+    else if (ch === "\r") continue;
     else out += ch;
   }
   return out

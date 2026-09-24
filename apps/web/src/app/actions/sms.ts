@@ -146,7 +146,8 @@ export async function pasteSms(
 ): Promise<{ summary?: BatchSummary; error?: string }> {
   const { ctx, error } = await checkHousehold("MEMBER");
   if (!ctx) return { error };
-  const text = String(formData.get("text") ?? "").trim().slice(0, 20_000);
+  // CRLF from the textarea → LF, so the stored body reads like a delivered one.
+  const text = String(formData.get("text") ?? "").replace(/\r\n?/g, "\n").trim().slice(0, 20_000);
   if (!text) return { error: (await getT())("sms.paste.empty") };
 
   const summary = await ingestSmsBatch(
