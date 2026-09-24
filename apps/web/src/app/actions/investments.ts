@@ -5,6 +5,7 @@ import { prisma } from "@/lib/prisma";
 import { checkHousehold } from "@/lib/household";
 import { investmentSchema } from "@financemanager/core/validation";
 import { toNumber } from "@financemanager/core/money";
+import { refreshIranPrices } from "@/lib/iranMarket";
 
 /**
  * The person a holding is kept for: empty means the household's own, else a
@@ -33,6 +34,16 @@ function parseInvestment(formData: FormData) {
   });
 }
 
+/**
+ * A coin priced in toman gets its price now, not at the next hourly refresh —
+ * until then it would read as worth nothing. A failure leaves it for the
+ * Refresh button or the cron.
+ */
+async function priceNow(data: { type: string; currency: string }, householdId: string) {
+  if (data.type !== "CRYPTO" || (data.currency !== "IRT" && data.currency !== "IRR")) return;
+  await refreshIranPrices(householdId).catch(() => undefined);
+}
+
 function revalidate() {
   revalidatePath("/investments");
   revalidatePath("/dashboard");
@@ -51,6 +62,7 @@ export async function createInvestment(formData: FormData) {
   await prisma.investment.create({
     data: { ...parsed.data, heldForId, householdId: ctx.householdId, createdById: ctx.userId },
   });
+  await priceNow(parsed.data, ctx.householdId);
   revalidate();
   return { ok: true };
 }
@@ -70,6 +82,7 @@ export async function updateInvestment(formData: FormData) {
     data: { ...parsed.data, heldForId },
   });
   if (res.count === 0) return { error: "Not found" };
+  await priceNow(parsed.data, ctx.householdId);
   revalidate();
   return { ok: true };
 }
