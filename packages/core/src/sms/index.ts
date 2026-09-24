@@ -161,6 +161,27 @@ export function tehranJalaliToday(now: Date): { year: number; month: number; day
   };
 }
 
+/**
+ * When a booked SMS should count as recorded. Dates carry no time, so rows of
+ * one day are ordered by when they were recorded — and the balance check
+ * reads the bank's balance at that point in the order. A message delivered
+ * late (pasted, or queued while away) would land after that day's later
+ * messages and be missing from the balance they report.
+ *
+ * So: the moment it arrived, unless that is past the end of the minute the
+ * bank printed — then the end of that minute. Live deliveries keep their true
+ * order; a late one slots in where the bank's clock puts it. Without a time,
+ * the arrival stands.
+ */
+export function smsRecordedAt(parsed: { date: Date; time: string | null }, receivedAt: Date): Date {
+  const m = parsed.time?.match(/^(\d{2}):(\d{2})$/);
+  if (!m) return receivedAt;
+  const TEHRAN_OFFSET = 3.5 * 60 * 60 * 1000;
+  const endOfMinute =
+    parsed.date.getTime() + (Number(m[1]) * 60 + Number(m[2]) + 1) * 60 * 1000 - 1 - TEHRAN_OFFSET;
+  return new Date(Math.min(receivedAt.getTime(), endOfMinute));
+}
+
 function parseDate(lines: string[], now: Date): { date: Date; time: string | null } | null {
   for (const line of lines) {
     // Year optional and of any width: Refah alone sends "07/01", "5/07/01"

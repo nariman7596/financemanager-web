@@ -7,6 +7,7 @@ import {
   normalizeSmsMatch,
   parseBankSms,
   rialTo,
+  smsRecordedAt,
   splitSmsBatch,
   SMS_BATCH_SEPARATOR,
 } from "./index";
@@ -256,5 +257,27 @@ describe("rialTo / splitSmsBatch", () => {
   it("splits a queued batch and drops empty entries", () => {
     const body = `${REFAH_PAYA}\n${SMS_BATCH_SEPARATOR}\n\n${SMS_BATCH_SEPARATOR}\nsecond\n${SMS_BATCH_SEPARATOR}\n`;
     expect(splitSmsBatch(body)).toEqual([REFAH_PAYA, "second"]);
+  });
+});
+
+describe("smsRecordedAt", () => {
+  // 2 Mehr 1405 = 24 Sep 2026; 07:47 Tehran = 04:17 UTC.
+  const parsed = { date: jalaliToUtcDate(1405, 7, 2)!, time: "07:47" };
+
+  it("keeps a live delivery's arrival", () => {
+    const arrived = new Date("2026-09-24T04:17:20Z");
+    expect(smsRecordedAt(parsed, arrived)).toEqual(arrived);
+  });
+
+  it("puts a late one at the end of the bank's minute, before later messages", () => {
+    const pasted = new Date("2026-09-24T09:00:00Z");
+    expect(smsRecordedAt(parsed, pasted)).toEqual(new Date("2026-09-24T04:17:59.999Z"));
+    // The 10:27 debit that arrived live sorts after it.
+    expect(smsRecordedAt(parsed, pasted) < new Date("2026-09-24T06:57:10Z")).toBe(true);
+  });
+
+  it("uses the arrival when the message had no time", () => {
+    const at = new Date("2026-09-24T09:00:00Z");
+    expect(smsRecordedAt({ ...parsed, time: null }, at)).toEqual(at);
   });
 });

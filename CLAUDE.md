@@ -333,6 +333,9 @@ flushes with the next SMS at home. Messages in a batch are split on a
   the automation never delivered — iOS does skip runs. Blank line separates
   several messages; re-pasting is a harmless duplicate. Blu's "…ریال بابت X از
   حساب شما پرید" gives X as the description (a loan instalment has no header).
+  A late SMS is recorded at the bank's printed minute (`smsRecordedAt` →
+  `createdAt`): a day's rows are ordered by `createdAt`, and a pasted morning
+  deposit otherwise sorted after that day's later SMS and showed as a gap.
 - `/review` page (nav badge + a pill in the mobile header): pick a category, or
   "transfer ↔ own account", which turns the row into a TRANSFER and deletes the
   other side's still-unreviewed SMS row (same amount, ±3 days) so own
