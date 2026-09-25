@@ -125,6 +125,14 @@ the key exchange (`kex_exchange_identification: Connection closed`), so the
 router has a second rule, `AND,((IP-CIDR,<ip>/32,no-resolve),(DST-PORT,22)),PROXY`,
 above the DIRECT one. If the VPN is down, SSH needs that rule removed
 (backup at `/root/smartconnect.yaml.bak2` on the router).
+**The router rules can vanish:** on 2026-09-25 the profile
+`/etc/nikki/profiles/smartconnect.yaml` was rewritten (Nikki left a
+`smartconnect.yaml.bak.<epoch>` beside it) and both `AND` rules were gone —
+the Mac on home Wi-Fi could not open the app while the iPhone on V2Box could.
+Symptom from the router: the socks5 curl in `docs/DEPLOY-PUBLIC.md` fails with
+an SSL EOF instead of 200. Fix: re-insert both rules above the DIRECT line
+(`grep -n 216.126.229.4 /etc/nikki/run/config.yaml` shows what is live) and
+`/etc/init.d/nikki restart`.
 
 Backups: `deploy/backup.sh` nightly via cron, `deploy/restore.sh` to restore
 (restore has been tested end to end). An **off-server copy** is pulled daily
