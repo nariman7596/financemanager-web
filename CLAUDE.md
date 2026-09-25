@@ -10,7 +10,7 @@ the phase plan.
 
 ```
 apps/web            Next.js app (routes, server actions, React components)
-packages/core       THE DOMAIN — pure TS, no framework. 207 tests.
+packages/core       THE DOMAIN — pure TS, no framework. 210 tests.
 packages/i18n       locale config + en/fa dictionaries + createT. 9 tests.
 packages/config     shared tsconfig / tailwind preset / eslint
 ```
@@ -461,8 +461,22 @@ save from tgju's `ajax.json` (rial per unit → toman; a key older than 14 days
 is not used — the file carries hundreds, some untouched since 2021). Checked
 from the production server 2026-09-26. Such holdings are kept in toman/rial.
 Quotes are stored as `MarketQuote` source `tgju` and shown in their own card
-on /investments. **Stocks:** TSETMC, old.tsetmc and fipiran do not answer from
-the German server; rahavard365.com does (200) — the next candidate.
+on /investments.
+
+**Stocks and funds on the Tehran exchange — broker import** (`core/market/
+broker.ts`, `lib/xlsx.ts`, `actions/broker.ts`): the owner's Mofid Easytrader
+"Portfolio export" .xlsx is uploaded on /investments and replaces the previous
+import — quantity, cost (quantity × "average purchase price in the last period
+with fees", the figure the broker's own gain is measured against) and closing
+price (rial → toman), one holding per symbol keyed `priceSource =
+"tse:<symbol>"`; a symbol no longer in the file is removed, hand-entered
+holdings are untouched, editing an imported one keeps its key. Columns are
+found by Persian header (Arabic ي/ك and ZWNJ normalised; the file writes every
+value as `<v xml:space="preserve">`, which a plain `<v>` regex missed). The
+.xlsx is unzipped with node:zlib — no spreadsheet dependency. "صندوق…" names
+become ETF. Prices between imports: TSETMC, old.tsetmc and fipiran do not
+answer from the German server; rahavard365's `/api/v2/search?keyword=` and
+`/api/v2/asset/<id>` do — the price field is still to be found.
 Additive migration `20260926090000_price_source`.
 
 ## Self-custody wallets (`Wallet`, `core/wallets`, `lib/wallets.ts`)

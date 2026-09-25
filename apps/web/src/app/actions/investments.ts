@@ -98,9 +98,13 @@ export async function updateInvestment(formData: FormData) {
   const priceSource = priceSourceFrom(formData, parsed.data.type, parsed.data.currency);
   if (priceSource === undefined) return { error: "Pick the item, priced in toman or rial" };
 
+  // A holding imported from the broker stays tied to its symbol, so the next
+  // import updates it instead of adding a second one.
+  const current = await prisma.investment.findFirst({ where: { id, householdId: ctx.householdId }, select: { priceSource: true } });
+  const keep = current?.priceSource?.startsWith("tse:") && priceSource === null ? current.priceSource : priceSource;
   const res = await prisma.investment.updateMany({
     where: { id, householdId: ctx.householdId },
-    data: { ...parsed.data, heldForId, priceSource },
+    data: { ...parsed.data, heldForId, priceSource: keep },
   });
   if (res.count === 0) return { error: "Not found" };
   await priceNow(parsed.data, ctx.householdId);

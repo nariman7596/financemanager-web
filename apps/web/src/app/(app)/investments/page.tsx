@@ -1,4 +1,4 @@
-import { Plus, Pencil, HandCoins, Wallet as WalletIcon, AlertTriangle } from "lucide-react";
+import { Plus, Pencil, HandCoins, Wallet as WalletIcon, AlertTriangle, FileSpreadsheet } from "lucide-react";
 import { requireHousehold } from "@/lib/household";
 import { getBaseCurrency, getInvestments } from "@/lib/queries";
 import { sumInCurrency } from "@/lib/currency";
@@ -18,6 +18,7 @@ import { SellInvestmentForm } from "@/components/forms/SellInvestmentForm";
 import { deleteInvestment } from "@/app/actions/investments";
 import { deleteWallet } from "@/app/actions/wallets";
 import { WalletForm } from "@/components/forms/WalletForm";
+import { BrokerImportForm } from "@/components/forms/BrokerImportForm";
 import { walletAddresses } from "@/lib/wallets";
 import { TGJU_ITEMS } from "@financemanager/core/market";
 import { getT, getLocale } from "@/lib/i18n/server";
@@ -89,6 +90,12 @@ export default async function InvestmentsPage() {
         action={
           <div className="flex items-center gap-3">
             <RefreshButton asOf={fxAsOf ? formatDate(fxAsOf, locale) : null} />
+            <Modal
+              title={t("broker.title")}
+              trigger={<button className="btn-ghost border border-[var(--border)]"><FileSpreadsheet size={18} /> {t("broker.button")}</button>}
+            >
+              <BrokerImportForm />
+            </Modal>
             <Modal
               title={t("inv.new")}
               trigger={<button className="btn-primary"><Plus size={18} /> {t("common.add")}</button>}
@@ -229,6 +236,9 @@ export default async function InvestmentsPage() {
                       {h.heldFor && (
                         <p className="badge mt-1 text-amber-700 dark:text-amber-300">{t("inv.heldBadge", { name: h.heldFor.name })}</p>
                       )}
+                      {h.priceSource?.startsWith("tse:") && (
+                        <p className="badge mt-1 text-emerald-700 dark:text-emerald-300">{t("broker.badge")}</p>
+                      )}
                       {h.wallet && (
                         <p className="badge mt-1 text-brand-700 dark:text-brand-300">{t("wallet.badge", { name: h.wallet.name })}</p>
                       )}
@@ -259,7 +269,7 @@ export default async function InvestmentsPage() {
                     )}
                     <td className="px-2 py-3 text-end whitespace-nowrap">
                       {/* A wallet's balance comes from its chain: selling there shows up on the next read. */}
-                      {!h.walletId && <Modal
+                      {!h.walletId && !h.priceSource?.startsWith("tse:") && <Modal
                         title={t("sell.title", { symbol: h.symbol })}
                         trigger={
                           <button className="btn-ghost p-1.5 text-slate-400 hover:text-[var(--text)]" aria-label={t("sell.title", { symbol: h.symbol })} title={t("sell.title", { symbol: h.symbol })}>
