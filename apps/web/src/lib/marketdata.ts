@@ -4,6 +4,7 @@ import { CURRENCY_CODES } from "@financemanager/core/constants";
 import { toNumber } from "@financemanager/core/money";
 import { refreshIranPrices, type IranRefreshSummary } from "./iranMarket";
 import { takeNetWorthSnapshots } from "./networth";
+import { syncWallets, type WalletSyncSummary } from "./wallets";
 
 // ---------------------------------------------------------------------------
 // Live market data: FX rates + investment prices.
@@ -30,6 +31,8 @@ export type RefreshSummary = {
   prices: { updated: number; skipped: number; error?: string };
   /** Toman prices from Iranian exchanges; absent where not run. */
   iran?: IranRefreshSummary;
+  /** Wallet balances read from their chains; absent where not run. */
+  wallets?: WalletSyncSummary;
   at: string;
 };
 
@@ -115,6 +118,11 @@ const CRYPTO_IDS: Record<string, string> = {
   BNB: "binancecoin",
   USDT: "tether",
   USDC: "usd-coin",
+  TRX: "tron",
+  TON: "the-open-network",
+  NEAR: "near",
+  DASH: "dash",
+  PAXG: "pax-gold",
 };
 
 /** Fetch crypto prices (in USD) keyed by CoinGecko id. Throws on failure. */
@@ -213,9 +221,13 @@ export async function refreshAll(householdId?: string): Promise<RefreshSummary> 
       (e): IranRefreshSummary => ({ updated: 0, sources: [], error: e instanceof Error ? e.message : "failed" }),
     ),
   ]);
+  // After the prices: a wallet holding is priced from the quotes just stored.
+  const wallets = await syncWallets(householdId).catch(
+    (e): WalletSyncSummary => ({ wallets: 0, holdings: 0, errors: [e instanceof Error ? e.message : "failed"] }),
+  );
   // Today's worth, on the prices just fetched (the chart's source for holdings).
   await takeNetWorthSnapshots(householdId, now).catch(() => 0);
-  return { fx, prices, iran, at: now.toISOString() };
+  return { fx, prices, iran, wallets, at: now.toISOString() };
 }
 
 /** Timestamp of the most recently updated FX rate, or null if none. */

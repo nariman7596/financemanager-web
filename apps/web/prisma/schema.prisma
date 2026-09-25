@@ -67,6 +67,7 @@ model Household {
   categoryRules     CategoryRule[]
   goals             Goal[]
   netWorthSnapshots NetWorthSnapshot[]
+  wallets           Wallet[]
 }
 
 // Links a user to a household with a role.
@@ -297,9 +298,40 @@ model Investment {
   // theirs, so it counts as their money you hold rather than your own.
   heldForId String?
 
+  // Read from a wallet's address on a chain (see lib/wallets.ts): quantity
+  // follows the chain; `walletAsset` is core/wallets' key ("arbitrum:USDC").
+  walletId    String?
+  walletAsset String?
+
   household Household @relation(fields: [householdId], references: [id], onDelete: Cascade)
   account   Account?  @relation("InvestmentAccount", fields: [accountId], references: [id])
   heldFor   Account?  @relation("HeldFor", fields: [heldForId], references: [id], onDelete: SetNull)
+  wallet    Wallet?   @relation(fields: [walletId], references: [id], onDelete: Cascade)
+
+  @@unique([walletId, walletAsset])
+  @@index([householdId])
+}
+
+// A self-custody wallet followed read-only: public addresses only — never a
+// key, seed phrase or access code. Its balances become Investment rows.
+model Wallet {
+  id          String    @id @default(cuid())
+  householdId String
+  createdById String?
+  name        String
+  // Address kind (core/wallets ADDRESS_KINDS) -> public address.
+  addresses   Json
+  syncedAt    DateTime?
+  // Chain -> error, for the chains the last sync could not read.
+  errors      Json?
+  // Staking pools found in the address's history ({ ton: ["0:<hex>"] }),
+  // kept so a deposit that scrolls out of the recent history still counts.
+  stakePools  Json?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  household Household    @relation(fields: [householdId], references: [id], onDelete: Cascade)
+  holdings  Investment[]
 
   @@index([householdId])
 }

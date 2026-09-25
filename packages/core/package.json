@@ -19,7 +19,8 @@
     "./reconcile": "./src/reconcile/index.ts",
     "./reports": "./src/reports/index.ts",
     "./sms": "./src/sms/index.ts",
-    "./validation": "./src/validation/index.ts"
+    "./validation": "./src/validation/index.ts",
+    "./wallets": "./src/wallets/index.ts"
   },
   "scripts": {
     "typecheck": "tsc --noEmit",
