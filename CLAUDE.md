@@ -10,7 +10,7 @@ the phase plan.
 
 ```
 apps/web            Next.js app (routes, server actions, React components)
-packages/core       THE DOMAIN — pure TS, no framework. 203 tests.
+packages/core       THE DOMAIN — pure TS, no framework. 204 tests.
 packages/i18n       locale config + en/fa dictionaries + createT. 9 tests.
 packages/config     shared tsconfig / tailwind preset / eslint
 ```
@@ -458,7 +458,15 @@ moves USDC/USDT off the address into a per-owner module contract that holds
 Aave aTokens (the owner's 117 USDC showed as zero on the address): the
 factory's `yieldModules(owner)` view (`TANGEM_YIELD_FACTORY`, selector
 `0x36571e2c`) gives the module, whose aToken balance is read as a separate
-`…yield` holding. Each balance becomes an
+`…yield` holding. **TON staking** likewise leaves only change on the address
+(10.34 Gram read as 0.12): a TON Whales pool keeps the stake. Pools are found
+in the address's tonapi history (a transfer out commented "Deposit", kept only
+if the contract answers `get_member`), remembered in `Wallet.stakePools` so an
+old deposit still counts, and asked hourly for the member's stake (+ pending
+deposit + withdrawal ready) as `ton:TON.staked`. tonapi keyless = 1 req/s, so
+its calls are spaced. The owner's address also carries a blacklisted "FROZEN
+GRAM" scam jetton (phishing for frozengram.xyz); jettons are not read. Each
+balance becomes an
 `Investment` with `walletId` + `walletAsset` (unique): quantity follows the
 chain, cost basis per `walletCostBasis` (new = today's value, arrivals at
 today's price, departures cut it in proportion), dust under a cent skipped,

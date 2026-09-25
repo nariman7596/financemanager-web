@@ -11,6 +11,7 @@ CREATE TABLE "Wallet" (
     "addresses" JSONB NOT NULL,
     "syncedAt" TIMESTAMP(3),
     "errors" JSONB,
+    "stakePools" JSONB,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,
 

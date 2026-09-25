@@ -7,6 +7,9 @@ import {
   parseBlockcypher,
   parseEvm,
   parseEvmAddress,
+  parseWhalesMember,
+  tonRawAddress,
+  tonStakeDeposits,
   callWithAddress,
   YIELD_MODULES_SELECTOR,
   parseNear,
@@ -105,6 +108,36 @@ describe("parsers", () => {
   it("TON, and a rejected address", () => {
     expect(parseToncenter({ ok: true, result: "10340389690" })).toBeCloseTo(10.34038969, 8);
     expect(parseToncenter({ ok: false, error: "failed to parse get request", code: 422 })).toBeNull();
+  });
+
+  it("TON Whales staking: the deposit is found in the history and the pool asked", () => {
+    const me = tonRawAddress("EQCD39VS5jcptHL8vMjEXrzGaRcCVYto7HUn4bpAOg8xqB2N")!;
+    expect(me).toMatch(/^0:[0-9a-f]{64}$/);
+    const pool = "0:" + "4d".repeat(32);
+    const events = {
+      events: [
+        {
+          actions: [
+            { type: "TonTransfer", TonTransfer: { sender: { address: me }, recipient: { address: pool }, amount: 10281192259, comment: "Deposit" } },
+            { type: "TonTransfer", TonTransfer: { sender: { address: pool }, recipient: { address: me }, amount: 99910666, comment: "Stake 10.81192259 accepted" } },
+          ],
+        },
+        { actions: [{ type: "JettonMint", JettonMint: { amount: "239000000000" } }] },
+        { actions: [{ type: "TonTransfer", TonTransfer: { sender: { address: me }, recipient: { address: "0:" + "64".repeat(32) }, amount: 2786230730 } }] },
+        { actions: [{ type: "TonTransfer", TonTransfer: { sender: { address: "0:" + "1b".repeat(32) }, recipient: { address: me }, comment: "Deposit" } }] },
+      ],
+    };
+    expect(tonStakeDeposits(events, me)).toEqual([pool]);
+    // As the production server read the owner's stake.
+    const member = {
+      success: true,
+      exit_code: 0,
+      stack: [{ type: "num", num: "0x2616fe0d9" }],
+      decoded: { member_balance: 10224656601, member_pending_deposit: 0, member_pending_withdraw: 0, member_withdraw: 0 },
+    };
+    expect(parseWhalesMember(member)).toBe(10.224656601);
+    expect(parseWhalesMember({ ...member, decoded: { ...member.decoded, member_pending_deposit: 1e9, member_withdraw: 5e8 } })).toBe(11.724656601);
+    expect(parseWhalesMember({ success: false, exit_code: 11 })).toBeNull();
   });
 
   it("Solana", () => {

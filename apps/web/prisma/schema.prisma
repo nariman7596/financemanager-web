@@ -324,6 +324,9 @@ model Wallet {
   syncedAt    DateTime?
   // Chain -> error, for the chains the last sync could not read.
   errors      Json?
+  // Staking pools found in the address's history ({ ton: ["0:<hex>"] }),
+  // kept so a deposit that scrolls out of the recent history still counts.
+  stakePools  Json?
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
 

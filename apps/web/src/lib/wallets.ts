@@ -21,6 +21,9 @@ import {
   parseNear,
   parseSolana,
   parseToncenter,
+  parseWhalesMember,
+  tonRawAddress,
+  tonStakeDeposits,
   parseTron,
   parseXrp,
   walletCostBasis,
@@ -41,6 +44,7 @@ const URLS = {
   arbitrum: [env("WALLET_ARBITRUM_RPC", "https://arbitrum-one-rpc.publicnode.com")],
   tron: [env("WALLET_TRON_API", "https://api.trongrid.io")],
   ton: [env("WALLET_TON_API", "https://toncenter.com/api/v2")],
+  tonapi: [env("WALLET_TONAPI", "https://tonapi.io")],
   solana: [env("WALLET_SOLANA_RPC", "https://api.mainnet-beta.solana.com")],
   near: [env("WALLET_NEAR_RPC", "https://rpc.mainnet.near.org"), "https://free.rpc.fastnear.com"],
   xrp: [env("WALLET_XRP_RPC", "https://xrplcluster.com"), "https://s1.ripple.com:51234"],
@@ -83,7 +87,13 @@ const rpc = (method: string, params: unknown) => ({ jsonrpc: "2.0", id: 1, metho
 const BALANCE_OF = "0x70a08231";
 
 /** Every asset's balance on one chain at one address, by asset key. Throws when the chain cannot be read. */
-async function readChain(chain: Chain, address: string): Promise<Map<string, number>> {
+/** What a wallet remembers between reads: the staking pools found so far. */
+type ChainMemory = { tonPools: Set<string> };
+
+// tonapi without a key allows one request a second.
+const tonapiPause = () => new Promise((r) => setTimeout(r, 1100));
+
+async function readChain(chain: Chain, address: string, memory: ChainMemory): Promise<Map<string, number>> {
   const out = new Map<string, number>();
   const assets = assetsOn(chain);
   switch (chain) {
@@ -118,9 +128,34 @@ async function readChain(chain: Chain, address: string): Promise<Map<string, num
       }
       break;
     }
-    case "ton":
+    case "ton": {
       out.set("ton:TON", await firstOf(URLS.ton, async (u) => parseToncenter(await getJson(`${u}/getAddressBalance?address=${encodeURIComponent(address)}`))));
+      const me = tonRawAddress(address);
+      if (!me) break;
+      const member = (pool: string) =>
+        firstOf(URLS.tonapi, async (u) => {
+          await tonapiPause();
+          return parseWhalesMember(await getJson(`${u}/v2/blockchain/accounts/${pool}/methods/get_member?args=${me}`));
+        });
+      // Pools already known must answer, or the chain counts as unread and
+      // its holdings stay as they were; a new candidate that is not a pool
+      // (or a failed history read) just teaches nothing.
+      let staked = 0;
+      for (const pool of memory.tonPools) staked += await member(pool);
+      const history = await (async () => {
+        await tonapiPause();
+        return getJson(`${URLS.tonapi[0]}/v2/accounts/${me}/events?limit=50`);
+      })().catch(() => null);
+      for (const pool of tonStakeDeposits(history, me)) {
+        if (memory.tonPools.has(pool)) continue;
+        const v = await member(pool).catch(() => null);
+        if (v === null) continue;
+        memory.tonPools.add(pool);
+        staked += v;
+      }
+      out.set("ton:TON.staked", staked);
       break;
+    }
     case "solana":
       out.set("solana:SOL", await firstOf(URLS.solana, async (u) => parseSolana(await getJson(u, rpc("getBalance", [address])))));
       break;
@@ -162,6 +197,11 @@ export function walletAddresses(json: unknown): Partial<Record<AddressKind, stri
   return out;
 }
 
+function stakePoolsOf(json: unknown): { ton: string[] } {
+  const ton = json && typeof json === "object" ? (json as Record<string, unknown>).ton : undefined;
+  return { ton: Array.isArray(ton) ? ton.filter((x): x is string => typeof x === "string") : [] };
+}
+
 export type WalletSyncSummary = { wallets: number; holdings: number; errors: string[] };
 
 /**
@@ -193,17 +233,22 @@ export async function syncWallets(householdId?: string, walletId?: string): Prom
       const addrs = walletAddresses(w.addresses);
       const found = new Map<string, number>();
       const errors: Record<string, string> = {};
+      const known = stakePoolsOf(w.stakePools);
+      const memory: ChainMemory = { tonPools: new Set(known.ton) };
       for (const chain of CHAINS) {
         const address = addrs[addressKindOf(chain)];
         if (!address) continue;
         try {
-          for (const [k, v] of await readChain(chain, address)) found.set(k, v);
+          for (const [k, v] of await readChain(chain, address, memory)) found.set(k, v);
         } catch (e) {
           errors[chain] = e instanceof Error ? e.message : "failed";
         }
       }
       balances.set(w.id, found);
       failed.set(w.id, errors);
+      if (memory.tonPools.size !== known.ton.length) {
+        await prisma.wallet.update({ where: { id: w.id }, data: { stakePools: { ton: [...memory.tonPools] } } });
+      }
     }),
   );
 

@@ -93,6 +93,7 @@ export const WALLET_ASSETS: WalletAsset[] = [
   { key: "tron:TRX", chain: "tron", symbol: "TRX", name: "Tron", coingecko: "tron", decimals: 6 },
   { key: "tron:USDT", chain: "tron", symbol: "USDT", name: "Tether · Tron", coingecko: "tether", decimals: 6, contract: "TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t" },
   { key: "ton:TON", chain: "ton", symbol: "TON", name: "Gram (Toncoin)", coingecko: "the-open-network", decimals: 9 },
+  { key: "ton:TON.staked", chain: "ton", symbol: "TON", name: "Gram staked (TON Whales)", coingecko: "the-open-network", decimals: 9 },
   { key: "solana:SOL", chain: "solana", symbol: "SOL", name: "Solana", coingecko: "solana", decimals: 9 },
   { key: "near:NEAR", chain: "near", symbol: "NEAR", name: "NEAR Protocol", coingecko: "near", decimals: 24 },
   { key: "xrp:XRP", chain: "xrp", symbol: "XRP", name: "XRP", coingecko: "ripple", decimals: 6 },
@@ -169,6 +170,21 @@ function isTonAddress(a: string): boolean {
   const bytes = base64Bytes(a);
   if (!bytes || bytes.length !== 36) return false;
   return crc16(bytes.subarray(0, 34)) === ((bytes[34] << 8) | bytes[35]);
+}
+
+/**
+ * A TON address in raw form (`0:<hex>`), as tonapi reports senders and
+ * recipients. Null when it is not a valid address.
+ */
+export function tonRawAddress(a: string): string | null {
+  const t = a.trim();
+  if (/^-?\d+:[0-9a-fA-F]{64}$/.test(t)) return t.toLowerCase();
+  if (!isTonAddress(t)) return null;
+  const b = base64Bytes(t)!;
+  const wc = b[1] === 0xff ? -1 : b[1];
+  let hex = "";
+  for (const x of b.subarray(2, 34)) hex += x.toString(16).padStart(2, "0");
+  return `${wc}:${hex}`;
 }
 
 function base64Bytes(s: string): Uint8Array | null {
@@ -264,6 +280,58 @@ export function parseToncenter(json: unknown): number | null {
   if (get(json, "ok") !== true) return null;
   const r = get(json, "result");
   return typeof r === "string" || typeof r === "number" ? fromUnits(String(r), 9) : null;
+}
+
+/**
+ * Staking on TON: a TON Whales pool keeps each member's stake in its own
+ * contract, so the address alone shows only what is left over (the owner's
+ * 10.34 Gram read as 0.12). The pool is found from the address's history —
+ * a transfer out with the comment "Deposit" (Whales' convention; the pool
+ * answers "Stake … accepted") — and remembered on the wallet; each pool is
+ * then asked for the member's stake.
+ *
+ * tonapi `GET /v2/accounts/<addr>/events`: candidate pools in raw form.
+ */
+export function tonStakeDeposits(json: unknown, ownerRaw: string): string[] {
+  const events = get(json, "events");
+  if (!Array.isArray(events)) return [];
+  const out = new Set<string>();
+  for (const e of events) {
+    const actions = get(e, "actions");
+    if (!Array.isArray(actions)) continue;
+    for (const a of actions) {
+      if (get(a, "type") !== "TonTransfer") continue;
+      const t = get(a, "TonTransfer");
+      const from = get(t, "sender", "address");
+      const to = get(t, "recipient", "address");
+      const comment = get(t, "comment");
+      if (from === ownerRaw && typeof to === "string" && typeof comment === "string" && /^deposit$/i.test(comment.trim())) {
+        out.add(to.toLowerCase());
+      }
+    }
+  }
+  return [...out];
+}
+
+/**
+ * tonapi `GET /v2/blockchain/accounts/<pool>/methods/get_member?args=<owner>`
+ * on a TON Whales pool: `{ success, decoded: { member_balance,
+ * member_pending_deposit, member_pending_withdraw, member_withdraw } }` in
+ * nanotons. What is the member's = the stake, plus a deposit not yet taken
+ * in, plus a withdrawal ready to collect (a pending withdrawal is still part
+ * of the balance). Null when the contract is not such a pool.
+ */
+export function parseWhalesMember(json: unknown): number | null {
+  if (get(json, "success") !== true) return null;
+  const d = get(json, "decoded");
+  const n = (k: string) => {
+    const v = get(d, k);
+    return typeof v === "number" && Number.isFinite(v) && v >= 0 ? v : null;
+  };
+  const balance = n("member_balance");
+  if (balance === null) return null;
+  const total = balance + (n("member_pending_deposit") ?? 0) + (n("member_withdraw") ?? 0);
+  return fromUnits(Math.round(total), 9);
 }
 
 /** Solana RPC `getBalance`: `{ result: { value: <lamports> } }`. */
