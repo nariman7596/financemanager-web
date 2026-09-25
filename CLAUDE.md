@@ -10,7 +10,7 @@ the phase plan.
 
 ```
 apps/web            Next.js app (routes, server actions, React components)
-packages/core       THE DOMAIN — pure TS, no framework. 202 tests.
+packages/core       THE DOMAIN — pure TS, no framework. 203 tests.
 packages/i18n       locale config + en/fa dictionaries + createT. 9 tests.
 packages/config     shared tsconfig / tailwind preset / eslint
 ```
@@ -453,7 +453,12 @@ TronGrid, Toncenter, Solana RPC, NEAR RPC → FastNEAR, xrplcluster → s1.rippl
 BlockCypher for BTC/LTC/DASH — all checked from the production server
 2026-09-25, URLs env-overridable as `WALLET_*`), for the coin plus known
 tokens (`WALLET_ASSETS`: USDT/USDC/PAXG on Ethereum; USDC native, USDC.e,
-Aave aUSDC and USDT on Arbitrum; USDT on Tron). Each balance becomes an
+Aave aUSDC and USDT on Arbitrum; USDT on Tron). **Tangem's yield mode**
+moves USDC/USDT off the address into a per-owner module contract that holds
+Aave aTokens (the owner's 117 USDC showed as zero on the address): the
+factory's `yieldModules(owner)` view (`TANGEM_YIELD_FACTORY`, selector
+`0x36571e2c`) gives the module, whose aToken balance is read as a separate
+`…yield` holding. Each balance becomes an
 `Investment` with `walletId` + `walletAsset` (unique): quantity follows the
 chain, cost basis per `walletCostBasis` (new = today's value, arrivals at
 today's price, departures cut it in proportion), dust under a cent skipped,

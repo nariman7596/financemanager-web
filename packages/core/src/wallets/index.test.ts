@@ -6,6 +6,9 @@ import {
   isValidAddress,
   parseBlockcypher,
   parseEvm,
+  parseEvmAddress,
+  callWithAddress,
+  YIELD_MODULES_SELECTOR,
   parseNear,
   parseSolana,
   parseToncenter,
@@ -63,6 +66,20 @@ describe("parsers", () => {
   it("EVM balance and token balance", () => {
     expect(parseEvm({ jsonrpc: "2.0", id: 1, result: "0x0" }, 18)).toBe(0);
     expect(parseEvm({ jsonrpc: "2.0", id: 1, error: { code: -32000, message: "x" } }, 18)).toBeNull();
+  });
+
+  it("EVM address result: Tangem's yield module, none, or no factory", () => {
+    expect(parseEvmAddress({ result: "0x000000000000000000000000cd36f74767ad00229b985fd3d1616cdb7e08287c" })).toBe(
+      "0xcd36f74767ad00229b985fd3d1616cdb7e08287c",
+    );
+    expect(parseEvmAddress({ result: "0x" + "0".repeat(64) })).toBeNull();
+    expect(parseEvmAddress({ result: "0x" })).toBeNull();
+    expect(parseEvmAddress({ error: { code: -32000 } })).toBeUndefined();
+    expect(callWithAddress(YIELD_MODULES_SELECTOR, "0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045")).toBe(
+      "0x36571e2c000000000000000000000000d8da6bf26964af9d7eed9e03e53415d37aa96045",
+    );
+    // The module's aUSDC balance as the server read it.
+    expect(parseEvm({ jsonrpc: "2.0", id: 1, result: "0x0000000000000000000000000000000000000000000000000000000006ffe6b6" }, 6)).toBeCloseTo(117.43, 1);
   });
 
   it("Tron: coin, TRC20 token, and an account not yet used", () => {

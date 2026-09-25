@@ -49,7 +49,24 @@ export interface WalletAsset {
   decimals: number;
   /** Token contract (EVM, Tron); absent for the chain's own coin. */
   contract?: string;
+  /**
+   * Read at the wallet's Tangem yield module instead of the address itself:
+   * Tangem's "yield mode" moves the token into a contract deployed for the
+   * owner, which supplies it to Aave and holds the aToken (see
+   * `TANGEM_YIELD_FACTORY`). The address alone then shows none of it.
+   */
+  holder?: "tangemYield";
 }
+
+/**
+ * Tangem's yield-module factory. Its `yieldModules(owner)` view gives the
+ * module an address deployed (zero if none). Found from the owner's own
+ * `deployYieldModule` transaction on Arbitrum; asked on Ethereum too, where a
+ * factory that is not there answers "0x" and so reads as no module.
+ */
+export const TANGEM_YIELD_FACTORY = "0xb49CF4ba3c821560b5A4E6474D28f547368346CF";
+/** `yieldModules(address)` selector. */
+export const YIELD_MODULES_SELECTOR = "0x36571e2c";
 
 /**
  * What is looked for at each address: the chain's own coin plus the tokens
@@ -69,6 +86,10 @@ export const WALLET_ASSETS: WalletAsset[] = [
   { key: "arbitrum:USDC.e", chain: "arbitrum", symbol: "USDC", name: "USDC.e · Arbitrum", coingecko: "usd-coin", decimals: 6, contract: "0xFF970A61A04b1cA14834A43f5dE4533eBDDB5CC8" },
   { key: "arbitrum:aUSDC", chain: "arbitrum", symbol: "USDC", name: "USDC in Aave · Arbitrum", coingecko: "usd-coin", decimals: 6, contract: "0x724dc807b04555b71ed48a6896b6F41593b8C637" },
   { key: "arbitrum:USDT", chain: "arbitrum", symbol: "USDT", name: "Tether · Arbitrum", coingecko: "tether", decimals: 6, contract: "0xFd086bC7CD5C481DCC9C85ebE478A1C0b69FCbb9" },
+  { key: "arbitrum:USDC.yield", chain: "arbitrum", symbol: "USDC", name: "USDC · Tangem yield (Aave) · Arbitrum", coingecko: "usd-coin", decimals: 6, contract: "0x724dc807b04555b71ed48a6896b6F41593b8C637", holder: "tangemYield" },
+  { key: "arbitrum:USDT.yield", chain: "arbitrum", symbol: "USDT", name: "Tether · Tangem yield (Aave) · Arbitrum", coingecko: "tether", decimals: 6, contract: "0x6ab707Aca953eDAeFBc4fD23bA73294241490620", holder: "tangemYield" },
+  { key: "ethereum:USDC.yield", chain: "ethereum", symbol: "USDC", name: "USDC · Tangem yield (Aave) · Ethereum", coingecko: "usd-coin", decimals: 6, contract: "0x98C23E9d8f34FEFb1B7BD6a91B7FF122F4e16F5c", holder: "tangemYield" },
+  { key: "ethereum:USDT.yield", chain: "ethereum", symbol: "USDT", name: "Tether · Tangem yield (Aave) · Ethereum", coingecko: "tether", decimals: 6, contract: "0x23878914EFE38d27C4D67Ab83ed1b93A74D4086a", holder: "tangemYield" },
   { key: "tron:TRX", chain: "tron", symbol: "TRX", name: "Tron", coingecko: "tron", decimals: 6 },
   { key: "tron:USDT", chain: "tron", symbol: "USDT", name: "Tether · Tron", coingecko: "tether", decimals: 6, contract: "TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t" },
   { key: "ton:TON", chain: "ton", symbol: "TON", name: "Gram (Toncoin)", coingecko: "the-open-network", decimals: 9 },
@@ -187,6 +208,24 @@ function get(obj: unknown, ...path: (string | number)[]): unknown {
     cur = (cur as Record<string | number, unknown>)[k];
   }
   return cur;
+}
+
+/** ABI data for a call taking one address argument. */
+export function callWithAddress(selector: string, address: string): string {
+  return selector + address.slice(2).toLowerCase().padStart(64, "0");
+}
+
+/**
+ * An `eth_call` that returns an address (`yieldModules`): the address, or
+ * null for the zero address or an empty "0x" (no contract there). Undefined
+ * when the response is not one.
+ */
+export function parseEvmAddress(json: unknown): string | null | undefined {
+  const r = get(json, "result");
+  if (typeof r !== "string" || !/^0x[0-9a-fA-F]*$/.test(r)) return undefined;
+  if (r.length < 42) return null;
+  const a = "0x" + r.slice(-40);
+  return /^0x0{40}$/.test(a) ? null : a;
 }
 
 /** EVM JSON-RPC `eth_getBalance` / `eth_call balanceOf`: `{ result: "0x…" }`. */

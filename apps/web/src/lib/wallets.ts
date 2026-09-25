@@ -14,6 +14,10 @@ import {
   assetByKey,
   parseBlockcypher,
   parseEvm,
+  parseEvmAddress,
+  callWithAddress,
+  TANGEM_YIELD_FACTORY,
+  YIELD_MODULES_SELECTOR,
   parseNear,
   parseSolana,
   parseToncenter,
@@ -75,6 +79,8 @@ async function firstOf<T>(urls: string[], ask: (url: string) => Promise<T | null
 }
 
 const rpc = (method: string, params: unknown) => ({ jsonrpc: "2.0", id: 1, method, params });
+/** ERC-20 `balanceOf(address)`. */
+const BALANCE_OF = "0x70a08231";
 
 /** Every asset's balance on one chain at one address, by asset key. Throws when the chain cannot be read. */
 async function readChain(chain: Chain, address: string): Promise<Map<string, number>> {
@@ -83,10 +89,22 @@ async function readChain(chain: Chain, address: string): Promise<Map<string, num
   switch (chain) {
     case "ethereum":
     case "arbitrum": {
+      const call = (to: string, data: string) => rpc("eth_call", [{ to, data }, "latest"]);
+      // Tokens in Tangem's yield mode sit at the owner's yield module, if one was deployed.
+      let yieldModule: string | null = null;
+      if (assets.some((a) => a.holder === "tangemYield")) {
+        yieldModule = await firstOf(URLS[chain], async (u) => {
+          const r = parseEvmAddress(await getJson(u, call(TANGEM_YIELD_FACTORY, callWithAddress(YIELD_MODULES_SELECTOR, address))));
+          return r === undefined ? null : { found: r };
+        }).then((r) => r.found);
+      }
       for (const a of assets) {
-        const body = a.contract
-          ? rpc("eth_call", [{ to: a.contract, data: "0x70a08231" + address.slice(2).toLowerCase().padStart(64, "0") }, "latest"])
-          : rpc("eth_getBalance", [address, "latest"]);
+        const holder = a.holder === "tangemYield" ? yieldModule : address;
+        if (!holder) {
+          out.set(a.key, 0);
+          continue;
+        }
+        const body = a.contract ? call(a.contract, callWithAddress(BALANCE_OF, holder)) : rpc("eth_getBalance", [holder, "latest"]);
         out.set(a.key, await firstOf(URLS[chain], async (u) => parseEvm(await getJson(u, body), a.decimals)));
       }
       break;
