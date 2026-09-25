@@ -10,7 +10,7 @@ the phase plan.
 
 ```
 apps/web            Next.js app (routes, server actions, React components)
-packages/core       THE DOMAIN — pure TS, no framework. 210 tests.
+packages/core       THE DOMAIN — pure TS, no framework. 212 tests.
 packages/i18n       locale config + en/fa dictionaries + createT. 9 tests.
 packages/config     shared tsconfig / tailwind preset / eslint
 ```
@@ -475,8 +475,13 @@ found by Persian header (Arabic ي/ك and ZWNJ normalised; the file writes every
 value as `<v xml:space="preserve">`, which a plain `<v>` regex missed). The
 .xlsx is unzipped with node:zlib — no spreadsheet dependency. "صندوق…" names
 become ETF. Prices between imports: TSETMC, old.tsetmc and fipiran do not
-answer from the German server; rahavard365's `/api/v2/search?keyword=` and
-`/api/v2/asset/<id>` do — the price field is still to be found.
+answer from the German server; rahavard365's API does (`lib/rahavard.ts`,
+hourly in `refreshAll`): `/api/v2/search?keyword=<symbol>` → the entry whose
+`trade_symbol` is exactly it (ids cached per process), then
+`/api/v2/asset/<id>` → `last_trade.close_price` — the closing (پایانی) price
+the broker values at (checked: فارس 12,140 and زرفام 171,159 rial, as in the
+export); `real_close_price` is the last trade. Calls are spaced 400 ms; a
+symbol that fails keeps its price.
 Additive migration `20260926090000_price_source`.
 
 ## Self-custody wallets (`Wallet`, `core/wallets`, `lib/wallets.ts`)

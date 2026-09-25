@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { parseBrokerPortfolio, parseSharedStrings, parseSheetXml } from "./broker";
+import { parseBrokerPortfolio, parseRahavardAsset, parseRahavardSearch, parseSharedStrings, parseSheetXml } from "./broker";
 
 // The shape of Mofid Easytrader's "Portfolio export": string cells (t="str"),
 // a header with a stray leading space, forty-odd columns. Figures invented.
@@ -38,5 +38,32 @@ describe("broker portfolio export", () => {
       shared,
     );
     expect(rows).toEqual([["نام نماد", "", "x", "42"]]);
+  });
+});
+
+describe("rahavard365", () => {
+  it("finds exactly the symbol, not a longer one", () => {
+    // As the production server read a search (2026-09-26), cut down.
+    const json = {
+      data: [
+        { type: "سهام", entity_id: "453", entity_type: "exchange.asset", trade_symbol: "فولاد", name: "فولاد مبارکه اصفهان" },
+        { type: "حق تقدم", entity_id: "1045", entity_type: "exchange.asset", trade_symbol: "فولادح" },
+      ],
+    };
+    expect(parseRahavardSearch(json, "فولاد")).toBe("453");
+    expect(parseRahavardSearch(json, "فولادح")).toBe("1045");
+    expect(parseRahavardSearch(json, "فارس")).toBeNull();
+    expect(parseRahavardSearch({ errors: [] }, "فولاد")).toBeNull();
+  });
+
+  it("reads the closing price, the one the broker values at", () => {
+    const json = {
+      data: {
+        last_trade: { end_date_time: "2026-09-23T12:29:59+03:30", close_price: 12140, real_close_price: 12100, open_price: 12600 },
+      },
+    };
+    expect(parseRahavardAsset(json)).toEqual({ rial: 12140, asOf: new Date("2026-09-23T08:59:59Z") });
+    expect(parseRahavardAsset({ data: { last_trade: { close_price: 0, real_close_price: 900 } } })?.rial).toBe(900);
+    expect(parseRahavardAsset({ errors: [{ code: "invalid_params" }] })).toBeNull();
   });
 });

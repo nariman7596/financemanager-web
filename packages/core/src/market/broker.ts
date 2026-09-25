@@ -119,3 +119,41 @@ export function parseBrokerPortfolio(rows: string[][]): BrokerHolding[] | null {
   }
   return out;
 }
+
+// --- Prices between imports (rahavard365) -----------------------------------
+
+/**
+ * The Tehran exchange's own sites (TSETMC) do not answer from the German
+ * server; rahavard365's API does. A symbol is looked up once
+ * (`/api/v2/search?keyword=`) and its asset read (`/api/v2/asset/<id>`).
+ */
+
+/** The asset id of exactly this trade symbol in a rahavard search, or null. */
+export function parseRahavardSearch(json: unknown, symbol: string): string | null {
+  const data = (json as { data?: unknown })?.data;
+  if (!Array.isArray(data)) return null;
+  const want = norm(symbol);
+  for (const d of data) {
+    const r = d as Record<string, unknown>;
+    if (r.entity_type === "exchange.asset" && typeof r.trade_symbol === "string" && norm(r.trade_symbol) === want) {
+      const id = r.entity_id;
+      if (typeof id === "string" || typeof id === "number") return String(id);
+    }
+  }
+  return null;
+}
+
+/**
+ * A rahavard asset: `{ data: { last_trade: { close_price, end_date_time } } }`.
+ * `close_price` is the closing (پایانی) price the broker values at;
+ * `real_close_price` is the last trade. Rial.
+ */
+export function parseRahavardAsset(json: unknown): { rial: number; asOf: Date | null } | null {
+  const lt = ((json as { data?: { last_trade?: Record<string, unknown> } })?.data?.last_trade) ?? null;
+  if (!lt) return null;
+  const close = Number(lt.close_price);
+  const rial = close > 0 ? close : Number(lt.real_close_price);
+  if (!(rial > 0)) return null;
+  const at = typeof lt.end_date_time === "string" ? new Date(lt.end_date_time) : null;
+  return { rial, asOf: at && !Number.isNaN(at.getTime()) ? at : null };
+}
