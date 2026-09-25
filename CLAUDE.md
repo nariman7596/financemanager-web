@@ -481,7 +481,13 @@ today's price, departures cut it in proportion), dust under a cent skipped,
 XRP counted above its reserve (as wallet apps show it). In a toman household
 new wallet holdings are priced in toman (the exchanges' price for the coin,
 else CoinGecko dollars × the exchanges' USDT rate — the official rate is far
-off) and rounded to whole toman. Runs in `refreshAll` after the prices and
+off) and rounded to whole toman. Coins the exchanges were never asked about
+are asked first (`refreshIranPrices(householdId, alsoSymbols)`), so a new
+holding's cost and its later repricing come from the same quotes — the first
+live wallet showed Gram at −10% from cost set at dollars × USDT and the price
+then taken from Tabdeal. Nobitex answers a whole batch with 400 when it lacks
+one coin (it did with the wallet's eight), so `fromNobitex` then asks coin by
+coin. Runs in `refreshAll` after the prices and
 before the net-worth snapshot, and on saving a wallet. A chain that fails is
 recorded on the wallet (`errors`) and its holdings are left as they were —
 an outage never zeroes a balance. A TON address's CRC16 is checked: the first
