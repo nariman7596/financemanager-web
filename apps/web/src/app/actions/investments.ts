@@ -8,6 +8,7 @@ import { toNumber } from "@financemanager/core/money";
 import { refreshIranPrices } from "@/lib/iranMarket";
 import { refreshTgjuPrices } from "@/lib/tgju";
 import { tgjuItem } from "@financemanager/core/market";
+import { isAssetClass } from "@financemanager/core/allocation";
 
 /**
  * The person a holding is kept for: empty means the household's own, else a
@@ -35,6 +36,12 @@ function priceSourceFrom(formData: FormData, type: string, currency: string): st
   if (!item || item.type !== type) return undefined;
   if (currency !== "IRT" && currency !== "IRR") return undefined;
   return raw;
+}
+
+/** The asset class the owner chose for the allocation chart; empty = automatic. */
+function allocClassFrom(formData: FormData): string | null {
+  const v = String(formData.get("allocClass") ?? "");
+  return isAssetClass(v) ? v : null;
 }
 
 function parseInvestment(formData: FormData) {
@@ -79,7 +86,7 @@ export async function createInvestment(formData: FormData) {
   if (priceSource === undefined) return { error: "Pick the item, priced in toman or rial" };
 
   await prisma.investment.create({
-    data: { ...parsed.data, heldForId, priceSource, householdId: ctx.householdId, createdById: ctx.userId },
+    data: { ...parsed.data, heldForId, priceSource, allocClass: allocClassFrom(formData), householdId: ctx.householdId, createdById: ctx.userId },
   });
   await priceNow(parsed.data, ctx.householdId);
   revalidate();
@@ -104,7 +111,7 @@ export async function updateInvestment(formData: FormData) {
   const keep = current?.priceSource?.startsWith("tse:") && priceSource === null ? current.priceSource : priceSource;
   const res = await prisma.investment.updateMany({
     where: { id, householdId: ctx.householdId },
-    data: { ...parsed.data, heldForId, priceSource: keep },
+    data: { ...parsed.data, heldForId, priceSource: keep, allocClass: allocClassFrom(formData) },
   });
   if (res.count === 0) return { error: "Not found" };
   await priceNow(parsed.data, ctx.householdId);

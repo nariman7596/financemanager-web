@@ -10,7 +10,7 @@ the phase plan.
 
 ```
 apps/web            Next.js app (routes, server actions, React components)
-packages/core       THE DOMAIN — pure TS, no framework. 212 tests.
+packages/core       THE DOMAIN — pure TS, no framework. 218 tests.
 packages/i18n       locale config + en/fa dictionaries + createT. 9 tests.
 packages/config     shared tsconfig / tailwind preset / eslint
 ```
@@ -19,7 +19,7 @@ packages/config     shared tsconfig / tailwind preset / eslint
 in the browser, in Hermes and in tests. No `next/*`, no `react-native`, no Node
 built-ins, no Prisma. `packages/config/eslint/package.js` enforces this and the
 rule is verified to fire; `pnpm lint` fails the build if you reach for one.
-Subpaths: `@financemanager/core/{access,budgets,calendar,constants,csv,currency,
+Subpaths: `@financemanager/core/{access,allocation,budgets,calendar,constants,csv,currency,
 date-range,goals,loans,market,money,networth,reconcile,reports,sms,validation,
 wallets}`.
 
@@ -595,6 +595,23 @@ snapshot value, carried over days without one. The dashboard chart has
 recorded rate — never two scales on one axis). Axis ticks are bare numbers
 (compact only ≥ 1M) because "1.8B تومان" wrapped. Additive migration
 `20260924160000_net_worth_snapshots`.
+
+## Asset mix (dashboard, `core/allocation`, `lib/allocation.ts`)
+"Where your money is", by **exposure**, not instrument (`classOf`): CASH (toman
+bank/cash accounts), GOLD (coins/gold, PAXG/XAUT, and exchange funds whose name
+has کالا/طلا — the commodity funds hold gold certificates), USD (foreign cash,
+USDT/USDC, foreign-currency accounts), CRYPTO, STOCK (shares and other funds),
+OTHER. The owner can override per holding (`Investment.allocClass`, "counts
+as" in the holding form). Assets only: persons' accounts and holdings kept for
+them are theirs, loans and overdrawn accounts are shown apart as debts.
+Optional targets (`Household.allocationTargets`, percent, must sum to 100 —
+`parseTargets`) give "X above/below target" per class. Each net-worth snapshot
+also stores the day's value per class (`NetWorthSnapshot.classes`), drawn as a
+100%-stacked trend once two days exist. Colours: validated categorical slots
+1–6 in the fixed class order (a class never changes colour). The Recharts
+trend sits in `dir="ltr"` (RTL pushed the % ticks into the plot) with the tick
+text itself `direction: rtl` in Persian so "۲۹ شهریور" does not reverse.
+Additive migration `20260926120000_allocation`.
 
 ## CSV import/export
 - Export: `GET /api/export/transactions` (session-authed) streams all the user's

@@ -43,15 +43,17 @@ model User {
 
 // A shared financial space. A user working solo has a household of one.
 model Household {
-  id           String   @id @default(cuid())
-  name         String
-  baseCurrency String   @default("USD") // reporting currency for this household
+  id                String   @id @default(cuid())
+  name              String
+  baseCurrency      String   @default("USD") // reporting currency for this household
   /// Budget planner inputs kept between visits: savings rate, rent, other fixed
   /// costs, protected category ids. Income is not kept — it is read from last
   /// month's actual income each time. See core/budgets/plan.ts.
-  budgetPlan   Json?
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  budgetPlan        Json?
+  /// Target share per asset class, percent (core/allocation parseTargets).
+  allocationTargets Json?
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
 
   members           Membership[]
   invitations       Invitation[]
@@ -307,6 +309,10 @@ model Investment {
   // "tgju:<key>" for gold, coins and foreign cash (core/market TGJU_ITEMS).
   priceSource String?
 
+  // The asset class it counts under (core/allocation), when the owner chose
+  // one; otherwise it follows from type and name.
+  allocClass String?
+
   household Household @relation(fields: [householdId], references: [id], onDelete: Cascade)
   account   Account?  @relation("InvestmentAccount", fields: [accountId], references: [id])
   heldFor   Account?  @relation("HeldFor", fields: [heldForId], references: [id], onDelete: SetNull)
@@ -503,6 +509,8 @@ model NetWorthSnapshot {
   investments Decimal
   // Toman per USDT that day (Iranian exchanges), when known.
   usdRate     Decimal?
+  // Value per asset class that day (core/allocation), base currency.
+  classes     Json?
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 

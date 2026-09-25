@@ -20,6 +20,8 @@ import { defaultSummaryMonth } from "@/lib/monthSummary";
 import { getGoals } from "@/lib/goals";
 import { getNetWorthHistory } from "@/lib/networth";
 import { NetWorthChart } from "@/components/NetWorthChart";
+import { AllocationCard } from "@/components/AllocationCard";
+import { getAllocation } from "@/lib/allocation";
 import { prisma } from "@/lib/prisma";
 import { AlertTriangle, CalendarDays } from "lucide-react";
 import type { TFunc } from "@financemanager/i18n/translate";
@@ -33,7 +35,7 @@ export default async function DashboardPage() {
   const locale = await getLocale();
   const base = await getBaseCurrency(ctx.householdId);
 
-  const [netWorth, flow, series, spending, budgets, byMember, goals, history] = await Promise.all([
+  const [netWorth, flow, series, spending, budgets, byMember, goals, history, allocation] = await Promise.all([
     getNetWorth(ctx.householdId, base),
     getMonthlyFlow(ctx.householdId, base, new Date(), locale),
     getCashFlowSeries(ctx.householdId, base, 6, locale),
@@ -42,6 +44,7 @@ export default async function DashboardPage() {
     getSpendingByMember(ctx.householdId, base, new Date(), locale),
     getGoals(ctx.householdId, startOfMonthIn(new Date(), locale)),
     getNetWorthHistory(ctx.householdId, base),
+    getAllocation(ctx.householdId, base),
   ]);
 
   const monthName = monthNameIn(new Date(), locale);
@@ -121,6 +124,17 @@ export default async function DashboardPage() {
       <section className="card p-5 mb-6">
         <h2 className="font-semibold mb-3">{t("networth.title")}</h2>
         <NetWorthChart points={history.points} currency={history.currency} />
+      </section>
+
+      <section className="card p-5 mb-6">
+        <AllocationCard
+          rows={allocation.rows}
+          total={allocation.total}
+          debts={allocation.debts}
+          currency={base}
+          targets={allocation.targets}
+          history={allocation.history}
+        />
       </section>
 
       <section className="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-6">
