@@ -6,6 +6,8 @@ import { checkHousehold } from "@/lib/household";
 import { investmentSchema } from "@financemanager/core/validation";
 import { toNumber } from "@financemanager/core/money";
 import { refreshIranPrices } from "@/lib/iranMarket";
+import { refreshTgjuPrices } from "@/lib/tgju";
+import { tgjuItem } from "@financemanager/core/market";
 
 /**
  * The person a holding is kept for: empty means the household's own, else a
@@ -19,6 +21,20 @@ async function heldForFrom(formData: FormData, householdId: string): Promise<str
     select: { id: true },
   });
   return person?.id;
+}
+
+/**
+ * Gold, coins and foreign cash follow a tgju price (`priceSource`), which
+ * must be an item of the holding's type; their price is toman, so the
+ * holding is kept in toman (or rial). Undefined when the source is not one.
+ */
+function priceSourceFrom(formData: FormData, type: string, currency: string): string | null | undefined {
+  const raw = String(formData.get("priceSource") ?? "");
+  if (type !== "GOLD" && type !== "FX") return null;
+  const item = tgjuItem(raw);
+  if (!item || item.type !== type) return undefined;
+  if (currency !== "IRT" && currency !== "IRR") return undefined;
+  return raw;
 }
 
 function parseInvestment(formData: FormData) {
@@ -40,8 +56,9 @@ function parseInvestment(formData: FormData) {
  * Refresh button or the cron.
  */
 async function priceNow(data: { type: string; currency: string }, householdId: string) {
-  if (data.type !== "CRYPTO" || (data.currency !== "IRT" && data.currency !== "IRR")) return;
-  await refreshIranPrices(householdId).catch(() => undefined);
+  if (data.currency !== "IRT" && data.currency !== "IRR") return;
+  if (data.type === "CRYPTO") await refreshIranPrices(householdId).catch(() => undefined);
+  if (data.type === "GOLD" || data.type === "FX") await refreshTgjuPrices(householdId).catch(() => undefined);
 }
 
 function revalidate() {
@@ -58,9 +75,11 @@ export async function createInvestment(formData: FormData) {
   if (!parsed.success) return { error: parsed.error.issues[0]?.message };
   const heldForId = await heldForFrom(formData, ctx.householdId);
   if (heldForId === undefined) return { error: "Unknown person" };
+  const priceSource = priceSourceFrom(formData, parsed.data.type, parsed.data.currency);
+  if (priceSource === undefined) return { error: "Pick the item, priced in toman or rial" };
 
   await prisma.investment.create({
-    data: { ...parsed.data, heldForId, householdId: ctx.householdId, createdById: ctx.userId },
+    data: { ...parsed.data, heldForId, priceSource, householdId: ctx.householdId, createdById: ctx.userId },
   });
   await priceNow(parsed.data, ctx.householdId);
   revalidate();
@@ -76,10 +95,16 @@ export async function updateInvestment(formData: FormData) {
   if (!parsed.success) return { error: parsed.error.issues[0]?.message };
   const heldForId = await heldForFrom(formData, ctx.householdId);
   if (heldForId === undefined) return { error: "Unknown person" };
+  const priceSource = priceSourceFrom(formData, parsed.data.type, parsed.data.currency);
+  if (priceSource === undefined) return { error: "Pick the item, priced in toman or rial" };
 
+  // A holding imported from the broker stays tied to its symbol, so the next
+  // import updates it instead of adding a second one.
+  const current = await prisma.investment.findFirst({ where: { id, householdId: ctx.householdId }, select: { priceSource: true } });
+  const keep = current?.priceSource?.startsWith("tse:") && priceSource === null ? current.priceSource : priceSource;
   const res = await prisma.investment.updateMany({
     where: { id, householdId: ctx.householdId },
-    data: { ...parsed.data, heldForId },
+    data: { ...parsed.data, heldForId, priceSource: keep },
   });
   if (res.count === 0) return { error: "Not found" };
   await priceNow(parsed.data, ctx.householdId);

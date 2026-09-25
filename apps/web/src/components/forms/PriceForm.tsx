@@ -34,10 +34,10 @@ export function PriceForm({
         <input
           name="currentPrice"
           type="number"
-          step="0.01"
+          step="any"
           min="0"
           defaultValue={currentPrice}
-          className="input py-1 w-24 text-sm"
+          className="input py-1 w-32 text-sm tabular-nums"
         />
         <SaveBtn />
       </form>

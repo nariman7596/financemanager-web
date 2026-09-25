@@ -5,6 +5,8 @@ import { toNumber } from "@financemanager/core/money";
 import { refreshIranPrices, type IranRefreshSummary } from "./iranMarket";
 import { takeNetWorthSnapshots } from "./networth";
 import { syncWallets, type WalletSyncSummary } from "./wallets";
+import { refreshTgjuPrices, type TgjuRefreshSummary } from "./tgju";
+import { refreshTsePrices, type TseRefreshSummary } from "./rahavard";
 
 // ---------------------------------------------------------------------------
 // Live market data: FX rates + investment prices.
@@ -31,6 +33,10 @@ export type RefreshSummary = {
   prices: { updated: number; skipped: number; error?: string };
   /** Toman prices from Iranian exchanges; absent where not run. */
   iran?: IranRefreshSummary;
+  /** Gold, coins and foreign cash from tgju; absent where not run. */
+  tgju?: TgjuRefreshSummary;
+  /** Stocks and funds imported from the broker, from rahavard365. */
+  tse?: TseRefreshSummary;
   /** Wallet balances read from their chains; absent where not run. */
   wallets?: WalletSyncSummary;
   at: string;
@@ -214,12 +220,14 @@ export async function refreshInvestmentPrices(
 /** Full refresh: FX + prices. `householdId` scopes the price refresh. */
 export async function refreshAll(householdId?: string): Promise<RefreshSummary> {
   const now = new Date();
-  const [fx, prices, iran] = await Promise.all([
+  const [fx, prices, iran, tgju, tse] = await Promise.all([
     refreshFxRates(now),
     refreshInvestmentPrices(householdId),
     refreshIranPrices(householdId).catch(
       (e): IranRefreshSummary => ({ updated: 0, sources: [], error: e instanceof Error ? e.message : "failed" }),
     ),
+    refreshTgjuPrices(householdId).catch((e): TgjuRefreshSummary => ({ updated: 0, error: e instanceof Error ? e.message : "failed" })),
+    refreshTsePrices(householdId).catch((e): TseRefreshSummary => ({ updated: 0, error: e instanceof Error ? e.message : "failed" })),
   ]);
   // After the prices: a wallet holding is priced from the quotes just stored.
   const wallets = await syncWallets(householdId).catch(
@@ -227,7 +235,7 @@ export async function refreshAll(householdId?: string): Promise<RefreshSummary> 
   );
   // Today's worth, on the prices just fetched (the chart's source for holdings).
   await takeNetWorthSnapshots(householdId, now).catch(() => 0);
-  return { fx, prices, iran, wallets, at: now.toISOString() };
+  return { fx, prices, iran, tgju, tse, wallets, at: now.toISOString() };
 }
 
 /** Timestamp of the most recently updated FX rate, or null if none. */

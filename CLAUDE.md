@@ -10,7 +10,7 @@ the phase plan.
 
 ```
 apps/web            Next.js app (routes, server actions, React components)
-packages/core       THE DOMAIN — pure TS, no framework. 204 tests.
+packages/core       THE DOMAIN — pure TS, no framework. 212 tests.
 packages/i18n       locale config + en/fa dictionaries + createT. 9 tests.
 packages/config     shared tsconfig / tailwind preset / eslint
 ```
@@ -125,6 +125,14 @@ the key exchange (`kex_exchange_identification: Connection closed`), so the
 router has a second rule, `AND,((IP-CIDR,<ip>/32,no-resolve),(DST-PORT,22)),PROXY`,
 above the DIRECT one. If the VPN is down, SSH needs that rule removed
 (backup at `/root/smartconnect.yaml.bak2` on the router).
+**The router rules can vanish:** on 2026-09-25 the profile
+`/etc/nikki/profiles/smartconnect.yaml` was rewritten (Nikki left a
+`smartconnect.yaml.bak.<epoch>` beside it) and both `AND` rules were gone —
+the Mac on home Wi-Fi could not open the app while the iPhone on V2Box could.
+Symptom from the router: the socks5 curl in `docs/DEPLOY-PUBLIC.md` fails with
+an SSL EOF instead of 200. Fix: re-insert both rules above the DIRECT line
+(`grep -n 216.126.229.4 /etc/nikki/run/config.yaml` shows what is live) and
+`/etc/init.d/nikki restart`.
 
 Backups: `deploy/backup.sh` nightly via cron, `deploy/restore.sh` to restore
 (restore has been tested end to end). An **off-server copy** is pulled daily
@@ -444,6 +452,38 @@ from the production server: Nobitex answers on `apiv2.nobitex.ir` (not
 is used; the core tests carry their real responses. A parser returns null
 rather than guess; URLs are env-overridable.
 
+## Gold, coins and foreign cash (`core/market` TGJU_ITEMS, `lib/tgju.ts`)
+Kept at home, so nothing can read the quantity — it is entered (type GOLD or
+FX, pick the item: Emami/Bahar/half/quarter/gram coin, 18k/24k gold per gram,
+mesghal, USD/EUR/AED/GBP banknotes) — but the price follows the free market:
+`Investment.priceSource = "tgju:<key>"`, repriced hourly in `refreshAll` and on
+save from tgju's `ajax.json` (rial per unit → toman; a key older than 14 days
+is not used — the file carries hundreds, some untouched since 2021). Checked
+from the production server 2026-09-26. Such holdings are kept in toman/rial.
+Quotes are stored as `MarketQuote` source `tgju` and shown in their own card
+on /investments.
+
+**Stocks and funds on the Tehran exchange — broker import** (`core/market/
+broker.ts`, `lib/xlsx.ts`, `actions/broker.ts`): the owner's Mofid Easytrader
+"Portfolio export" .xlsx is uploaded on /investments and replaces the previous
+import — quantity, cost (quantity × "average purchase price in the last period
+with fees", the figure the broker's own gain is measured against) and closing
+price (rial → toman), one holding per symbol keyed `priceSource =
+"tse:<symbol>"`; a symbol no longer in the file is removed, hand-entered
+holdings are untouched, editing an imported one keeps its key. Columns are
+found by Persian header (Arabic ي/ك and ZWNJ normalised; the file writes every
+value as `<v xml:space="preserve">`, which a plain `<v>` regex missed). The
+.xlsx is unzipped with node:zlib — no spreadsheet dependency. "صندوق…" names
+become ETF. Prices between imports: TSETMC, old.tsetmc and fipiran do not
+answer from the German server; rahavard365's API does (`lib/rahavard.ts`,
+hourly in `refreshAll`): `/api/v2/search?keyword=<symbol>` → the entry whose
+`trade_symbol` is exactly it (ids cached per process), then
+`/api/v2/asset/<id>` → `last_trade.close_price` — the closing (پایانی) price
+the broker values at (checked: فارس 12,140 and زرفام 171,159 rial, as in the
+export); `real_close_price` is the last trade. Calls are spaced 400 ms; a
+symbol that fails keeps its price.
+Additive migration `20260926090000_price_source`.
+
 ## Self-custody wallets (`Wallet`, `core/wallets`, `lib/wallets.ts`)
 The owner's Tangem card (any wallet works) is followed **read-only by its
 public addresses** — never a key, seed phrase or access code; the form says
@@ -473,7 +513,13 @@ today's price, departures cut it in proportion), dust under a cent skipped,
 XRP counted above its reserve (as wallet apps show it). In a toman household
 new wallet holdings are priced in toman (the exchanges' price for the coin,
 else CoinGecko dollars × the exchanges' USDT rate — the official rate is far
-off) and rounded to whole toman. Runs in `refreshAll` after the prices and
+off) and rounded to whole toman. Coins the exchanges were never asked about
+are asked first (`refreshIranPrices(householdId, alsoSymbols)`), so a new
+holding's cost and its later repricing come from the same quotes — the first
+live wallet showed Gram at −10% from cost set at dollars × USDT and the price
+then taken from Tabdeal. Nobitex answers a whole batch with 400 when it lacks
+one coin (it did with the wallet's eight), so `fromNobitex` then asks coin by
+coin. Runs in `refreshAll` after the prices and
 before the net-worth snapshot, and on saving a wallet. A chain that fails is
 recorded on the wallet (`errors`) and its holdings are left as they were —
 an outage never zeroes a balance. A TON address's CRC16 is checked: the first

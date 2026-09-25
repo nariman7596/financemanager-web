@@ -5,6 +5,7 @@ import { useFormStatus } from "react-dom";
 import { createInvestment, updateInvestment } from "@/app/actions/investments";
 import { useCloseModal } from "@/components/Modal";
 import { INVESTMENT_TYPES, CURRENCIES } from "@financemanager/core/constants";
+import { TGJU_ITEMS } from "@financemanager/core/market";
 import { useT } from "@/lib/i18n/client";
 import { DateField } from "@/components/DateField";
 
@@ -29,6 +30,7 @@ export type EditableInvestment = {
   currency: string;
   purchaseDate: Date;
   heldForId: string | null;
+  priceSource: string | null;
 };
 
 /**
@@ -51,6 +53,13 @@ export function InvestmentForm({
   const [currency, setCurrency] = useState(investment?.currency ?? defaultCurrency);
   const today = new Date().toISOString().slice(0, 10);
   const fromIranMarket = type === "CRYPTO" && (currency === "IRT" || currency === "IRR");
+  // Gold, coins and foreign cash: picked from tgju's list, priced in toman.
+  const physical = type === "GOLD" || type === "FX";
+  const items = TGJU_ITEMS.filter((i) => i.type === type);
+  const [itemKey, setItemKey] = useState(investment?.priceSource?.replace(/^tgju:/, "") ?? "");
+  const item = items.find((i) => i.key === itemKey) ?? items[0];
+  const currencies = physical ? CURRENCIES.filter((c) => c.code === "IRT" || c.code === "IRR") : CURRENCIES;
+  const shownCurrency = physical && currency !== "IRT" && currency !== "IRR" ? "IRT" : currency;
 
   async function action(formData: FormData) {
     setError(null);
@@ -64,10 +73,6 @@ export function InvestmentForm({
       {investment && <input type="hidden" name="id" value={investment.id} />}
       <div className="grid grid-cols-2 gap-3">
         <div>
-          <label className="label">{t("invForm.symbol")}</label>
-          <input name="symbol" required className="input" placeholder="USDT" defaultValue={investment?.symbol} />
-        </div>
-        <div>
           <label className="label">{t("invForm.type")}</label>
           <select name="type" className="input" value={type} onChange={(e) => setType(e.target.value)}>
             {INVESTMENT_TYPES.map((val) => (
@@ -75,11 +80,32 @@ export function InvestmentForm({
             ))}
           </select>
         </div>
+        {physical ? (
+          <div>
+            <label className="label">{t("invForm.item")}</label>
+            <select name="priceSource" className="input" value={`tgju:${item.key}`} onChange={(e) => setItemKey(e.target.value.slice(5))}>
+              {items.map((i) => (
+                <option key={i.key} value={`tgju:${i.key}`}>{t("tgju." + i.key)}</option>
+              ))}
+            </select>
+            <input type="hidden" name="symbol" value={item.symbol} />
+            <input type="hidden" name="name" value={t("tgju." + item.key)} />
+          </div>
+        ) : (
+          <div>
+            <label className="label">{t("invForm.symbol")}</label>
+            <input name="symbol" required className="input" placeholder="USDT" defaultValue={investment?.symbol} />
+          </div>
+        )}
       </div>
-      <div>
-        <label className="label">{t("invForm.name")}</label>
-        <input name="name" required className="input" placeholder={t("invForm.namePlaceholder")} defaultValue={investment?.name} />
-      </div>
+      {physical ? (
+        <p className="text-xs text-slate-400 -mt-2">{t("invForm.tgjuHint")}</p>
+      ) : (
+        <div>
+          <label className="label">{t("invForm.name")}</label>
+          <input name="name" required className="input" placeholder={t("invForm.namePlaceholder")} defaultValue={investment?.name} />
+        </div>
+      )}
       <div className="grid grid-cols-2 gap-3">
         <div>
           <label className="label">{t("invForm.quantity")}</label>
@@ -90,14 +116,14 @@ export function InvestmentForm({
             min="0"
             required
             className="input"
-            placeholder="10"
+            placeholder={physical ? "1" : "10"}
             defaultValue={investment?.quantity}
           />
         </div>
         <div>
           <label className="label">{t("invForm.currency")}</label>
-          <select name="currency" className="input" value={currency} onChange={(e) => setCurrency(e.target.value)}>
-            {CURRENCIES.map((c) => (
+          <select name="currency" className="input" value={shownCurrency} onChange={(e) => setCurrency(e.target.value)}>
+            {currencies.map((c) => (
               <option key={c.code} value={c.code}>{c.code}</option>
             ))}
           </select>

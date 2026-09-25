@@ -1,4 +1,4 @@
-import { Plus, Pencil, HandCoins, Wallet as WalletIcon, AlertTriangle } from "lucide-react";
+import { Plus, Pencil, HandCoins, Wallet as WalletIcon, AlertTriangle, FileSpreadsheet } from "lucide-react";
 import { requireHousehold } from "@/lib/household";
 import { getBaseCurrency, getInvestments } from "@/lib/queries";
 import { sumInCurrency } from "@/lib/currency";
@@ -18,7 +18,9 @@ import { SellInvestmentForm } from "@/components/forms/SellInvestmentForm";
 import { deleteInvestment } from "@/app/actions/investments";
 import { deleteWallet } from "@/app/actions/wallets";
 import { WalletForm } from "@/components/forms/WalletForm";
+import { BrokerImportForm } from "@/components/forms/BrokerImportForm";
 import { walletAddresses } from "@/lib/wallets";
+import { TGJU_ITEMS } from "@financemanager/core/market";
 import { getT, getLocale } from "@/lib/i18n/server";
 
 export const dynamic = "force-dynamic";
@@ -52,6 +54,13 @@ export default async function InvestmentsPage() {
   ]);
   const totalGain = totalValue - totalCost;
 
+  // Coins quoted by the exchanges, and gold/coins/cash quoted by tgju, apart.
+  const coinQuotes = [...quotes.entries()].filter(([, q]) => q.quotes.some((x) => x.source !== "tgju"));
+  const tgjuQuotes = TGJU_ITEMS.flatMap((item) => {
+    const q = quotes.get(item.symbol)?.quotes.find((x) => x.source === "tgju");
+    return q ? [{ item, price: q.price, asOf: q.asOf }] : [];
+  });
+
   // Each wallet's worth, and in dollars at the exchanges' USDT rate — the
   // figure the wallet app itself shows, to compare against.
   const usdt = quotes.get("USDT")?.consensus?.price ?? null;
@@ -81,6 +90,12 @@ export default async function InvestmentsPage() {
         action={
           <div className="flex items-center gap-3">
             <RefreshButton asOf={fxAsOf ? formatDate(fxAsOf, locale) : null} />
+            <Modal
+              title={t("broker.title")}
+              trigger={<button className="btn-ghost border border-[var(--border)]"><FileSpreadsheet size={18} /> {t("broker.button")}</button>}
+            >
+              <BrokerImportForm />
+            </Modal>
             <Modal
               title={t("inv.new")}
               trigger={<button className="btn-primary"><Plus size={18} /> {t("common.add")}</button>}
@@ -155,10 +170,24 @@ export default async function InvestmentsPage() {
         )}
       </div>
 
-      {quotes.size > 0 && (
+      {tgjuQuotes.length > 0 && (
+        <div className="card p-4 mb-6">
+          <h2 className="text-sm font-semibold mb-2">{t("market.tgjuTitle")}</h2>
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-x-6 gap-y-1 text-sm">
+            {tgjuQuotes.map(({ item, price, asOf }) => (
+              <div key={item.key} className="flex items-baseline justify-between gap-2" title={formatDate(asOf, locale)}>
+                <span className="text-slate-500">{t("tgju." + item.key)}</span>
+                <span className="tabular-nums font-medium">{formatMoney(price, "IRT")}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {coinQuotes.length > 0 && (
         <div className="card p-4 mb-6 space-y-2">
           <h2 className="text-sm font-semibold">{t("market.title")}</h2>
-          {[...quotes.entries()].map(([symbol, q]) => (
+          {coinQuotes.map(([symbol, q]) => (
             <div key={symbol} className="flex flex-wrap items-baseline gap-x-4 gap-y-1 text-sm">
               <span className="font-medium w-14">{symbol}</span>
               {q.quotes.map((x) => (
@@ -207,6 +236,9 @@ export default async function InvestmentsPage() {
                       {h.heldFor && (
                         <p className="badge mt-1 text-amber-700 dark:text-amber-300">{t("inv.heldBadge", { name: h.heldFor.name })}</p>
                       )}
+                      {h.priceSource?.startsWith("tse:") && (
+                        <p className="badge mt-1 text-emerald-700 dark:text-emerald-300">{t("broker.badge")}</p>
+                      )}
                       {h.wallet && (
                         <p className="badge mt-1 text-brand-700 dark:text-brand-300">{t("wallet.badge", { name: h.wallet.name })}</p>
                       )}
@@ -237,7 +269,7 @@ export default async function InvestmentsPage() {
                     )}
                     <td className="px-2 py-3 text-end whitespace-nowrap">
                       {/* A wallet's balance comes from its chain: selling there shows up on the next read. */}
-                      {!h.walletId && <Modal
+                      {!h.walletId && !h.priceSource?.startsWith("tse:") && <Modal
                         title={t("sell.title", { symbol: h.symbol })}
                         trigger={
                           <button className="btn-ghost p-1.5 text-slate-400 hover:text-[var(--text)]" aria-label={t("sell.title", { symbol: h.symbol })} title={t("sell.title", { symbol: h.symbol })}>
@@ -269,6 +301,7 @@ export default async function InvestmentsPage() {
                             currency: h.currency,
                             purchaseDate: h.purchaseDate,
                             heldForId: h.heldForId,
+                            priceSource: h.priceSource,
                           }}
                         />
                       </Modal>

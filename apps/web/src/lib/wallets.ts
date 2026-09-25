@@ -1,7 +1,7 @@
 import "server-only";
 import { Prisma } from "@prisma/client";
 import { prisma } from "./prisma";
-import { getMarketQuotes } from "./iranMarket";
+import { getMarketQuotes, refreshIranPrices } from "./iranMarket";
 import { fetchCryptoPrices } from "./marketdata";
 import { toNumber } from "@financemanager/core/money";
 import { tomanIn } from "@financemanager/core/market";
@@ -256,7 +256,21 @@ export async function syncWallets(householdId?: string, walletId?: string): Prom
   const ids = new Set<string>();
   for (const found of balances.values()) for (const [k, q] of found) if (q > 0) ids.add(assetByKey(k)!.coingecko);
   const usd = await fetchCryptoPrices([...ids]).catch(() => ({}) as Record<string, number>);
-  const quotes = await getMarketQuotes();
+  let quotes = await getMarketQuotes();
+  // A coin the exchanges have not been asked about yet (a wallet just added)
+  // is asked now: a holding created at dollars × USDT and repriced from the
+  // exchanges an hour later showed a made-up loss (Gram −10%).
+  const unquoted = new Set<string>();
+  for (const found of balances.values()) {
+    for (const [k, q] of found) {
+      const symbol = assetByKey(k)!.symbol;
+      if (q > 0 && !quotes.get(symbol)?.consensus) unquoted.add(symbol);
+    }
+  }
+  if (unquoted.size > 0 && wallets.some((w) => w.household.baseCurrency === "IRT" || w.household.baseCurrency === "IRR")) {
+    await refreshIranPrices(householdId, [...unquoted]).catch(() => undefined);
+    quotes = await getMarketQuotes();
+  }
   const usdtToman = quotes.get("USDT")?.consensus?.price ?? null;
 
   const priceIn = (currency: string, key: string): number | null => {

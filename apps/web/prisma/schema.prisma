@@ -303,6 +303,10 @@ model Investment {
   walletId    String?
   walletAsset String?
 
+  // Where the price comes from when it is not an exchange-listed coin:
+  // "tgju:<key>" for gold, coins and foreign cash (core/market TGJU_ITEMS).
+  priceSource String?
+
   household Household @relation(fields: [householdId], references: [id], onDelete: Cascade)
   account   Account?  @relation("InvestmentAccount", fields: [accountId], references: [id])
   heldFor   Account?  @relation("HeldFor", fields: [heldForId], references: [id], onDelete: SetNull)

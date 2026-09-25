@@ -103,3 +103,58 @@ export function tomanIn(currency: string, toman: number): number | null {
   if (currency === "IRR") return toman * RIAL_PER_TOMAN;
   return null;
 }
+
+// --- Gold, coins and foreign cash (tgju) -----------------------------------
+
+/**
+ * Physical gold, coins and banknotes kept at home have no exchange of their
+ * own; the free-market prices Iranians quote come from tgju.org, whose
+ * `ajax.json` answers from the production server (the stock exchange's own
+ * sites do not). Each item is a tgju key, a symbol for the holding, and the
+ * investment type it is filed under. Prices there are in rial per unit: one
+ * coin, one gram, one mesghal, one banknote unit.
+ */
+export const TGJU_ITEMS = [
+  { key: "sekee", symbol: "SEKEE", type: "GOLD" },
+  { key: "sekeb", symbol: "SEKEB", type: "GOLD" },
+  { key: "nim", symbol: "NIM", type: "GOLD" },
+  { key: "rob", symbol: "ROB", type: "GOLD" },
+  { key: "gerami", symbol: "GERAMI", type: "GOLD" },
+  { key: "geram18", symbol: "GOLD18", type: "GOLD" },
+  { key: "geram24", symbol: "GOLD24", type: "GOLD" },
+  { key: "mesghal", symbol: "MESGHAL", type: "GOLD" },
+  { key: "price_dollar_rl", symbol: "USD", type: "FX" },
+  { key: "price_eur", symbol: "EUR", type: "FX" },
+  { key: "price_aed", symbol: "AED", type: "FX" },
+  { key: "price_gbp", symbol: "GBP", type: "FX" },
+] as const;
+export type TgjuItem = (typeof TGJU_ITEMS)[number];
+
+/** A holding's price source, e.g. `tgju:sekee`. */
+export function tgjuItem(priceSource: string | null | undefined): TgjuItem | undefined {
+  if (!priceSource?.startsWith("tgju:")) return undefined;
+  const key = priceSource.slice(5);
+  return TGJU_ITEMS.find((i) => i.key === key);
+}
+
+/** How old a tgju price may be and still be used: markets close for Nowruz. */
+export const TGJU_MAX_AGE_DAYS = 14;
+
+/**
+ * tgju `GET /ajax.json`: `{ current: { sekee: { p: "2,400,100,000", ts:
+ * "2026-09-24 00:00:00" }, … } }` — rial, and a Tehran-time stamp. The file
+ * carries hundreds of keys, some untouched for years, so a price older than
+ * `TGJU_MAX_AGE_DAYS` is not used. Returns toman.
+ */
+export function parseTgju(json: unknown, key: string, now = new Date()): { toman: number; asOf: Date } | null {
+  const item = get(json, "current", key);
+  const rial = positive(get(item, "p"));
+  if (rial === null) return null;
+  const ts = get(item, "ts");
+  const asOf = typeof ts === "string" && /^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/.test(ts) ? new Date(ts.replace(" ", "T") + "+03:30") : null;
+  if (!asOf || Number.isNaN(asOf.getTime())) return null;
+  if (now.getTime() - asOf.getTime() > TGJU_MAX_AGE_DAYS * 24 * 60 * 60 * 1000) return null;
+  return { toman: rial / RIAL_PER_TOMAN, asOf };
+}
+
+export { parseBrokerPortfolio, parseRahavardAsset, parseRahavardSearch, parseSheetXml, parseSharedStrings, type BrokerHolding } from "./broker";

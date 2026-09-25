@@ -40,8 +40,23 @@ async function getJson(url: string): Promise<unknown> {
 type SourceResult = { source: IranExchange; prices: Record<string, number>; error?: string };
 
 async function fromNobitex(symbols: string[]): Promise<SourceResult> {
-  const json = await getJson(`${NOBITEX_URL}?srcCurrency=${symbols.map((s) => s.toLowerCase()).join(",")}&dstCurrency=rls`);
-  return { source: "nobitex", prices: pick(symbols, (s) => parseNobitex(json, s)) };
+  const ask = (list: string[]) => getJson(`${NOBITEX_URL}?srcCurrency=${list.map((s) => s.toLowerCase()).join(",")}&dstCurrency=rls`);
+  try {
+    const json = await ask(symbols);
+    return { source: "nobitex", prices: pick(symbols, (s) => parseNobitex(json, s)) };
+  } catch (e) {
+    // Nobitex answers the whole batch with a 400 when it does not list one of
+    // the coins (it did once a wallet brought eight), so ask coin by coin.
+    if (symbols.length < 2) throw e;
+    const prices: Record<string, number> = {};
+    for (const s of symbols) {
+      const json = await ask([s]).catch(() => null);
+      const p = parseNobitex(json, s);
+      if (p !== null) prices[s] = p;
+    }
+    if (Object.keys(prices).length === 0) throw e;
+    return { source: "nobitex", prices };
+  }
 }
 
 async function fromWallex(symbols: string[]): Promise<SourceResult> {
@@ -76,12 +91,12 @@ export type IranRefreshSummary = { updated: number; sources: string[]; error?: s
  * each quote, and price those holdings at the middle of the quotes. An
  * exchange that fails is reported and skipped; its last quote stays as it was.
  */
-export async function refreshIranPrices(householdId?: string): Promise<IranRefreshSummary> {
+export async function refreshIranPrices(householdId?: string, alsoSymbols: string[] = []): Promise<IranRefreshSummary> {
   const holdings = await prisma.investment.findMany({
     where: { ...(householdId ? { householdId } : {}), type: "CRYPTO", currency: { in: ["IRT", "IRR"] } },
     select: { id: true, symbol: true, currency: true },
   });
-  const symbols = [...new Set([...ALWAYS, ...holdings.map((h) => h.symbol.toUpperCase())])];
+  const symbols = [...new Set([...ALWAYS, ...holdings.map((h) => h.symbol.toUpperCase()), ...alsoSymbols.map((s) => s.toUpperCase())])];
 
   const settled = await Promise.allSettled([fromWallex(symbols), fromNobitex(symbols), fromTabdeal(symbols)]);
   const names: IranExchange[] = ["wallex", "nobitex", "tabdeal"];
