@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { consensusPrice, parseNobitex, parseTabdeal, parseWallex, tomanIn } from "./index";
+import { consensusPrice, parseNobitex, parseTabdeal, parseTgju, parseWallex, tgjuItem, tomanIn } from "./index";
 
 describe("exchange parsers", () => {
   it("reads Nobitex's rial price as toman", () => {
@@ -77,5 +77,33 @@ describe("tomanIn", () => {
     expect(tomanIn("IRT", 114350)).toBe(114350);
     expect(tomanIn("IRR", 114350)).toBe(1143500);
     expect(tomanIn("USD", 114350)).toBeNull();
+  });
+});
+
+describe("tgju (gold, coins, foreign cash)", () => {
+  // As the production server read it (2026-09-26), cut to a few keys.
+  const json = {
+    current: {
+      zinc: { p: "2575.6", ts: "2021-06-28 14:00:00" },
+      sekee: { p: "2,400,100,000", h: "2,400,100,000", ts: "2026-09-24 00:00:00" },
+      geram18: { p: "241,246,000", ts: "2026-09-24 00:00:00" },
+      price_dollar_rl: { p: "2,346,150", ts: "2026-09-24 00:00:00" },
+    },
+  };
+  const now = new Date("2026-09-26T01:00:00Z");
+  it("reads rial per unit as toman", () => {
+    expect(parseTgju(json, "sekee", now)?.toman).toBe(240010000);
+    expect(parseTgju(json, "geram18", now)?.toman).toBe(24124600);
+    expect(parseTgju(json, "price_dollar_rl", now)?.toman).toBe(234615);
+  });
+  it("ignores a stale key and one that is missing", () => {
+    expect(parseTgju(json, "zinc", now)).toBeNull();
+    expect(parseTgju(json, "nim", now)).toBeNull();
+    expect(parseTgju(null, "sekee", now)).toBeNull();
+  });
+  it("maps a price source to its item", () => {
+    expect(tgjuItem("tgju:geram18")?.symbol).toBe("GOLD18");
+    expect(tgjuItem("tgju:zinc")).toBeUndefined();
+    expect(tgjuItem(null)).toBeUndefined();
   });
 });

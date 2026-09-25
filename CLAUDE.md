@@ -10,7 +10,7 @@ the phase plan.
 
 ```
 apps/web            Next.js app (routes, server actions, React components)
-packages/core       THE DOMAIN — pure TS, no framework. 204 tests.
+packages/core       THE DOMAIN — pure TS, no framework. 207 tests.
 packages/i18n       locale config + en/fa dictionaries + createT. 9 tests.
 packages/config     shared tsconfig / tailwind preset / eslint
 ```
@@ -451,6 +451,19 @@ from the production server: Nobitex answers on `apiv2.nobitex.ir` (not
 `api.`, which times out from Germany), Tabdeal has no ticker so its last trade
 is used; the core tests carry their real responses. A parser returns null
 rather than guess; URLs are env-overridable.
+
+## Gold, coins and foreign cash (`core/market` TGJU_ITEMS, `lib/tgju.ts`)
+Kept at home, so nothing can read the quantity — it is entered (type GOLD or
+FX, pick the item: Emami/Bahar/half/quarter/gram coin, 18k/24k gold per gram,
+mesghal, USD/EUR/AED/GBP banknotes) — but the price follows the free market:
+`Investment.priceSource = "tgju:<key>"`, repriced hourly in `refreshAll` and on
+save from tgju's `ajax.json` (rial per unit → toman; a key older than 14 days
+is not used — the file carries hundreds, some untouched since 2021). Checked
+from the production server 2026-09-26. Such holdings are kept in toman/rial.
+Quotes are stored as `MarketQuote` source `tgju` and shown in their own card
+on /investments. **Stocks:** TSETMC, old.tsetmc and fipiran do not answer from
+the German server; rahavard365.com does (200) — the next candidate.
+Additive migration `20260926090000_price_source`.
 
 ## Self-custody wallets (`Wallet`, `core/wallets`, `lib/wallets.ts`)
 The owner's Tangem card (any wallet works) is followed **read-only by its

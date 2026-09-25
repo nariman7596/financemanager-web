@@ -41,6 +41,8 @@ export const INVESTMENT_TYPES = [
   "BOND",
   "REAL_ESTATE",
   "CASH",
+  "GOLD",
+  "FX",
   "OTHER",
 ] as const;
 export type InvestmentType = (typeof INVESTMENT_TYPES)[number];
