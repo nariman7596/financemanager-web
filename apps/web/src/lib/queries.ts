@@ -408,13 +408,16 @@ export async function getInvestments(householdId: string) {
   const items = await prisma.investment.findMany({
     where: { householdId },
     orderBy: { createdAt: "desc" },
-    include: { heldFor: { select: { id: true, name: true } } },
+    include: { heldFor: { select: { id: true, name: true } }, wallet: { select: { id: true, name: true } } },
   });
   return items.map((i) => {
     const qty = toNumber(i.quantity);
     const cost = toNumber(i.costBasis);
     const value = qty * toNumber(i.currentPrice);
-    const gain = value - cost;
+    // Stored decimals round differently from the product: a holding valued at
+    // exactly its cost would otherwise show a red "-0".
+    const raw = value - cost;
+    const gain = Math.abs(raw) < 1e-9 * Math.max(1, Math.abs(value)) ? 0 : raw;
     return {
       ...i,
       quantity: qty,

@@ -10,7 +10,7 @@ the phase plan.
 
 ```
 apps/web            Next.js app (routes, server actions, React components)
-packages/core       THE DOMAIN — pure TS, no framework. 188 tests.
+packages/core       THE DOMAIN — pure TS, no framework. 202 tests.
 packages/i18n       locale config + en/fa dictionaries + createT. 9 tests.
 packages/config     shared tsconfig / tailwind preset / eslint
 ```
@@ -20,7 +20,8 @@ in the browser, in Hermes and in tests. No `next/*`, no `react-native`, no Node
 built-ins, no Prisma. `packages/config/eslint/package.js` enforces this and the
 rule is verified to fire; `pnpm lint` fails the build if you reach for one.
 Subpaths: `@financemanager/core/{access,budgets,calendar,constants,csv,currency,
-date-range,goals,loans,market,money,networth,reconcile,reports,sms,validation}`.
+date-range,goals,loans,market,money,networth,reconcile,reports,sms,validation,
+wallets}`.
 
 Both packages ship **TypeScript source, not a build artifact** — `apps/web`
 compiles them via `transpilePackages` in `next.config.mjs`. Adding a new
@@ -442,6 +443,30 @@ from the production server: Nobitex answers on `apiv2.nobitex.ir` (not
 `api.`, which times out from Germany), Tabdeal has no ticker so its last trade
 is used; the core tests carry their real responses. A parser returns null
 rather than guess; URLs are env-overridable.
+
+## Self-custody wallets (`Wallet`, `core/wallets`, `lib/wallets.ts`)
+The owner's Tangem card (any wallet works) is followed **read-only by its
+public addresses** — never a key, seed phrase or access code; the form says
+so. One address per network (`ADDRESS_KINDS`; Ethereum and Arbitrum share the
+`evm` one). Each chain's keyless public API is read (publicnode EVM RPC,
+TronGrid, Toncenter, Solana RPC, NEAR RPC → FastNEAR, xrplcluster → s1.ripple,
+BlockCypher for BTC/LTC/DASH — all checked from the production server
+2026-09-25, URLs env-overridable as `WALLET_*`), for the coin plus known
+tokens (`WALLET_ASSETS`: USDT/USDC/PAXG on Ethereum; USDC native, USDC.e,
+Aave aUSDC and USDT on Arbitrum; USDT on Tron). Each balance becomes an
+`Investment` with `walletId` + `walletAsset` (unique): quantity follows the
+chain, cost basis per `walletCostBasis` (new = today's value, arrivals at
+today's price, departures cut it in proportion), dust under a cent skipped,
+XRP counted above its reserve (as wallet apps show it). In a toman household
+new wallet holdings are priced in toman (the exchanges' price for the coin,
+else CoinGecko dollars × the exchanges' USDT rate — the official rate is far
+off) and rounded to whole toman. Runs in `refreshAll` after the prices and
+before the net-worth snapshot, and on saving a wallet. A chain that fails is
+recorded on the wallet (`errors`) and its holdings are left as they were —
+an outage never zeroes a balance. A TON address's CRC16 is checked: the first
+one typed from a screenshot had an l for an I. The wallet card on
+/investments shows the total and ≈ dollars to compare with the wallet app.
+Additive migration `20260925120000_wallets`.
 
 ## Loan accounts — account type `LOAN`
 Entered as the remaining debt (positive; `accountSchema` stores it negative
