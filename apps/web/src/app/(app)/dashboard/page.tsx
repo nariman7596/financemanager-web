@@ -22,7 +22,8 @@ import { getNetWorthHistory } from "@/lib/networth";
 import { NetWorthChart } from "@/components/NetWorthChart";
 import { AllocationCard } from "@/components/AllocationCard";
 import { getAllocation } from "@/lib/allocation";
-import { getBills } from "@/lib/bills";
+import { getBills, localToday } from "@/lib/bills";
+import { defaultSummaryWeek, weekEnd, weekKey } from "@financemanager/core/reports";
 import { billStatusText, BILL_STATE_CLASS } from "@/lib/billText";
 import { prisma } from "@/lib/prisma";
 import { AlertTriangle, CalendarDays } from "lucide-react";
@@ -71,6 +72,17 @@ export default async function DashboardPage() {
       },
     })) > 0;
 
+  // On the week's last day and the first two of the next, point at the
+  // weekly summary — if anything was recorded that week.
+  const today = localToday(locale);
+  const week = defaultSummaryWeek(today, locale);
+  const weekEnded = weekEnd(week.start) < today;
+  const showWeek =
+    week.nudge &&
+    (await prisma.transaction.count({
+      where: { householdId: ctx.householdId, date: { gte: week.start, lte: weekEnd(week.start) } },
+    })) > 0;
+
   return (
     <>
       <Topbar
@@ -84,6 +96,15 @@ export default async function DashboardPage() {
           className="flex items-center gap-2 mb-6 rounded-lg px-4 py-3 text-sm font-medium bg-blue-50 text-blue-800 dark:bg-blue-500/10 dark:text-blue-200"
         >
           <CalendarDays size={16} /> {t("summary.ready", { month: monthNameIn(endedMonth, locale) })}
+        </Link>
+      )}
+
+      {showWeek && (
+        <Link
+          href={`/reports/week?w=${weekKey(week.start)}`}
+          className="flex items-center gap-2 mb-6 rounded-lg px-4 py-3 text-sm font-medium bg-blue-50 text-blue-800 dark:bg-blue-500/10 dark:text-blue-200"
+        >
+          <CalendarDays size={16} /> {t(weekEnded ? "week.readyLast" : "week.readyThis")}
         </Link>
       )}
 
