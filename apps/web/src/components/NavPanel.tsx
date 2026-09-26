@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
+  CalendarClock,
   LayoutDashboard,
   Inbox,
   ArrowLeftRight,
@@ -30,6 +31,7 @@ export const NAV = [
   { href: "/recurring", labelKey: "nav.recurring", icon: Repeat },
   { href: "/budgets", labelKey: "nav.budgets", icon: PiggyBank },
   { href: "/goals", labelKey: "nav.goals", icon: Target },
+  { href: "/bills", labelKey: "nav.bills", icon: CalendarClock },
   { href: "/investments", labelKey: "nav.investments", icon: TrendingUp },
   { href: "/accounts", labelKey: "nav.accounts", icon: Wallet },
   { href: "/reports", labelKey: "nav.reports", icon: BarChart3 },

@@ -22,6 +22,8 @@ import { getNetWorthHistory } from "@/lib/networth";
 import { NetWorthChart } from "@/components/NetWorthChart";
 import { AllocationCard } from "@/components/AllocationCard";
 import { getAllocation } from "@/lib/allocation";
+import { getBills } from "@/lib/bills";
+import { billStatusText, BILL_STATE_CLASS } from "@/lib/billText";
 import { prisma } from "@/lib/prisma";
 import { AlertTriangle, CalendarDays } from "lucide-react";
 import type { TFunc } from "@financemanager/i18n/translate";
@@ -35,7 +37,7 @@ export default async function DashboardPage() {
   const locale = await getLocale();
   const base = await getBaseCurrency(ctx.householdId);
 
-  const [netWorth, flow, series, spending, budgets, byMember, goals, history, allocation] = await Promise.all([
+  const [netWorth, flow, series, spending, budgets, byMember, goals, history, allocation, bills] = await Promise.all([
     getNetWorth(ctx.householdId, base),
     getMonthlyFlow(ctx.householdId, base, new Date(), locale),
     getCashFlowSeries(ctx.householdId, base, 6, locale),
@@ -45,6 +47,7 @@ export default async function DashboardPage() {
     getGoals(ctx.householdId, startOfMonthIn(new Date(), locale)),
     getNetWorthHistory(ctx.householdId, base),
     getAllocation(ctx.householdId, base),
+    getBills(ctx.householdId, base, locale),
   ]);
 
   const monthName = monthNameIn(new Date(), locale);
@@ -104,6 +107,22 @@ export default async function DashboardPage() {
                   : b.pct >= 80
                     ? t("budgets.alertWatch", { pct: b.pct })
                     : t("budgets.alertPace")}
+              </li>
+            ))}
+          </ul>
+        </Link>
+      )}
+
+      {bills.alerts.length > 0 && (
+        <Link href="/bills" className="card p-4 mb-6 block row-hover">
+          <h2 className="text-sm font-semibold mb-2">{t("bills.dashTitle")}</h2>
+          <ul className="space-y-1.5 text-sm">
+            {bills.alerts.map((b) => (
+              <li key={b.id} className="flex flex-wrap items-baseline gap-x-3">
+                <bdi className="font-medium">{b.name}</bdi>
+                <span className="tabular-nums text-slate-400">{formatMoney(b.amount, b.currency)}</span>
+                <span className={"ms-auto text-xs " + BILL_STATE_CLASS[b.status.state]}>{billStatusText(t, b.status, locale)}</span>
+                {b.status.state === "overdue" && <span className="basis-full text-xs text-slate-400">{t("bills.lateHint")}</span>}
               </li>
             ))}
           </ul>

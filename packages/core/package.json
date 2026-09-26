@@ -6,6 +6,7 @@
     ".": "./src/index.ts",
     "./access": "./src/access/index.ts",
     "./allocation": "./src/allocation/index.ts",
+    "./bills": "./src/bills/index.ts",
     "./budgets": "./src/budgets/index.ts",
     "./calendar": "./src/calendar/index.ts",
     "./constants": "./src/constants/index.ts",

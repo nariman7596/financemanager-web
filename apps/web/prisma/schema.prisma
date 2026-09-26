@@ -70,6 +70,7 @@ model Household {
   goals             Goal[]
   netWorthSnapshots NetWorthSnapshot[]
   wallets           Wallet[]
+  bills             Bill[]
 }
 
 // Links a user to a household with a role.
@@ -517,4 +518,29 @@ model NetWorthSnapshot {
   household Household @relation(fields: [householdId], references: [id], onDelete: Cascade)
 
   @@unique([householdId, day])
+}
+
+// A monthly bill or instalment to be reminded of (core/bills). Due on a day of
+// the month in the owner's calendar; paid when a matching payment falls in the
+// cycle. matchKind LOAN (matchValue = loan account id), DESCRIPTION
+// (normalised SMS description) or CATEGORY (category id, amount within 30%).
+// A dismissed suggestion is kept as an inactive bill so it is not suggested again.
+model Bill {
+  id          String   @id @default(cuid())
+  householdId String
+  createdById String?
+  name        String
+  amount      Decimal
+  currency    String
+  dueDay      Int
+  leadDays    Int      @default(3)
+  matchKind   String
+  matchValue  String
+  active      Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  household Household @relation(fields: [householdId], references: [id], onDelete: Cascade)
+
+  @@index([householdId])
 }
