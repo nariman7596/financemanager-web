@@ -51,3 +51,4 @@ export function buildReportCsv(d: ReportData): string {
   return serializeCsv(rows);
 }
 export * from "./compare";
+export * from "./week";

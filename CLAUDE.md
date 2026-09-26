@@ -10,7 +10,7 @@ the phase plan.
 
 ```
 apps/web            Next.js app (routes, server actions, React components)
-packages/core       THE DOMAIN — pure TS, no framework. 225 tests.
+packages/core       THE DOMAIN — pure TS, no framework. 234 tests.
 packages/i18n       locale config + en/fa dictionaries + createT. 9 tests.
 packages/config     shared tsconfig / tailwind preset / eslint
 ```
@@ -391,6 +391,18 @@ first week of a new month, else the current one (`lib/monthSummary.ts`), and
 the dashboard shows "<month> is over — see its summary" in that week if the
 month had any transactions. Linked from the Reports header. Reached nowhere
 else, so there is no nav item.
+**Weekly summary** (`/reports/week?w=<yyyy-mm-dd of the week's first day>`,
+`core/reports/week.ts`): the same comparison for one week — Saturday–Friday
+for fa, Monday–Sunday for en, counted on UTC days (transactions are dated at
+midnight UTC; date-fns' `startOfWeek` would follow the server's zone). Adds
+spending per day (plain CSS bars), the change in total worth over the week
+(`worthChange` on the net-worth series), weekly budgets and, for this week and
+the one just ended, bills due within seven days. "Today" is `localToday`. The
+week in progress is compared with the same days of the one before
+(`previousWindow` again). It opens on the week just ended during the first two
+days of a new week; the dashboard points at it on the week's last day and
+those two days, if the week had transactions. Linked from the Reports header.
+`CategoryComparison` is shared by both summaries.
 The reconcile gap buttons (`SettleGapButtons`) take two clicks: the first asks
 whether a transaction of that amount is simply missing, because folding a
 not-yet-entered purchase into the opening balance and then entering it counts

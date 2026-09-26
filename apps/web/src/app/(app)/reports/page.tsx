@@ -56,6 +56,9 @@ export default async function ReportsPage({
             <Link href="/reports/month" className="btn-primary">
               <CalendarDays size={16} /> {t("summary.link")}
             </Link>
+            <Link href="/reports/week" className="btn-ghost border border-[var(--border)]">
+              <CalendarDays size={16} /> {t("week.link")}
+            </Link>
             <a
               href={`/api/export/report?${rangeQuery}`}
               className="btn-ghost border border-[var(--border)]"
