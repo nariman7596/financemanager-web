@@ -10,7 +10,7 @@ the phase plan.
 
 ```
 apps/web            Next.js app (routes, server actions, React components)
-packages/core       THE DOMAIN — pure TS, no framework. 251 tests.
+packages/core       THE DOMAIN — pure TS, no framework. 257 tests.
 packages/i18n       locale config + en/fa dictionaries + createT. 9 tests.
 packages/config     shared tsconfig / tailwind preset / eslint
 ```
@@ -415,6 +415,20 @@ three's monthly average against the three before, kept when up ≥20% and by at
 least 2% of an average month's spending. **Unusual purchases** — the last 45
 days, ≥3× the category's median purchase and above its 90th percentile, both
 over the year before that purchase, and only with ≥5 purchases to judge by.
+**Year in review** (`/reports/year?y=<year>`, `core/reports/year.ts`,
+`lib/yearReport.ts`, CSV at `/api/export/year?y=`): a calendar year in the
+reader's calendar (1405 runs Nowruz to Nowruz; `monthWindows` builds the
+twelve months from `fromJalaliParts`, UTC midnights), linked from the Reports
+header. Income, expenses, net and savings rate against last year (a year in
+progress against the same stretch, `previousWindow` again), total worth
+from the day before the year began (or from the household's first recorded
+day, `since`), realized gains, month by month (bars on one scale for the
+year; phones get bare compact numbers), categories, the ten largest expenses
+and own holdings' gain since purchase — not "this year's return", which
+cannot be rebuilt. Opens on the year just ended in the first three weeks of a
+new one. The CSV starts with a BOM so Excel reads the Persian as UTF-8.
+`signedMoney` also takes `{ compact }` and prints a rounding crumb as a plain
+0, not a red "−0".
 The reconcile gap buttons (`SettleGapButtons`) take two clicks: the first asks
 whether a transaction of that amount is simply missing, because folding a
 not-yet-entered purchase into the opening balance and then entering it counts

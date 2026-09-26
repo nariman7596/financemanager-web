@@ -54,14 +54,15 @@ export function formatMoney(
  * digits are one left-to-right isolate: in a Persian line a bare "+" or "−"
  * otherwise drifts to the far side of the number, or past the currency word.
  */
-export function signedMoney(value: number, currency = "USD"): string {
+export function signedMoney(value: number, currency = "USD", opts: { compact?: boolean } = {}): string {
   const sign = value > 0 ? "+" : value < 0 ? "\u2212" : "";
-  const text = formatMoney(Math.abs(value), currency);
-  if (!sign) return text;
+  const text = formatMoney(Math.abs(value), currency, opts);
+  // Too small to show (a rounding crumb) is no gain or loss at all.
+  if (!sign || text === formatMoney(0, currency, opts)) return text;
   const LRI = "\u2066";
   const PDI = "\u2069";
   // The toman/rial word follows the number; other currencies lead with a symbol.
-  return /^[\d.,]/.test(text) ? text.replace(/^[\d.,]+/, (n) => LRI + sign + n + PDI) : LRI + sign + text + PDI;
+  return /^[\d.,]/.test(text) ? text.replace(/^[\d.,]+[KMBT]?/, (n) => LRI + sign + n + PDI) : LRI + sign + text + PDI;
 }
 
 /** Convert Prisma Decimal | number | string to a plain JS number. */

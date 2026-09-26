@@ -81,5 +81,7 @@ describe("signedMoney", () => {
     expect(signedMoney(1200, "IRT")).toBe("⁦+1,200⁩ تومان");
     expect(signedMoney(-3.5, "USD")).toBe("⁦−$3.50⁩");
     expect(signedMoney(0, "IRT")).toBe(formatMoney(0, "IRT"));
+    expect(signedMoney(11_246_000, "IRT", { compact: true })).toBe("\u2066+" + formatMoney(11_246_000, "IRT", { compact: true }).replace(" ", "\u2069 "));
+    expect(signedMoney(-0.3, "IRT")).toBe(formatMoney(0, "IRT")); // a rounding crumb, not a loss
   });
 });
