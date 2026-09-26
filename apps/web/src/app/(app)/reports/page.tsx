@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { CalendarDays, Download } from "lucide-react";
+import { CalendarDays, Download, Lightbulb } from "lucide-react";
 import { requireHousehold } from "@/lib/household";
 import {
   getBaseCurrency,
@@ -58,6 +58,9 @@ export default async function ReportsPage({
             </Link>
             <Link href="/reports/week" className="btn-ghost border border-[var(--border)]">
               <CalendarDays size={16} /> {t("week.link")}
+            </Link>
+            <Link href="/reports/insights" className="btn-ghost border border-[var(--border)]">
+              <Lightbulb size={16} /> {t("insights.link")}
             </Link>
             <a
               href={`/api/export/report?${rangeQuery}`}
