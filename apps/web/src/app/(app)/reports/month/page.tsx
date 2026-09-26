@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { ChevronLeft, ChevronRight, Inbox } from "lucide-react";
+import { ChevronLeft, ChevronRight, Inbox, TrendingUp } from "lucide-react";
 import { requireHousehold } from "@/lib/household";
 import { prisma } from "@/lib/prisma";
 import {
@@ -18,13 +18,14 @@ import {
   monthKeyToDate,
 } from "@financemanager/core/calendar";
 import { compareCategories, pctChange, previousWindow } from "@financemanager/core/reports";
-import { formatDate, formatMoney } from "@financemanager/core/money";
+import { formatDate, formatMoney, signedMoney } from "@financemanager/core/money";
 import { Topbar } from "@/components/Topbar";
 import { StatCard } from "@/components/StatCard";
 import { BudgetBar } from "@/components/BudgetBar";
 import { getT, getLocale } from "@/lib/i18n/server";
 import type { Locale } from "@financemanager/i18n/config";
 import { defaultSummaryMonth } from "@/lib/monthSummary";
+import { getRealized, realizedIn } from "@/lib/realized";
 import { CategoryComparison, pctFmt } from "@/components/CategoryComparison";
 
 export const dynamic = "force-dynamic";
@@ -67,7 +68,7 @@ export default async function MonthSummaryPage({
   const window = previousWindow(start, end, prevStart, prevEnd, now);
   const rangeEnd = window.partial ? now : end;
 
-  const [flow, prevFlow, categories, prevCategories, top, unreviewed, allBudgets] = await Promise.all([
+  const [flow, prevFlow, categories, prevCategories, top, unreviewed, allBudgets, sales] = await Promise.all([
     getFlowInRange(ctx.householdId, base, start, rangeEnd),
     getFlowInRange(ctx.householdId, base, window.start, window.end),
     getCategoryBreakdown(ctx.householdId, base, start, rangeEnd),
@@ -78,7 +79,10 @@ export default async function MonthSummaryPage({
     }),
     // Monthly budgets measured over this month (a date inside it picks it).
     getBudgetProgress(ctx.householdId, window.partial ? now : end, locale),
+    getRealized(ctx.householdId, base),
   ]);
+  // Sales are not income: what they earned is shown apart from the flow.
+  const realized = realizedIn(sales, start, end);
   const budgets = allBudgets.filter((b) => b.period === "MONTHLY");
 
   // Uncategorized rows come back under a fixed English name from the query.
@@ -129,6 +133,16 @@ export default async function MonthSummaryPage({
           hint={prevHasData ? t("summary.prevNet", { prev, amount: formatMoney(prevFlow.net, base) }) : undefined}
         />
       </section>
+
+      {realized.count > 0 && (
+        <Link href="/investments" className="flex flex-wrap items-center gap-2 mb-6 card px-4 py-3 text-sm row-hover">
+          <TrendingUp size={16} className="text-slate-400" />
+          <span>{t("realized.inMonth", { count: realized.count })}</span>
+          <span className={"ms-auto tabular-nums font-semibold " + (realized.gain >= 0 ? "text-green-600" : "text-red-600")}>
+            {signedMoney(realized.gain, base)}
+          </span>
+        </Link>
+      )}
 
       {unreviewed > 0 && (
         <Link

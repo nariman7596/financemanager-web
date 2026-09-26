@@ -3,7 +3,7 @@ import { RotateCcw, X } from "lucide-react";
 import { requireHousehold } from "@/lib/household";
 import { prisma } from "@/lib/prisma";
 import { formatMoney, formatDate, toNumber } from "@financemanager/core/money";
-import { canMakeRule, suggestCategory } from "@financemanager/core/sms";
+import { canMakeRule, suggestCategory, transferHistory } from "@financemanager/core/sms";
 import { Topbar } from "@/components/Topbar";
 import { DeleteButton } from "@/components/DeleteButton";
 import { SmsReviewForm } from "@/components/forms/SmsReviewForm";
@@ -25,7 +25,7 @@ export default async function ReviewPage() {
   const ctx = await requireHousehold();
   const canEdit = ctx.role !== "VIEWER";
 
-  const [pending, categories, accounts, failed, history] = await Promise.all([
+  const [pending, categories, accounts, failed, history, transfers] = await Promise.all([
     prisma.transaction.findMany({
       where: { householdId: ctx.householdId, needsReview: true },
       orderBy: [{ date: "desc" }, { createdAt: "desc" }],
@@ -52,9 +52,23 @@ export default async function ReviewPage() {
       take: 1000,
       select: { type: true, accountId: true, amount: true, currency: true, description: true, date: true, categoryId: true },
     }),
+    // SMS rows already filed as transfers (a broker payout, a loan
+    // instalment), so the next such SMS is offered the same transfer.
+    prisma.transaction.findMany({
+      where: { householdId: ctx.householdId, needsReview: false, origin: "SMS", type: "TRANSFER" },
+      orderBy: { date: "desc" },
+      take: 300,
+      select: { accountId: true, transferAccountId: true, amount: true, currency: true, description: true, date: true },
+    }),
   ]);
 
-  const learned = history.map((h) => ({ ...h, amount: toNumber(h.amount), categoryId: h.categoryId! }));
+  const learned = [
+    ...history.map((h) => ({ ...h, amount: toNumber(h.amount), categoryId: h.categoryId! })),
+    ...transferHistory(
+      transfers.map((h) => ({ ...h, amount: toNumber(h.amount) })),
+      new Set(accounts.filter((a) => a.smsMatch).map((a) => a.id)),
+    ),
+  ];
   const liveCategories = new Set(categories.map((c) => c.id));
   const suggestionFor = (txn: (typeof pending)[number]) => {
     const s = suggestCategory(
@@ -68,8 +82,14 @@ export default async function ReviewPage() {
       },
       learned,
     );
-    // An archived category is not in the select; don't point at it.
-    return s && liveCategories.has(s.categoryId) ? s.categoryId : null;
+    if (!s) return null;
+    // Only what the select offers for this row: a live category, or a
+    // transfer to another account in the same currency.
+    if (s.categoryId.startsWith("transfer:")) {
+      const other = accounts.find((a) => `transfer:${a.id}` === s.categoryId);
+      return other && other.id !== txn.accountId && other.currency === txn.currency ? s.categoryId : null;
+    }
+    return liveCategories.has(s.categoryId) ? s.categoryId : null;
   };
 
   return (

@@ -7,7 +7,9 @@ import { investmentSchema } from "@financemanager/core/validation";
 import { toNumber } from "@financemanager/core/money";
 import { refreshIranPrices } from "@/lib/iranMarket";
 import { refreshTgjuPrices } from "@/lib/tgju";
-import { tgjuItem } from "@financemanager/core/market";
+import { realizedPart, tgjuItem } from "@financemanager/core/market";
+import { localToday } from "@/lib/bills";
+import { getLocale } from "@/lib/i18n/server";
 import { isAssetClass } from "@financemanager/core/allocation";
 
 /**
@@ -133,12 +135,35 @@ export async function sellInvestment(formData: FormData) {
   const sold = Number(formData.get("quantity"));
   if (!Number.isFinite(sold) || sold <= 0) return { error: "Invalid quantity" };
 
+  // Price per unit; blank means today's price, and the sale is then estimated.
+  const priceRaw = String(formData.get("price") ?? "").trim();
+  const typed = priceRaw === "" ? null : Number(priceRaw);
+  if (typed !== null && (!Number.isFinite(typed) || typed < 0)) return { error: "Invalid price" };
+
   const h = await prisma.investment.findFirst({
     where: { id, householdId: ctx.householdId },
-    select: { quantity: true, costBasis: true },
+    select: { quantity: true, costBasis: true, currentPrice: true, currency: true, symbol: true, name: true, heldForId: true },
   });
   if (!h) return { error: "Not found" };
   const qty = toNumber(h.quantity);
+  // A sale of the household's own holding is a realized gain; one kept for
+  // someone else earns for them.
+  const r = h.heldForId ? null : realizedPart({ quantity: qty, cost: toNumber(h.costBasis) }, sold, typed ?? toNumber(h.currentPrice), h.currency);
+  if (r) {
+    await prisma.realizedGain.create({
+      data: {
+        ...r,
+        symbol: h.symbol,
+        name: h.name,
+        currency: h.currency,
+        soldAt: localToday(await getLocale()),
+        source: "MANUAL",
+        estimated: typed === null,
+        householdId: ctx.householdId,
+        createdById: ctx.userId,
+      },
+    });
+  }
   // A hair over the holding (a typed-in rounding) sells all of it.
   if (sold >= qty * (1 - 1e-9)) {
     await prisma.investment.delete({ where: { id } });

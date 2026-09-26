@@ -6,7 +6,7 @@ import { getFxAsOf } from "@/lib/marketdata";
 import { getMarketQuotes } from "@/lib/iranMarket";
 import { prisma } from "@/lib/prisma";
 import { cn } from "@/lib/utils";
-import { formatMoney, formatDate } from "@financemanager/core/money";
+import { formatMoney, formatDate, signedMoney } from "@financemanager/core/money";
 import { Topbar } from "@/components/Topbar";
 import { Modal } from "@/components/Modal";
 import { StatCard } from "@/components/StatCard";
@@ -22,6 +22,13 @@ import { BrokerImportForm } from "@/components/forms/BrokerImportForm";
 import { walletAddresses } from "@/lib/wallets";
 import { TGJU_ITEMS } from "@financemanager/core/market";
 import { getT, getLocale } from "@/lib/i18n/server";
+import { getRealized, realizedIn, type RealizedRow } from "@/lib/realized";
+import { localToday } from "@/lib/bills";
+import { RealizedForm } from "@/components/forms/RealizedForm";
+import { deleteRealized } from "@/app/actions/realized";
+import { startOfMonthIn, endOfMonthIn, startOfYearIn, endOfYearIn } from "@financemanager/core/calendar";
+import type { TFunc } from "@financemanager/i18n/translate";
+import type { Locale } from "@financemanager/i18n/config";
 
 export const dynamic = "force-dynamic";
 
@@ -41,6 +48,7 @@ export default async function InvestmentsPage() {
     getMarketQuotes(),
     prisma.wallet.findMany({ where: { householdId: ctx.householdId }, orderBy: { createdAt: "asc" } }),
   ]);
+  const realized = await getRealized(ctx.householdId, base);
 
   // Totals are the household's own; what is kept for others is theirs.
   const mine = holdings.filter((h) => !h.heldForId);
@@ -277,7 +285,7 @@ export default async function InvestmentsPage() {
                           </button>
                         }
                       >
-                        <SellInvestmentForm id={h.id} symbol={h.symbol} quantity={h.quantity} heldForName={h.heldFor?.name ?? null} />
+                        <SellInvestmentForm id={h.id} symbol={h.symbol} quantity={h.quantity} heldForName={h.heldFor?.name ?? null} currentPrice={h.currentPrice} currency={h.currency} />
                       </Modal>}
                       <Modal
                         title={t("inv.edit", { symbol: h.symbol })}
@@ -315,6 +323,82 @@ export default async function InvestmentsPage() {
           </div>
         </div>
       )}
+
+      {realized.length > 0 && <RealizedCard rows={realized} base={base} t={t} locale={locale} />}
     </>
+  );
+}
+
+/** "۱۴۰۵" / "2026": the year of `date` in the reader's calendar. */
+function yearIn(date: Date, locale: Locale): string {
+  const tag = locale === "fa" ? "fa-IR-u-ca-persian" : "en-US";
+  return new Intl.DateTimeFormat(tag, { year: "numeric", timeZone: "UTC" }).format(date);
+}
+
+/**
+ * What sales actually earned: this month and this year in the reader's
+ * calendar, then each sale — estimated ones (from a broker export) marked,
+ * with the pencil to put in what the broker paid.
+ */
+function RealizedCard({ rows, base, t, locale }: { rows: RealizedRow[]; base: string; t: TFunc; locale: Locale }) {
+  const today = localToday(locale);
+  const month = realizedIn(rows, startOfMonthIn(today, locale), endOfMonthIn(today, locale));
+  const year = realizedIn(rows, startOfYearIn(today, locale), endOfYearIn(today, locale));
+  const tone = (n: number) => (n > 0 ? "text-green-600" : n < 0 ? "text-red-600" : "text-slate-400");
+  return (
+    <div className="card p-4 mt-6">
+      <div className="flex flex-wrap items-baseline justify-between gap-x-6 gap-y-1 mb-3">
+        <h2 className="text-sm font-semibold">{t("realized.title")}</h2>
+        <div className="flex flex-wrap gap-x-6 gap-y-1 text-sm">
+          <span>
+            <span className="text-slate-400">{t("realized.thisMonth")}</span>{" "}
+            <span className={cn("tabular-nums font-semibold", tone(month.gain))}>{signedMoney(month.gain, base)}</span>
+          </span>
+          <span>
+            <span className="text-slate-400">{t("realized.thisYear", { year: yearIn(today, locale) })}</span>{" "}
+            <span className={cn("tabular-nums font-semibold", tone(year.gain))}>{signedMoney(year.gain, base)}</span>
+          </span>
+        </div>
+      </div>
+      <ul className="divide-y divide-[var(--border)] text-sm">
+        {rows.slice(0, 30).map((r) => (
+          <li key={r.id} className="flex flex-wrap items-center gap-x-4 gap-y-1 py-2">
+            <div className="min-w-0 flex-1">
+              <p className="font-medium">
+                <bdi>{r.symbol}</bdi>
+                {r.estimated && <span className="badge ms-2 bg-amber-50 text-amber-800 dark:bg-amber-500/10 dark:text-amber-200">{t("realized.estimated")}</span>}
+              </p>
+              {/* Separate spans, not " · ": a middle dot beside a Persian digit reads as ۰. */}
+              <p className="text-xs text-slate-400 flex flex-wrap gap-x-2">
+                <span>{formatDate(r.soldAt, locale)}</span>
+                <span aria-hidden className="text-slate-300">|</span>
+                <span>{t("realized.line", { quantity: r.quantity.toLocaleString("en-US"), proceeds: formatMoney(r.proceeds, r.currency), cost: formatMoney(r.cost, r.currency) })}</span>
+              </p>
+            </div>
+            <span className={cn("inline-flex items-baseline gap-1.5 tabular-nums font-medium", tone(r.gain))}>
+              {signedMoney(r.gain, r.currency)}
+              {r.cost > 0 && (
+                <span className="text-xs" dir="ltr">
+                  ({((r.gain / r.cost) * 100).toFixed(1)}%)
+                </span>
+              )}
+            </span>
+            <div className="flex items-center">
+              <Modal
+                title={t("realized.edit", { symbol: r.symbol })}
+                trigger={
+                  <button className="btn-ghost p-1.5 text-slate-400 hover:text-[var(--text)]" aria-label={t("realized.edit", { symbol: r.symbol })} title={t("realized.edit", { symbol: r.symbol })}>
+                    <Pencil size={16} />
+                  </button>
+                }
+              >
+                <RealizedForm id={r.id} proceeds={r.proceeds} soldAt={r.soldAt.toISOString().slice(0, 10)} currency={r.currency} estimated={r.estimated} />
+              </Modal>
+              <DeleteButton action={deleteRealized} id={r.id} label={t("realized.delete")} />
+            </div>
+          </li>
+        ))}
+      </ul>
+    </div>
   );
 }

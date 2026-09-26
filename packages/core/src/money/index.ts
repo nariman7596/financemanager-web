@@ -49,6 +49,21 @@ export function formatMoney(
   }
 }
 
+/**
+ * A gain or loss with its sign, "+1,200 تومان" / "−$3.50". The sign and
+ * digits are one left-to-right isolate: in a Persian line a bare "+" or "−"
+ * otherwise drifts to the far side of the number, or past the currency word.
+ */
+export function signedMoney(value: number, currency = "USD"): string {
+  const sign = value > 0 ? "+" : value < 0 ? "\u2212" : "";
+  const text = formatMoney(Math.abs(value), currency);
+  if (!sign) return text;
+  const LRI = "\u2066";
+  const PDI = "\u2069";
+  // The toman/rial word follows the number; other currencies lead with a symbol.
+  return /^[\d.,]/.test(text) ? text.replace(/^[\d.,]+/, (n) => LRI + sign + n + PDI) : LRI + sign + text + PDI;
+}
+
 /** Convert Prisma Decimal | number | string to a plain JS number. */
 export function toNumber(value: unknown): number {
   if (value == null) return 0;

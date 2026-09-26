@@ -71,6 +71,7 @@ model Household {
   netWorthSnapshots NetWorthSnapshot[]
   wallets           Wallet[]
   bills             Bill[]
+  realizedGains     RealizedGain[]
 }
 
 // Links a user to a household with a role.
@@ -321,6 +322,30 @@ model Investment {
 
   @@unique([walletId, walletAsset])
   @@index([householdId])
+}
+
+// A sale: what it earned against what the sold part cost (core/market
+// realized.ts). Recorded when a holding is sold by hand, or when a broker
+// export shows fewer shares than the last one — then priced at that day's
+// close and `estimated` until the owner enters what the broker paid.
+model RealizedGain {
+  id          String   @id @default(cuid())
+  householdId String
+  createdById String?
+  symbol      String
+  name        String
+  quantity    Decimal
+  proceeds    Decimal
+  cost        Decimal
+  currency    String
+  soldAt      DateTime
+  source      String // BROKER | MANUAL
+  estimated   Boolean  @default(false)
+  createdAt   DateTime @default(now())
+
+  household Household @relation(fields: [householdId], references: [id], onDelete: Cascade)
+
+  @@index([householdId, soldAt])
 }
 
 // A self-custody wallet followed read-only: public addresses only — never a

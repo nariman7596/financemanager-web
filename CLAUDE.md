@@ -10,7 +10,7 @@ the phase plan.
 
 ```
 apps/web            Next.js app (routes, server actions, React components)
-packages/core       THE DOMAIN — pure TS, no framework. 234 tests.
+packages/core       THE DOMAIN — pure TS, no framework. 245 tests.
 packages/i18n       locale config + en/fa dictionaries + createT. 9 tests.
 packages/config     shared tsconfig / tailwind preset / eslint
 ```
@@ -495,6 +495,29 @@ the broker values at (checked: فارس 12,140 and زرفام 171,159 rial, as i
 export); `real_close_price` is the last trade. Calls are spaced 400 ms; a
 symbol that fails keeps its price.
 Additive migration `20260926090000_price_source`.
+
+**Realized gains** (`RealizedGain`, `core/market/realized.ts`, `lib/realized.ts`):
+a sale's proceeds against the cost of the part sold (average cost, as the
+broker measures it). Recorded two ways: selling by hand on /investments (the
+Sell form takes an optional price per unit; blank = today's price, marked
+`estimated`), and a **broker re-import** showing fewer shares than the last
+one — the export lists holdings, not trades, so the drop is priced at the
+file's closing price (the last known price for a symbol that vanished) and
+marked estimated until the owner types in what the broker actually paid
+(pencil on the "Realized gains" card, which also fixes the date). Holdings
+kept for others record nothing — their gains are theirs. The card shows this
+month and this Jalali year; the monthly summary shows the month's realized
+gain apart from income (a sale is not income, and the cash already arrived
+as a transfer from the broker account). A rise in shares realizes nothing.
+Signed amounts go through `signedMoney` (core/money): sign + digits in an
+LRI…PDI isolate, else a Persian line pushes the "+" past the number.
+**Transfer suggestions in Review** (`transferHistory` in core/sms/suggest.ts):
+SMS rows already filed as a transfer (the broker's payout into Blu, a loan
+instalment) are history for `suggestCategory` with the choice
+`transfer:<other account>` and the SMS's original direction, so the next one
+is preselected the same way. The SMS side is the account with `smsMatch`; a
+transfer between two such accounts teaches nothing. Additive migration
+`20260926170000_realized_gains`.
 
 ## Self-custody wallets (`Wallet`, `core/wallets`, `lib/wallets.ts`)
 The owner's Tangem card (any wallet works) is followed **read-only by its

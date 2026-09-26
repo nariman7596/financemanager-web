@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { parseSmsOtp, suggestCategory, type SuggestHistoryItem } from "./index";
+import { parseSmsOtp, suggestCategory, transferHistory, type SuggestHistoryItem } from "./index";
 
 const D = (iso: string) => new Date(iso + "T00:00:00Z");
 
@@ -83,5 +83,41 @@ describe("parseSmsOtp", () => {
 
   it("is null for anything that is not an OTP", () => {
     expect(parseSmsOtp("بانک رفاه\nحساب405943623\nخرید19,060,000-\n06/31-21:38")).toBeNull();
+  });
+});
+
+describe("transferHistory", () => {
+  const d = (s: string) => new Date(s + "T00:00:00Z");
+  const bank = "bank";
+  const broker = "broker";
+  const sms = new Set([bank]);
+
+  it("learns a broker payout filed as a transfer, and suggests it next time", () => {
+    const history = transferHistory(
+      [{ accountId: broker, transferAccountId: bank, amount: 100_000_000, currency: "IRT", description: "واریز پایا کارگزاری مفید", date: d("2026-09-20") }],
+      sms,
+    );
+    expect(history).toEqual([
+      expect.objectContaining({ type: "INCOME", accountId: bank, categoryId: "transfer:broker" }),
+    ]);
+    const s = suggestCategory(
+      { type: "INCOME", accountId: bank, amount: 40_000_000, currency: "IRT", description: "واریز پایا کارگزاری مفید", date: d("2026-09-26") },
+      history,
+    );
+    expect(s?.categoryId).toBe("transfer:broker");
+  });
+
+  it("reads money out of the SMS account as a transfer to the other side", () => {
+    expect(
+      transferHistory([{ accountId: bank, transferAccountId: broker, amount: 5, currency: "IRT", description: null, date: d("2026-09-20") }], sms),
+    ).toEqual([expect.objectContaining({ type: "EXPENSE", accountId: bank, categoryId: "transfer:broker" })]);
+  });
+
+  it("skips transfers where either both or neither side receives SMS", () => {
+    const both = new Set([bank, broker]);
+    const row = { accountId: bank, transferAccountId: broker, amount: 5, currency: "IRT", description: null, date: d("2026-09-20") };
+    expect(transferHistory([row], both)).toEqual([]);
+    expect(transferHistory([row], new Set())).toEqual([]);
+    expect(transferHistory([{ ...row, transferAccountId: null }], sms)).toEqual([]);
   });
 });

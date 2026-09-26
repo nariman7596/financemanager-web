@@ -73,3 +73,34 @@ export function suggestCategory(
   const confidence = bestScore / total;
   return confidence >= 0.6 ? { categoryId: best, confidence } : null;
 }
+
+/**
+ * Earlier SMS rows the owner turned into transfers, as history for
+ * `suggestCategory`: the "category" is the review choice `transfer:<id>` of
+ * the other account, and the type is the direction the SMS had — money into
+ * the SMS account was a deposit. So the broker's next payout ("واریز از
+ * کارگزاری") is offered as a transfer from the broker, as the last one was.
+ *
+ * The SMS side is the account that receives SMS (`smsAccounts`); a transfer
+ * between two such accounts says nothing about which side the SMS was, and
+ * is left out.
+ */
+export function transferHistory(
+  rows: { accountId: string; transferAccountId: string | null; amount: number; currency: string; description: string | null; date: Date }[],
+  smsAccounts: Set<string>,
+): SuggestHistoryItem[] {
+  const out: SuggestHistoryItem[] = [];
+  for (const r of rows) {
+    if (!r.transferAccountId) continue;
+    const fromSms = smsAccounts.has(r.accountId);
+    const toSms = smsAccounts.has(r.transferAccountId);
+    if (fromSms === toSms) continue;
+    const base = { amount: r.amount, currency: r.currency, description: r.description, date: r.date };
+    out.push(
+      fromSms
+        ? { ...base, type: "EXPENSE", accountId: r.accountId, categoryId: `transfer:${r.transferAccountId}` }
+        : { ...base, type: "INCOME", accountId: r.transferAccountId, categoryId: `transfer:${r.accountId}` },
+    );
+  }
+  return out;
+}
