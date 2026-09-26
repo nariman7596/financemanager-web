@@ -10,7 +10,7 @@ the phase plan.
 
 ```
 apps/web            Next.js app (routes, server actions, React components)
-packages/core       THE DOMAIN — pure TS, no framework. 218 tests.
+packages/core       THE DOMAIN — pure TS, no framework. 225 tests.
 packages/i18n       locale config + en/fa dictionaries + createT. 9 tests.
 packages/config     shared tsconfig / tailwind preset / eslint
 ```
@@ -19,7 +19,7 @@ packages/config     shared tsconfig / tailwind preset / eslint
 in the browser, in Hermes and in tests. No `next/*`, no `react-native`, no Node
 built-ins, no Prisma. `packages/config/eslint/package.js` enforces this and the
 rule is verified to fire; `pnpm lint` fails the build if you reach for one.
-Subpaths: `@financemanager/core/{access,allocation,budgets,calendar,constants,csv,currency,
+Subpaths: `@financemanager/core/{access,allocation,bills,budgets,calendar,constants,csv,currency,
 date-range,goals,loans,market,money,networth,reconcile,reports,sms,validation,
 wallets}`.
 
@@ -612,6 +612,23 @@ also stores the day's value per class (`NetWorthSnapshot.classes`), drawn as a
 trend sits in `dir="ltr"` (RTL pushed the % ticks into the plot) with the tick
 text itself `direction: rtl` in Persian so "۲۹ شهریور" does not reverse.
 Additive migration `20260926120000_allocation`.
+
+## Bills & instalments (`/bills`, `core/bills`, `lib/bills.ts`)
+Monthly reminders (`Bill`): name, expected amount, due day of the month **in
+the reader's calendar** (Jalali for fa, clamped to the month's length), lead
+days, and how the payment is recognised — `LOAN` (a TRANSFER into that loan
+account), `DESCRIPTION` (the SMS description, stored `normalizeRuleMatch`-ed)
+or `CATEGORY` (an expense in it within 30% of the amount). `billStatus`: each
+due date owns the window [due−15, due+14] days (windows never overlap), paid
+= a matching payment in it up to today; else overdue / today / soon (≤ lead
+days) / later. "Today" is the Tehran day for fa (`localToday`), as
+transactions are dated by the local day. `suggestBills` proposes repeats from
+the last ~8 months: same loan or same specific description (generic kinds
+like "پرداخت قبض" never), ≥2 times, median gap 25–35 days, amounts within 25%,
+last within 45 days, not already a bill; "Not a bill" stores it as a paused
+bill so it is not proposed again. Dashboard shows a card only when something
+is overdue/today/soon, overdue with the hint to paste the SMS in Review.
+Additive migration `20260926150000_bills`.
 
 ## CSV import/export
 - Export: `GET /api/export/transactions` (session-authed) streams all the user's
