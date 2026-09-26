@@ -14,6 +14,8 @@ import { deleteCategoryRule, revokeSmsToken } from "@/app/actions/sms";
 import { formatDate } from "@financemanager/core/money";
 import { getT, getLocale } from "@/lib/i18n/server";
 import type { TFunc } from "@financemanager/i18n/translate";
+import { PushSettings } from "@/components/PushSettings";
+import { vapidKeys } from "@/lib/push";
 
 export const dynamic = "force-dynamic";
 
@@ -72,6 +74,11 @@ export default async function SettingsPage() {
           <div className="max-w-xs border border-[var(--border)] rounded-lg">
             <LanguageSwitcher />
           </div>
+        </div>
+
+        <div id="notifications" className="card p-6 scroll-mt-20">
+          <h2 className="font-semibold mb-2">{t("push.title")}</h2>
+          <PushSettings publicKey={(await vapidKeys()).publicKey} devices={await prisma.pushSubscription.count({ where: { userId: ctx.userId } })} />
         </div>
 
         {canEdit && (

@@ -1,13 +1,20 @@
 import type { Metadata } from "next";
 import "./globals.css";
-import { getLocale } from "@/lib/i18n/server";
+import { getLocale, getT } from "@/lib/i18n/server";
 import { dirFor } from "@financemanager/i18n/config";
 import { I18nProvider } from "@/lib/i18n/client";
 
-export const metadata: Metadata = {
-  title: "FinanceManager",
-  description: "Take full control of your income, spending and investments.",
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await getT();
+  return {
+    title: "FinanceManager",
+    description: "Take full control of your income, spending and investments.",
+    // Opened from the Home Screen, the app runs in its own window (needed for
+    // notifications on iOS).
+    appleWebApp: { capable: true, title: t("app.name"), statusBarStyle: "default" },
+    icons: { apple: "/pwa-icon/180", icon: "/pwa-icon/192" },
+  };
+}
 
 // Runs before paint to set the theme class, preventing a flash of the wrong
 // theme. Reads the saved preference, falling back to the OS setting.
