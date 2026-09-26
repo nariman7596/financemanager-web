@@ -429,5 +429,5 @@ export function splitSmsBatch(body: string): string[] {
     .filter((s) => s.length > 0);
 }
 
-export { suggestCategory, type SuggestHistoryItem, type SuggestTarget } from "./suggest";
+export { suggestCategory, transferHistory, type SuggestHistoryItem, type SuggestTarget } from "./suggest";
 export { canMakeRule, findRule, normalizeRuleMatch, type CategoryRuleLike } from "./rules";

@@ -21,7 +21,8 @@ export function BrokerImportForm() {
       if ("error" in res && res.error) {
         setMsg({ ok: false, text: res.error === "not-a-portfolio" ? t("broker.notPortfolio") : res.error });
       } else if ("ok" in res) {
-        setMsg({ ok: true, text: t("broker.done", { added: res.added ?? 0, updated: res.updated ?? 0, removed: res.removed ?? 0 }) });
+        const done = t("broker.done", { added: res.added ?? 0, updated: res.updated ?? 0, removed: res.removed ?? 0 });
+        setMsg({ ok: true, text: res.sold ? `${done} ${t("broker.sold", { count: res.sold })}` : done });
         router.refresh();
       }
     });

@@ -22,11 +22,15 @@ export function SellInvestmentForm({
   symbol,
   quantity,
   heldForName,
+  currentPrice,
+  currency,
 }: {
   id: string;
   symbol: string;
   quantity: number;
   heldForName: string | null;
+  currentPrice: number;
+  currency: string;
 }) {
   const close = useCloseModal();
   const t = useT();
@@ -47,6 +51,13 @@ export function SellInvestmentForm({
         <input name="quantity" type="number" step="any" min="0" max={quantity} required className="input" defaultValue={quantity} />
         <p className="text-xs text-slate-400 mt-1">{t("sell.have", { quantity: String(quantity), symbol })}</p>
       </div>
+      {!heldForName && (
+        <div>
+          <label className="label">{t("sell.price", { currency })}</label>
+          <input name="price" type="number" step="any" min="0" className="input" placeholder={String(currentPrice)} />
+          <p className="text-xs text-slate-400 mt-1">{t("sell.priceHint")}</p>
+        </div>
+      )}
       <p className="text-xs text-slate-400">
         {heldForName ? t("sell.moneyHeld", { name: heldForName }) : t("sell.money")}
       </p>

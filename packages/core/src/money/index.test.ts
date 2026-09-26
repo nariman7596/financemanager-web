@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { formatMoney, toNumber, formatDate, formatMonthName } from "./index";
+import { formatMoney, toNumber, formatDate, formatMonthName, signedMoney } from "./index";
 
 describe("formatMoney", () => {
   it("formats a normal ISO currency", () => {
@@ -73,5 +73,13 @@ describe("formatMonthName", () => {
   it("names the month in each calendar", () => {
     expect(formatMonthName(new Date("2026-08-12T00:00:00Z"), "en")).toBe("August");
     expect(formatMonthName(new Date("2026-08-12T00:00:00Z"), "fa")).toBe("مرداد");
+  });
+});
+
+describe("signedMoney", () => {
+  it("keeps the sign on the number, isolated left-to-right", () => {
+    expect(signedMoney(1200, "IRT")).toBe("⁦+1,200⁩ تومان");
+    expect(signedMoney(-3.5, "USD")).toBe("⁦−$3.50⁩");
+    expect(signedMoney(0, "IRT")).toBe(formatMoney(0, "IRT"));
   });
 });

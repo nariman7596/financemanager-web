@@ -5,7 +5,7 @@ const d = (s: string) => new Date(s + "T00:00:00Z");
 
 describe("weekStart", () => {
   it("starts a Persian week on Saturday and an English one on Monday", () => {
-    // 2026-09-26 is a Saturday (5 Mehr 1405).
+    // 2026-09-26 is a Saturday (4 Mehr 1405).
     expect(weekKey(weekStart(d("2026-09-26"), "fa"))).toBe("2026-09-26");
     expect(weekKey(weekStart(d("2026-10-02"), "fa"))).toBe("2026-09-26"); // Friday
     expect(weekKey(weekStart(d("2026-10-03"), "fa"))).toBe("2026-10-03");
