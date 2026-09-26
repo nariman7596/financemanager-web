@@ -52,3 +52,4 @@ export function buildReportCsv(d: ReportData): string {
 }
 export * from "./compare";
 export * from "./week";
+export * from "./year";
