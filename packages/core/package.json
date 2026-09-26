@@ -18,6 +18,7 @@
     "./market": "./src/market/index.ts",
     "./money": "./src/money/index.ts",
     "./networth": "./src/networth/index.ts",
+    "./insights": "./src/insights/index.ts",
     "./reconcile": "./src/reconcile/index.ts",
     "./reports": "./src/reports/index.ts",
     "./sms": "./src/sms/index.ts",

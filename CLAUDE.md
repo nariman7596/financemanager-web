@@ -10,7 +10,7 @@ the phase plan.
 
 ```
 apps/web            Next.js app (routes, server actions, React components)
-packages/core       THE DOMAIN — pure TS, no framework. 245 tests.
+packages/core       THE DOMAIN — pure TS, no framework. 251 tests.
 packages/i18n       locale config + en/fa dictionaries + createT. 9 tests.
 packages/config     shared tsconfig / tailwind preset / eslint
 ```
@@ -20,7 +20,7 @@ in the browser, in Hermes and in tests. No `next/*`, no `react-native`, no Node
 built-ins, no Prisma. `packages/config/eslint/package.js` enforces this and the
 rule is verified to fire; `pnpm lint` fails the build if you reach for one.
 Subpaths: `@financemanager/core/{access,allocation,bills,budgets,calendar,constants,csv,currency,
-date-range,goals,loans,market,money,networth,reconcile,reports,sms,validation,
+date-range,goals,insights,loans,market,money,networth,reconcile,reports,sms,validation,
 wallets}`.
 
 Both packages ship **TypeScript source, not a build artifact** — `apps/web`
@@ -403,6 +403,18 @@ week in progress is compared with the same days of the one before
 days of a new week; the dashboard points at it on the week's last day and
 those two days, if the week had transactions. Linked from the Reports header.
 `CategoryComparison` is shared by both summaries.
+**Spending insights** (`/reports/insights`, `core/insights`, `lib/insights.ts`),
+linked from the Reports header. Three sections, all in the base currency:
+**repeating expenses** — the same specific description (`canMakeRule`: generic
+bank kinds never) on ≥3 different days, a median gap of 5–9 days (weekly) or
+25–35 (monthly), each amount within 30% of the median, over the last eight
+months; cost per month and year, "stopped?" once the last is more than 1.5
+gaps old, and "remind me" → /bills for a monthly one not yet a bill.
+**Categories going up** — six full months in the reader's calendar, the last
+three's monthly average against the three before, kept when up ≥20% and by at
+least 2% of an average month's spending. **Unusual purchases** — the last 45
+days, ≥3× the category's median purchase and above its 90th percentile, both
+over the year before that purchase, and only with ≥5 purchases to judge by.
 The reconcile gap buttons (`SettleGapButtons`) take two clicks: the first asks
 whether a transaction of that amount is simply missing, because folding a
 not-yet-entered purchase into the opening balance and then entering it counts
