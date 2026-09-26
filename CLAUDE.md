@@ -10,7 +10,7 @@ the phase plan.
 
 ```
 apps/web            Next.js app (routes, server actions, React components)
-packages/core       THE DOMAIN — pure TS, no framework. 257 tests.
+packages/core       THE DOMAIN — pure TS, no framework. 261 tests.
 packages/i18n       locale config + en/fa dictionaries + createT. 9 tests.
 packages/config     shared tsconfig / tailwind preset / eslint
 ```
@@ -20,7 +20,7 @@ in the browser, in Hermes and in tests. No `next/*`, no `react-native`, no Node
 built-ins, no Prisma. `packages/config/eslint/package.js` enforces this and the
 rule is verified to fire; `pnpm lint` fails the build if you reach for one.
 Subpaths: `@financemanager/core/{access,allocation,bills,budgets,calendar,constants,csv,currency,
-date-range,goals,insights,loans,market,money,networth,reconcile,reports,sms,validation,
+date-range,goals,insights,loans,market,money,networth,notify,reconcile,reports,sms,validation,
 wallets}`.
 
 Both packages ship **TypeScript source, not a build artifact** — `apps/web`
@@ -690,6 +690,31 @@ last within 45 days, not already a bill; "Not a bill" stores it as a paused
 bill so it is not proposed again. Dashboard shows a card only when something
 is overdue/today/soon, overdue with the hint to paste the SMS in Review.
 Additive migration `20260926150000_bills`.
+
+## Notifications — Web Push (`lib/push.ts`, `core/notify`, `public/sw.js`)
+iOS (16.4+) delivers Web Push only to a site added to the Home Screen with a
+manifest, so the app now has one (`app/manifest.ts`, `display: standalone`,
+icons drawn by `app/pwa-icon/[size]` with `next/og`) plus `appleWebApp`
+metadata. The Home Screen app keeps its own cookies — the owner signs in
+once inside it. Settings → **Notifications** (`PushSettings`, `#notifications`)
+registers `sw.js`, asks permission from the tap (iOS refuses otherwise) and
+stores the subscription (`PushSubscription`, per user, endpoint unique); a
+Safari tab on an iPhone is told to add the app first. **Sending:** the
+`web-push` package; the VAPID key pair is generated on first use and kept in
+`AppSetting` (`push.vapid`), the subject is the first subscriber's https
+origin (`push.subject`, or `PUSH_SUBJECT`) — nothing to put in .env. A 404/410
+from the push service deletes the subscription. **What is sent:** the hourly
+`/api/cron/refresh` then runs `sendNotifications`: per household with a
+subscribed MEMBER+, `pickAlerts` (pure) takes bills overdue/today/soon,
+budgets watch/over and — from 20:00 — rows waiting for review, drops keys
+already in `NotificationLog` (`bill:<id>:<due>:<state>`,
+`budget:<id>:<period start>:<level>`, `review:<day>` — so each state is sent
+once), and is silent 23:00–08:00 (Tehran for fa). Several alerts fold into one
+notification per person in their language; keys are logged only after a
+delivery, so an outage retries next hour; log rows older than 120 days are
+pruned. A test button sends to the user's own devices. Verified end to end
+against a local HTTPS fake push service that decrypted the aes128gcm payload
+with the device key. Additive migration `20260926190000_push`.
 
 ## CSV import/export
 - Export: `GET /api/export/transactions` (session-authed) streams all the user's

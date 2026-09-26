@@ -39,6 +39,7 @@ model User {
 
   memberships Membership[]
   apiTokens   ApiToken[]
+  pushSubscriptions PushSubscription[]
 }
 
 // A shared financial space. A user working solo has a household of one.
@@ -72,6 +73,7 @@ model Household {
   wallets           Wallet[]
   bills             Bill[]
   realizedGains     RealizedGain[]
+  notificationLogs  NotificationLog[]
 }
 
 // Links a user to a household with a role.
@@ -568,4 +570,42 @@ model Bill {
   household Household @relation(fields: [householdId], references: [id], onDelete: Cascade)
 
   @@index([householdId])
+}
+
+// A device that asked for notifications (Web Push; on an iPhone, the app
+// added to the Home Screen). Belongs to the user: they get the alerts of
+// every household they are a member of.
+model PushSubscription {
+  id         String    @id @default(cuid())
+  userId     String
+  endpoint   String    @unique
+  p256dh     String
+  auth       String
+  userAgent  String?
+  createdAt  DateTime  @default(now())
+  lastSentAt DateTime?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+// Alerts already sent, so each is sent once: "bill:<id>:<due>:<state>",
+// "budget:<id>:<period start>:<level>", "review:<day>".
+model NotificationLog {
+  id          String   @id @default(cuid())
+  householdId String
+  key         String
+  sentAt      DateTime @default(now())
+
+  household Household @relation(fields: [householdId], references: [id], onDelete: Cascade)
+
+  @@unique([householdId, key])
+}
+
+// Small server-wide settings: the VAPID key pair notifications are signed
+// with, generated on first use so there is nothing to put in .env.
+model AppSetting {
+  key   String @id
+  value String
 }

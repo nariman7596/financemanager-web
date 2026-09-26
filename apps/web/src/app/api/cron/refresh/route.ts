@@ -1,5 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { refreshAll } from "@/lib/marketdata";
+import { sendNotifications } from "@/lib/push";
 
 // Scheduled market-data refresh endpoint.
 // Point a scheduler at this (Vercel Cron, GitHub Actions, system cron, …):
@@ -30,7 +31,10 @@ async function handle(req: NextRequest) {
     return NextResponse.json({ ok: false, error: "Unauthorized" }, { status: 401 });
   }
   const summary = await refreshAll();
-  return NextResponse.json({ ok: true, ...summary });
+  // Hourly is also when due bills, budgets and waiting reviews are pushed to
+  // subscribed phones; a failure there must not fail the refresh.
+  const notifications = await sendNotifications().catch((e: unknown) => ({ error: e instanceof Error ? e.message : "notify failed" }));
+  return NextResponse.json({ ok: true, ...summary, notifications });
 }
 
 export async function GET(req: NextRequest) {
