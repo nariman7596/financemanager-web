@@ -302,6 +302,7 @@ export default async function InvestmentsPage() {
                             purchaseDate: h.purchaseDate,
                             heldForId: h.heldForId,
                             priceSource: h.priceSource,
+                            allocClass: h.allocClass,
                           }}
                         />
                       </Modal>

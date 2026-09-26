@@ -6,6 +6,7 @@ import { createInvestment, updateInvestment } from "@/app/actions/investments";
 import { useCloseModal } from "@/components/Modal";
 import { INVESTMENT_TYPES, CURRENCIES } from "@financemanager/core/constants";
 import { TGJU_ITEMS } from "@financemanager/core/market";
+import { ASSET_CLASSES } from "@financemanager/core/allocation";
 import { useT } from "@/lib/i18n/client";
 import { DateField } from "@/components/DateField";
 
@@ -31,6 +32,7 @@ export type EditableInvestment = {
   purchaseDate: Date;
   heldForId: string | null;
   priceSource: string | null;
+  allocClass: string | null;
 };
 
 /**
@@ -164,6 +166,15 @@ export function InvestmentForm({
           required
           defaultValue={investment ? investment.purchaseDate.toISOString().slice(0, 10) : today}
         />
+      </div>
+      <div>
+        <label className="label">{t("invForm.allocClass")}</label>
+        <select name="allocClass" className="input" defaultValue={investment?.allocClass ?? ""}>
+          <option value="">{t("invForm.allocAuto")}</option>
+          {ASSET_CLASSES.map((c) => (
+            <option key={c} value={c}>{t("alloc." + c)}</option>
+          ))}
+        </select>
       </div>
       {people.length > 0 && (
         <div>

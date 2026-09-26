@@ -3,6 +3,8 @@ import { prisma } from "./prisma";
 import { loadRates } from "./currency";
 import { getBaseCurrency, getNetWorth } from "./queries";
 import { getMarketQuotes } from "./iranMarket";
+import { classValues } from "./allocation";
+import { allocate } from "@financemanager/core/allocation";
 import { convert } from "@financemanager/core/currency";
 import { toNumber } from "@financemanager/core/money";
 import { dayOf, netWorthSeries, sampleDays, type NetWorthPoint } from "@financemanager/core/networth";
@@ -31,10 +33,13 @@ export async function takeNetWorthSnapshots(householdId?: string, now = new Date
   for (const h of households) {
     const base = await getBaseCurrency(h.id);
     const w = await getNetWorth(h.id, base);
+    // The day's mix of assets, for the allocation trend.
+    const { items } = await classValues(h.id, base);
+    const classes = Object.fromEntries(allocate(items).rows.map((r) => [r.cls, Math.round(r.value)]));
     await prisma.netWorthSnapshot.upsert({
       where: { householdId_day: { householdId: h.id, day } },
-      create: { householdId: h.id, day, currency: base, cash: w.cash, investments: w.investments, usdRate: usdt },
-      update: { currency: base, cash: w.cash, investments: w.investments, usdRate: usdt },
+      create: { householdId: h.id, day, currency: base, cash: w.cash, investments: w.investments, usdRate: usdt, classes },
+      update: { currency: base, cash: w.cash, investments: w.investments, usdRate: usdt, classes },
     });
     n++;
   }
